@@ -9,6 +9,7 @@ Evidence-backed equity research for retail investors. CiteAlpha lets users ask c
 - Company filters, document toggles, text/file import, saved briefs, and copy-to-clipboard.
 - A valuation lens that flexes revenue CAGR, FCF margin, terminal multiple, and discount rate.
 - A signal map for growth, margin, and risk across the selected coverage universe.
+- Launch hero, pricing plans, and static waitlist capture for early feedback.
 - A 3D-style SVG brand mark in `assets/citealpha-logo.svg`.
 - Launch-ready metadata with favicon, web app manifest, and social preview artwork.
 
@@ -33,6 +34,10 @@ index.html
 ```
 
 No build step or server is required.
+
+## Waitlist capture
+
+The waitlist form posts to FormSubmit at `dhirajnyse@gmail.com` and also stores a local browser fallback. On the first live submission, FormSubmit sends an activation email to the destination address. Confirm that email once, then future waitlist submissions will arrive by email.
 
 ## Notes
 

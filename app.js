@@ -2,8 +2,11 @@
 
 const STORAGE_KEYS = {
   uploads: "citealpha-uploads-v1",
-  notes: "citealpha-notes-v1"
+  notes: "citealpha-notes-v1",
+  waitlist: "citealpha-waitlist-v1"
 };
+
+const WAITLIST_ENDPOINT = "https://formsubmit.co/ajax/dhirajnyse@gmail.com";
 
 const SAMPLE_COMPANIES = [
   {
@@ -386,6 +389,7 @@ const state = {
   selectedTicker: "NSCP",
   uploadedDocs: [],
   notes: [],
+  waitlistLeads: [],
   lastBrief: null,
   currentCitations: []
 };
@@ -398,6 +402,7 @@ function init() {
   cacheElements();
   state.uploadedDocs = loadJson(STORAGE_KEYS.uploads, []);
   state.notes = loadJson(STORAGE_KEYS.notes, []);
+  state.waitlistLeads = loadJson(STORAGE_KEYS.waitlist, []);
   state.documents = [...SAMPLE_DOCS, ...state.uploadedDocs];
   state.documents.forEach((doc) => state.enabledDocIds.add(doc.id));
   for (const doc of state.uploadedDocs) {
@@ -456,6 +461,11 @@ function cacheElements() {
   els.saveBrief = document.querySelector("#saveBrief");
   els.notebookList = document.querySelector("#notebookList");
   els.clearNotes = document.querySelector("#clearNotes");
+  els.waitlistForm = document.querySelector("#waitlistForm");
+  els.waitlistEmail = document.querySelector("#waitlistEmail");
+  els.waitlistProfile = document.querySelector("#waitlistProfile");
+  els.waitlistQuestion = document.querySelector("#waitlistQuestion");
+  els.waitlistResult = document.querySelector("#waitlistResult");
 }
 
 function bindEvents() {
@@ -553,6 +563,11 @@ function bindEvents() {
     state.notes = [];
     saveJson(STORAGE_KEYS.notes, state.notes);
     renderNotebook();
+  });
+
+  els.waitlistForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await submitWaitlistLead();
   });
 }
 
@@ -1291,6 +1306,74 @@ function saveCurrentBrief() {
   state.notes = [note, ...state.notes].slice(0, 10);
   saveJson(STORAGE_KEYS.notes, state.notes);
   renderNotebook();
+}
+
+async function submitWaitlistLead() {
+  const email = els.waitlistEmail.value.trim();
+  if (!email) {
+    els.waitlistEmail.focus();
+    return;
+  }
+  const lead = {
+    id: `lead-${Date.now()}`,
+    email,
+    profile: els.waitlistProfile.value,
+    question: els.waitlistQuestion.value.trim(),
+    date: new Date().toISOString()
+  };
+  state.waitlistLeads = [lead, ...state.waitlistLeads].slice(0, 50);
+  saveJson(STORAGE_KEYS.waitlist, state.waitlistLeads);
+
+  const summary = [
+    "CiteAlpha waitlist lead",
+    `Email: ${lead.email}`,
+    `Profile: ${lead.profile}`,
+    `Question: ${lead.question || "Not provided"}`,
+    `Date: ${new Date(lead.date).toLocaleString()}`
+  ].join("\n");
+
+  els.waitlistResult.classList.remove("is-success");
+  els.waitlistResult.textContent = "Joining the pilot list...";
+
+  try {
+    const payload = {
+      name: "CiteAlpha waitlist",
+      email: lead.email,
+      _replyto: lead.email,
+      profile: lead.profile,
+      question: lead.question || "Not provided",
+      source: window.location.href,
+      _subject: "New CiteAlpha waitlist lead",
+      _template: "table",
+      _captcha: "false"
+    };
+    const response = await fetch(WAITLIST_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      throw new Error(`Waitlist endpoint returned ${response.status}`);
+    }
+    els.waitlistResult.classList.add("is-success");
+    els.waitlistResult.textContent = "You are on the CiteAlpha pilot list. Check your inbox if this is the first activation email.";
+    els.waitlistEmail.value = "";
+    els.waitlistQuestion.value = "";
+  } catch (error) {
+    copyLeadSummary(summary);
+    els.waitlistResult.textContent = `Saved locally and copied for follow-up. If this is the first live submission, confirm the FormSubmit activation email and submit once more.`;
+  }
+}
+
+function copyLeadSummary(summary) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(summary).catch(() => fallbackCopy(summary));
+  } else {
+    fallbackCopy(summary);
+  }
 }
 
 async function processFiles(files) {

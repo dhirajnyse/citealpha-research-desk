@@ -62,7 +62,35 @@
         </div>
       </header>
 
-      <main class="terminal-layout">
+      <section class="launch-hero" aria-labelledby="launchTitle">
+        <div class="launch-copy">
+          <span class="launch-kicker">Retail research, institutional rhythm</span>
+          <h2 id="launchTitle">Ask filings. See the evidence.</h2>
+          <p>
+            CiteAlpha turns SEC filings, earnings calls, and valuation scenarios into cited, plain-English equity research briefs.
+          </p>
+          <div class="launch-actions">
+            <a class="primary-link" href="#desk">Try the research desk</a>
+            <a class="secondary-link" href="#waitlist">Join waitlist</a>
+          </div>
+        </div>
+        <div class="launch-proof" aria-label="Launch metrics">
+          <div>
+            <strong>$10-49</strong>
+            <span>target monthly plans</span>
+          </div>
+          <div>
+            <strong>7</strong>
+            <span>sample research sources</span>
+          </div>
+          <div>
+            <strong>0</strong>
+            <span>terminal required</span>
+          </div>
+        </div>
+      </section>
+
+      <main class="terminal-layout" id="desk">
         <aside class="left-rail" aria-label="Research setup">
           <section class="panel">
             <div class="panel-heading">
@@ -227,6 +255,76 @@
           </section>
         </aside>
       </main>
+
+      <section class="launch-section" aria-labelledby="pricingTitle" id="pricing">
+        <div class="section-heading">
+          <span>Pricing</span>
+          <h2 id="pricingTitle">Start light. Scale into a real research workflow.</h2>
+        </div>
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <span class="plan-label">Starter</span>
+            <h3>$10<span>/mo</span></h3>
+            <p>For individual investors testing cited filing analysis.</p>
+            <ul>
+              <li>Sample research desk</li>
+              <li>Limited document imports</li>
+              <li>Saved briefs</li>
+            </ul>
+          </article>
+          <article class="pricing-card is-featured">
+            <span class="plan-label">Pro</span>
+            <h3>$29<span>/mo</span></h3>
+            <p>For active investors comparing companies and scenarios.</p>
+            <ul>
+              <li>Expanded company library</li>
+              <li>Multi-document answer stack</li>
+              <li>Valuation scenario exports</li>
+            </ul>
+          </article>
+          <article class="pricing-card">
+            <span class="plan-label">Analyst</span>
+            <h3>$49<span>/mo</span></h3>
+            <p>For power users building repeatable research coverage.</p>
+            <ul>
+              <li>Alerts and watchlists</li>
+              <li>Priority filing refresh</li>
+              <li>Portfolio research queue</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section waitlist-section" aria-labelledby="waitlistTitle" id="waitlist">
+        <div class="section-heading">
+          <span>Waitlist</span>
+          <h2 id="waitlistTitle">Help shape the first real data release.</h2>
+        </div>
+        <form class="waitlist-form" id="waitlistForm" action="https://formsubmit.co/ajax/dhirajnyse@gmail.com" method="POST">
+          <input type="hidden" name="_subject" value="New CiteAlpha waitlist lead" />
+          <input type="hidden" name="_template" value="table" />
+          <input type="hidden" name="_captcha" value="false" />
+          <label>
+            <span>Email</span>
+            <input id="waitlistEmail" name="email" type="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            <span>Investor style</span>
+            <select id="waitlistProfile" name="profile">
+              <option>Retail investor</option>
+              <option>Active trader</option>
+              <option>Finance professional</option>
+              <option>Founder / operator</option>
+            </select>
+          </label>
+          <label class="wide-field">
+            <span>First ticker or question</span>
+            <input id="waitlistQuestion" name="question" type="text" placeholder="Example: NVDA margin durability after capex cycle" />
+          </label>
+          <button class="primary-button" type="submit">Join waitlist</button>
+        </form>
+        <div class="waitlist-result" id="waitlistResult" aria-live="polite"></div>
+      </section>
 
       <footer class="disclosure">
         Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
