@@ -450,6 +450,7 @@ function cacheElements() {
   els.queryForm = document.querySelector("#queryForm");
   els.queryInput = document.querySelector("#queryInput");
   els.scanFilingButton = document.querySelector("#scanFilingButton");
+  els.runAnalysisButton = document.querySelector("#runAnalysisButton");
   els.contextBand = document.querySelector("#contextBand");
   els.answerPanel = document.querySelector("#answerPanel");
   els.evidenceList = document.querySelector("#evidenceList");
@@ -485,7 +486,7 @@ function cacheElements() {
 function bindEvents() {
   els.queryForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    runAnalysis(els.queryInput.value.trim());
+    submitCurrentQuestion();
   });
 
   els.queryInput.addEventListener("input", () => {
@@ -493,6 +494,7 @@ function bindEvents() {
   });
 
   els.scanFilingButton.addEventListener("click", scanFilingFromCurrentQuestion);
+  els.runAnalysisButton.addEventListener("click", submitCurrentQuestion);
 
   document.querySelectorAll(".segment").forEach((button) => {
     button.addEventListener("click", () => {
@@ -589,6 +591,10 @@ function bindEvents() {
     event.preventDefault();
     await submitWaitlistLead();
   });
+}
+
+function submitCurrentQuestion() {
+  runAnalysis(els.queryInput.value.trim());
 }
 
 function renderTemplates() {
