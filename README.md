@@ -10,6 +10,7 @@ Evidence-backed equity research for retail investors. CiteAlpha lets users ask c
 - A valuation lens that flexes revenue CAGR, FCF margin, terminal multiple, and discount rate.
 - A signal map for growth, margin, and risk across the selected coverage universe.
 - A 3D-style SVG brand mark in `assets/citealpha-logo.svg`.
+- Launch-ready metadata with favicon, web app manifest, and social preview artwork.
 
 ## Product positioning
 
