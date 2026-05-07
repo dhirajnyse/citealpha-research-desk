@@ -748,6 +748,11 @@ textarea:focus {
   background: #263230;
 }
 
+.primary-button.is-running {
+  opacity: 0.82;
+  cursor: wait;
+}
+
 .primary-button.small {
   min-height: 38px;
 }
@@ -764,6 +769,12 @@ textarea:focus {
   place-content: center;
   text-align: center;
   padding: 30px;
+}
+
+.empty-state.is-analyzing {
+  background:
+    linear-gradient(90deg, rgba(20, 118, 111, 0.07), transparent),
+    #ffffff;
 }
 
 .empty-kicker,

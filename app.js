@@ -322,7 +322,7 @@ const INTENTS = [
   {
     id: "risk",
     label: "Risk factors",
-    terms: ["risk", "pressure", "headwind", "volatile", "delay", "concentration", "inflation", "control", "permitting"]
+    terms: ["risk", "risks", "factor", "factors", "pressure", "headwind", "volatile", "delay", "concentration", "inflation", "control", "permitting"]
   },
   {
     id: "rates",
@@ -401,7 +401,8 @@ const state = {
   notes: [],
   waitlistLeads: [],
   lastBrief: null,
-  currentCitations: []
+  currentCitations: [],
+  isRunning: false
 };
 
 const els = {};
@@ -410,6 +411,8 @@ document.addEventListener("DOMContentLoaded", init);
 
 function init() {
   cacheElements();
+  window.CiteAlphaRunAnalysis = submitCurrentQuestion;
+  window.CiteAlphaScanFiling = scanFilingFromCurrentQuestion;
   state.uploadedDocs = loadJson(STORAGE_KEYS.uploads, []);
   state.notes = loadJson(STORAGE_KEYS.notes, []);
   state.waitlistLeads = loadJson(STORAGE_KEYS.waitlist, []);
@@ -493,8 +496,14 @@ function bindEvents() {
     syncTickerFocus(els.queryInput.value);
   });
 
-  els.scanFilingButton.addEventListener("click", scanFilingFromCurrentQuestion);
-  els.runAnalysisButton.addEventListener("click", submitCurrentQuestion);
+  els.scanFilingButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    scanFilingFromCurrentQuestion();
+  });
+  els.runAnalysisButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    submitCurrentQuestion();
+  });
 
   document.querySelectorAll(".segment").forEach((button) => {
     button.addEventListener("click", () => {
@@ -594,7 +603,38 @@ function bindEvents() {
 }
 
 function submitCurrentQuestion() {
-  runAnalysis(els.queryInput.value.trim());
+  if (state.isRunning) return;
+  const question = els.queryInput.value.trim();
+  if (!question) {
+    els.queryInput.focus();
+    return;
+  }
+  state.isRunning = true;
+  showRunFeedback();
+  window.setTimeout(() => {
+    runAnalysis(question);
+    clearRunFeedback();
+  }, 180);
+}
+
+function showRunFeedback() {
+  if (!els.runAnalysisButton) return;
+  els.runAnalysisButton.textContent = "Analyzing...";
+  els.runAnalysisButton.classList.add("is-running");
+  els.answerPanel.innerHTML = `
+    <div class="empty-state is-analyzing">
+      <div class="empty-kicker">Analyzing</div>
+      <h2>Scanning retrieved filing and call evidence.</h2>
+      <p>Matching the question to source passages, ticker context, management tone, and valuation read-through.</p>
+    </div>
+  `;
+}
+
+function clearRunFeedback() {
+  state.isRunning = false;
+  if (!els.runAnalysisButton) return;
+  els.runAnalysisButton.textContent = "Run analysis";
+  els.runAnalysisButton.classList.remove("is-running");
 }
 
 function renderTemplates() {
@@ -1123,6 +1163,13 @@ function normalizeToken(token) {
 }
 
 function detectIntent(question) {
+  const lowerQuestion = String(question || "").toLowerCase();
+  if (/\b(risk|risks|risk factor|risk factors|headwind|headwinds|pressure points?)\b/.test(lowerQuestion)) {
+    return INTENTS.find((intent) => intent.id === "risk");
+  }
+  if (/\b(rate|rates|interest|financing|refinancing|discount rate|leverage)\b/.test(lowerQuestion)) {
+    return INTENTS.find((intent) => intent.id === "rates");
+  }
   const tokens = new Set(expandTokens(question));
   const scored = INTENTS.map((intent) => {
     const score = intent.terms.reduce((sum, term) => sum + (tokens.has(normalizeToken(term)) ? 1 : 0), 0);
