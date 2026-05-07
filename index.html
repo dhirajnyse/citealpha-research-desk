@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CiteAlpha | Evidence-Backed Equity Research</title>
+    <meta
+      name="description"
+      content="Evidence-backed equity research for asking complex questions across SEC filings, earnings calls, and valuation scenarios."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-mark" src="assets/citealpha-logo.svg" alt="" aria-hidden="true" />
+          <div>
+            <h1>CiteAlpha</h1>
+            <p>Evidence-backed equity research</p>
+          </div>
+        </div>
+        <div class="status-strip" aria-label="Research status">
+          <span class="status-pill is-live">Research desk ready</span>
+          <span class="status-pill">SEC filings</span>
+          <span class="status-pill">Earnings calls</span>
+          <span class="status-pill">Valuation lens</span>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="copyBrief" type="button" title="Copy current brief" aria-label="Copy current brief">
+            <span aria-hidden="true">Copy</span>
+          </button>
+          <button class="icon-button" id="saveBrief" type="button" title="Save current brief" aria-label="Save current brief">
+            <span aria-hidden="true">Save</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="terminal-layout">
+        <aside class="left-rail" aria-label="Research setup">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Question Templates</h2>
+              <span id="questionCount">6</span>
+            </div>
+            <div class="template-stack" id="templateStack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Coverage</h2>
+              <button class="text-button" id="selectAllTickers" type="button">All</button>
+            </div>
+            <div class="coverage-list" id="coverageList"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Library</h2>
+              <span id="documentCount">0 docs</span>
+            </div>
+            <div class="library-list" id="libraryList"></div>
+          </section>
+
+          <section class="panel upload-panel">
+            <div class="panel-heading">
+              <h2>Import</h2>
+              <button class="text-button danger" id="clearUploads" type="button">Clear uploads</button>
+            </div>
+            <label class="file-drop" for="fileInput">
+              <span class="file-drop-icon" aria-hidden="true">TXT</span>
+              <span>Drop in filing text, call transcript, MD&A extract, or model notes.</span>
+              <input id="fileInput" type="file" accept=".txt,.md,.csv,.html,.json" multiple />
+            </label>
+            <form class="paste-form" id="pasteForm">
+              <div class="field-row">
+                <label>
+                  <span>Ticker</span>
+                  <input id="pasteTicker" type="text" maxlength="8" value="CUSTOM" />
+                </label>
+                <label>
+                  <span>Type</span>
+                  <select id="pasteType">
+                    <option>10-K filing</option>
+                    <option>10-Q filing</option>
+                    <option>Earnings call</option>
+                    <option>Valuation model</option>
+                    <option>Research note</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                <span>Title</span>
+                <input id="pasteTitle" type="text" value="Imported company document" />
+              </label>
+              <label>
+                <span>Text</span>
+                <textarea id="pasteText" rows="4" placeholder="Paste filing or transcript text"></textarea>
+              </label>
+              <button class="primary-button small" type="submit">Add to corpus</button>
+            </form>
+          </section>
+        </aside>
+
+        <section class="workbench" aria-label="Research answer desk">
+          <section class="query-panel">
+            <div class="context-band" id="contextBand"></div>
+            <form id="queryForm" class="query-form">
+              <label for="queryInput">Ask the desk</label>
+              <textarea
+                id="queryInput"
+                rows="4"
+                placeholder="Example: Which company has the better margin durability if rates stay high?"
+              ></textarea>
+              <div class="query-actions">
+                <div class="segmented" role="group" aria-label="Answer depth">
+                  <button type="button" class="segment is-active" data-depth="brief">Brief</button>
+                  <button type="button" class="segment" data-depth="desk">Desk</button>
+                  <button type="button" class="segment" data-depth="committee">Committee</button>
+                </div>
+                <button class="primary-button" type="submit">Run analysis</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="answer-panel" id="answerPanel">
+            <div class="empty-state">
+              <div class="empty-kicker">Ready</div>
+              <h2>Ask across filings, calls, and imported notes.</h2>
+              <p>
+                The desk retrieves source passages, weighs management tone against filing disclosures, and drafts a cited answer with valuation read-through.
+              </p>
+            </div>
+          </section>
+
+          <section class="panel notebook-panel">
+            <div class="panel-heading">
+              <h2>Saved Briefs</h2>
+              <button class="text-button" id="clearNotes" type="button">Clear</button>
+            </div>
+            <div class="notebook-list" id="notebookList"></div>
+          </section>
+        </section>
+
+        <aside class="right-rail" aria-label="Evidence and valuation">
+          <section class="panel market-panel">
+            <div class="panel-heading">
+              <h2>Signal Map</h2>
+              <span id="signalStamp">Now</span>
+            </div>
+            <canvas id="signalCanvas" width="640" height="320" aria-label="Signal map"></canvas>
+            <div class="signal-legend">
+              <span><i class="legend-dot growth"></i> Growth</span>
+              <span><i class="legend-dot margin"></i> Margin</span>
+              <span><i class="legend-dot risk"></i> Risk</span>
+            </div>
+          </section>
+
+          <section class="panel valuation-panel">
+            <div class="panel-heading">
+              <h2>Valuation Lens</h2>
+              <select id="valuationTicker" aria-label="Valuation company"></select>
+            </div>
+            <div class="valuation-output">
+              <div>
+                <span>Implied value</span>
+                <strong id="valuePerShare">$0</strong>
+              </div>
+              <div>
+                <span>Equity value</span>
+                <strong id="equityValue">$0B</strong>
+              </div>
+            </div>
+            <div class="slider-grid">
+              <label>
+                <span>Revenue CAGR <b id="growthValue">0%</b></span>
+                <input id="growthSlider" type="range" min="-5" max="35" value="12" />
+              </label>
+              <label>
+                <span>FCF margin <b id="marginValue">0%</b></span>
+                <input id="marginSlider" type="range" min="0" max="35" value="16" />
+              </label>
+              <label>
+                <span>Terminal multiple <b id="multipleValue">0x</b></span>
+                <input id="multipleSlider" type="range" min="6" max="35" value="18" />
+              </label>
+              <label>
+                <span>Discount rate <b id="discountValue">0%</b></span>
+                <input id="discountSlider" type="range" min="6" max="16" value="10" />
+              </label>
+            </div>
+            <div class="valuation-footnote" id="valuationFootnote"></div>
+          </section>
+
+          <section class="panel evidence-panel">
+            <div class="panel-heading">
+              <h2>Evidence Stack</h2>
+              <span id="evidenceCount">0</span>
+            </div>
+            <div class="evidence-list" id="evidenceList"></div>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="disclosure">
+        Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

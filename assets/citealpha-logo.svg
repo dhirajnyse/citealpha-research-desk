@@ -1,0 +1,50 @@
+<svg width="720" height="720" viewBox="0 0 720 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CiteAlpha 3D logo</title>
+  <desc id="desc">A dimensional CA monogram for a cited investment research product.</desc>
+  <defs>
+    <linearGradient id="slab" x1="116" y1="98" x2="604" y2="632" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#192321"/>
+      <stop offset="0.52" stop-color="#101816"/>
+      <stop offset="1" stop-color="#263230"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="156" y1="520" x2="580" y2="612" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1010"/>
+      <stop offset="1" stop-color="#14766F"/>
+    </linearGradient>
+    <linearGradient id="face" x1="174" y1="156" x2="523" y2="516" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8FFFB"/>
+      <stop offset="0.44" stop-color="#63D7C9"/>
+      <stop offset="1" stop-color="#14766F"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="402" y1="175" x2="556" y2="510" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8C85F"/>
+      <stop offset="0.55" stop-color="#E58F2B"/>
+      <stop offset="1" stop-color="#AC6500"/>
+    </linearGradient>
+    <filter id="softShadow" x="44" y="60" width="650" height="660" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="30"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0.34 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="720" height="720" rx="156" fill="#EEF3F1"/>
+  <g filter="url(#softShadow)">
+    <path d="M145 119H531L607 195V585H221L145 509V119Z" fill="url(#edge)"/>
+    <path d="M145 119H531L607 195H221L145 119Z" fill="#32423F"/>
+    <path d="M221 195H607V585H221V195Z" fill="url(#slab)"/>
+    <path d="M145 119L221 195V585L145 509V119Z" fill="#0D1413"/>
+    <path d="M252 235H552V292H378C329 292 291 329 291 376C291 423 329 461 378 461H552V518H371C287 518 223 456 223 376C223 297 287 235 371 235H252Z" fill="#08100F"/>
+    <path d="M236 219H536V276H362C313 276 275 313 275 360C275 407 313 445 362 445H536V502H355C271 502 207 440 207 360C207 281 271 219 355 219H236Z" fill="url(#face)"/>
+    <path d="M456 219L582 502H515L494 450H383L362 502H297L421 219H456Z" fill="#090E0E"/>
+    <path d="M442 204L568 487H501L480 435H369L348 487H283L407 204H442Z" fill="url(#accent)"/>
+    <path d="M390 381H459L425 297L390 381Z" fill="#121817"/>
+    <path d="M236 219H536V251H358C326 251 298 265 279 288C300 244 342 219 398 219H536Z" fill="white" fill-opacity="0.28"/>
+    <path d="M407 204H442L568 487H533L421 236L317 487H283L407 204Z" fill="white" fill-opacity="0.18"/>
+    <path d="M221 195H607V230H221V195Z" fill="white" fill-opacity="0.05"/>
+  </g>
+</svg>
