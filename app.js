@@ -1748,21 +1748,7 @@ function exportPdfBrief() {
     flashButtonLabel(els.exportPdfBrief, "Run first");
     return;
   }
-  const printableHtml = buildPrintableBriefHtml();
-  const printWindow = window.open("", "_blank", "width=920,height=1100");
-  if (!printWindow) {
-    printCurrentPageFallback();
-    return;
-  }
-  printWindow.opener = null;
-  printWindow.document.open();
-  printWindow.document.write(printableHtml);
-  printWindow.document.close();
-  printWindow.setTimeout(() => {
-    printWindow.focus();
-    printWindow.print();
-  }, 300);
-  flashButtonLabel(els.exportPdfBrief, "Ready");
+  printCurrentPageFallback();
 }
 
 function downloadTextFile(filename, content, mimeType) {
