@@ -299,6 +299,14 @@
   min-height: 246px;
 }
 
+.pricing-section,
+.roadmap-section {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(620px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
 @media (min-width: 1280px) {
   .launch-hero,
   .launch-section {
@@ -309,6 +317,12 @@
 .section-heading {
   max-width: 720px;
   margin-bottom: 12px;
+}
+
+.pricing-section .section-heading,
+.roadmap-section .section-heading {
+  margin-bottom: 0;
+  align-self: start;
 }
 
 .section-heading h2 {
@@ -326,10 +340,11 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  align-self: stretch;
 }
 
 .pricing-card {
-  min-height: 164px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -477,10 +492,11 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+  align-self: stretch;
 }
 
 .roadmap-grid article {
-  min-height: 152px;
+  min-height: 0;
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -523,8 +539,15 @@
 
 @media (max-width: 1180px) {
   .launch-hero,
+  .pricing-section,
+  .roadmap-section,
   .waitlist-section {
     grid-template-columns: 1fr;
+  }
+
+  .pricing-section .section-heading,
+  .roadmap-section .section-heading {
+    margin-bottom: 12px;
   }
 
   .hero-insights {
