@@ -40,6 +40,8 @@ No build step or server is required.
 
 The waitlist form posts to FormSubmit at `dhirajnyse@gmail.com` and also stores a local browser fallback. On the first live submission, FormSubmit sends an activation email to the destination address. Confirm that email once, then future waitlist submissions will arrive by email.
 
+The form captures email, investor style, plan interest, top tickers, most valuable feature, and the first research question. Use these fields to prioritize the first real-data MVP workflow.
+
 ## Notes
 
 The bundled companies and documents are synthetic so the prototype is safe to evaluate offline. Import real filing text or call transcripts before using the workflow for live research. CiteAlpha is research software, not investment advice. The valuation panel is a scenario lens, not a price target.

@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260507-9" />
+    <link rel="manifest" href="site.webmanifest?v=20260507-10" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -34,8 +34,8 @@
       content="Evidence-backed equity research across SEC filings, earnings calls, and valuation scenarios."
     />
     <meta name="twitter:image" content="https://dhirajnyse.github.io/citealpha-research-desk/assets/citealpha-social-card.png" />
-    <link rel="stylesheet" href="styles.css?v=20260507-9" />
-    <link rel="stylesheet" href="launch.css?v=20260507-9" />
+    <link rel="stylesheet" href="styles.css?v=20260507-10" />
+    <link rel="stylesheet" href="launch.css?v=20260507-10" />
   </head>
   <body>
     <div class="app-shell">
@@ -346,6 +346,29 @@
               <option>Founder / operator</option>
             </select>
           </label>
+          <label>
+            <span>Plan interest</span>
+            <select id="waitlistPlan" name="plan">
+              <option>Pro - $29/month</option>
+              <option>Starter - $10/month</option>
+              <option>Analyst - $49/month</option>
+              <option>Not sure yet</option>
+            </select>
+          </label>
+          <label>
+            <span>Most valuable feature</span>
+            <select id="waitlistNeed" name="need">
+              <option>Cited SEC filing answers</option>
+              <option>Earnings call analysis</option>
+              <option>Multi-company comparison</option>
+              <option>Valuation model export</option>
+              <option>Watchlist alerts</option>
+            </select>
+          </label>
+          <label class="wide-field">
+            <span>Top tickers you follow</span>
+            <input id="waitlistTickers" name="tickers" type="text" placeholder="Example: NVDA, AAPL, TSLA" />
+          </label>
           <label class="wide-field">
             <span>First ticker or question</span>
             <input id="waitlistQuestion" name="question" type="text" placeholder="Example: NVDA margin durability after capex cycle" />
@@ -355,11 +378,41 @@
         <div class="waitlist-result" id="waitlistResult" aria-live="polite"></div>
       </section>
 
+      <section class="launch-section roadmap-section" aria-labelledby="roadmapTitle" id="roadmap">
+        <div class="section-heading">
+          <span>Roadmap</span>
+          <h2 id="roadmapTitle">From static demo to real research platform.</h2>
+          <p>The pilot is focused on proving one thing: retail investors will pay for cited answers they can verify.</p>
+        </div>
+        <div class="roadmap-grid">
+          <article>
+            <span>Now</span>
+            <h3>Interactive proof of concept</h3>
+            <p>Static research desk, sample filings, cited answer flow, valuation lens, and live waitlist capture.</p>
+          </article>
+          <article>
+            <span>Next</span>
+            <h3>Real document ingestion</h3>
+            <p>Upload real 10-Ks, 10-Qs, transcripts, and notes into a searchable evidence library.</p>
+          </article>
+          <article>
+            <span>MVP</span>
+            <h3>Accounts and saved coverage</h3>
+            <p>User login, persistent watchlists, saved briefs, company comparison, and exports.</p>
+          </article>
+          <article>
+            <span>Launch</span>
+            <h3>Subscription research desk</h3>
+            <p>SEC refresh jobs, alerts, Stripe plans, and richer model-backed answers for paying users.</p>
+          </article>
+        </div>
+      </section>
+
       <footer class="disclosure">
         Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
       </footer>
     </div>
 
-    <script src="app.js?v=20260507-9"></script>
+    <script src="app.js?v=20260507-10"></script>
   </body>
 </html>

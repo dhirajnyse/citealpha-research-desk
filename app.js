@@ -464,6 +464,9 @@ function cacheElements() {
   els.waitlistForm = document.querySelector("#waitlistForm");
   els.waitlistEmail = document.querySelector("#waitlistEmail");
   els.waitlistProfile = document.querySelector("#waitlistProfile");
+  els.waitlistPlan = document.querySelector("#waitlistPlan");
+  els.waitlistNeed = document.querySelector("#waitlistNeed");
+  els.waitlistTickers = document.querySelector("#waitlistTickers");
   els.waitlistQuestion = document.querySelector("#waitlistQuestion");
   els.waitlistResult = document.querySelector("#waitlistResult");
 }
@@ -1318,6 +1321,9 @@ async function submitWaitlistLead() {
     id: `lead-${Date.now()}`,
     email,
     profile: els.waitlistProfile.value,
+    plan: els.waitlistPlan.value,
+    need: els.waitlistNeed.value,
+    tickers: els.waitlistTickers.value.trim(),
     question: els.waitlistQuestion.value.trim(),
     date: new Date().toISOString()
   };
@@ -1328,6 +1334,9 @@ async function submitWaitlistLead() {
     "CiteAlpha waitlist lead",
     `Email: ${lead.email}`,
     `Profile: ${lead.profile}`,
+    `Plan: ${lead.plan}`,
+    `Need: ${lead.need}`,
+    `Tickers: ${lead.tickers || "Not provided"}`,
     `Question: ${lead.question || "Not provided"}`,
     `Date: ${new Date(lead.date).toLocaleString()}`
   ].join("\n");
@@ -1341,6 +1350,9 @@ async function submitWaitlistLead() {
       email: lead.email,
       _replyto: lead.email,
       profile: lead.profile,
+      plan: lead.plan,
+      need: lead.need,
+      tickers: lead.tickers || "Not provided",
       question: lead.question || "Not provided",
       source: window.location.href,
       _subject: "New CiteAlpha waitlist lead",
@@ -1361,6 +1373,7 @@ async function submitWaitlistLead() {
     els.waitlistResult.classList.add("is-success");
     els.waitlistResult.textContent = "You are on the CiteAlpha pilot list. Check your inbox if this is the first activation email.";
     els.waitlistEmail.value = "";
+    els.waitlistTickers.value = "";
     els.waitlistQuestion.value = "";
   } catch (error) {
     copyLeadSummary(summary);
