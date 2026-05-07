@@ -59,6 +59,13 @@ const SAMPLE_COMPANIES = [
   }
 ];
 
+const PUBLIC_TICKER_ALIASES = {
+  NVDA: { ticker: "NSCP", note: "NVDA-style AI accelerator proxy" },
+  AAPL: { ticker: "AURR", note: "AAPL-style consumer platform proxy" },
+  TSLA: { ticker: "HLGD", note: "TSLA-style growth and capex proxy" },
+  BTC: { ticker: "HLGD", note: "BTC-style volatility and rate-sensitivity proxy" }
+};
+
 const SAMPLE_DOCS = [
   {
     id: "nscp-10k-2025",
@@ -248,6 +255,7 @@ const SAMPLE_DOCS = [
 ];
 
 const QUESTION_TEMPLATES = [
+  "What are the risks for $NVDA?",
   "Which company has the better margin durability if rates stay high?",
   "Where does management sound less confident than the filing?",
   "Is Helios Grid's capex plan a free-cash-flow risk or a growth moat?",
@@ -387,6 +395,8 @@ const state = {
   enabledDocIds: new Set(),
   answerDepth: "brief",
   selectedTicker: "NSCP",
+  tickerFocus: null,
+  lastFocusKey: null,
   uploadedDocs: [],
   notes: [],
   waitlistLeads: [],
@@ -439,6 +449,7 @@ function cacheElements() {
   els.clearUploads = document.querySelector("#clearUploads");
   els.queryForm = document.querySelector("#queryForm");
   els.queryInput = document.querySelector("#queryInput");
+  els.scanFilingButton = document.querySelector("#scanFilingButton");
   els.contextBand = document.querySelector("#contextBand");
   els.answerPanel = document.querySelector("#answerPanel");
   els.evidenceList = document.querySelector("#evidenceList");
@@ -476,6 +487,12 @@ function bindEvents() {
     event.preventDefault();
     runAnalysis(els.queryInput.value.trim());
   });
+
+  els.queryInput.addEventListener("input", () => {
+    syncTickerFocus(els.queryInput.value);
+  });
+
+  els.scanFilingButton.addEventListener("click", scanFilingFromCurrentQuestion);
 
   document.querySelectorAll(".segment").forEach((button) => {
     button.addEventListener("click", () => {
@@ -662,9 +679,16 @@ function renderContextBand() {
     ? activeCompanies.reduce((sum, company) => sum + company.risk, 0) / activeCompanies.length
     : 0;
   const citationCount = state.currentCitations.length;
+  const focusTile = state.tickerFocus
+    ? {
+        label: "Ticker focus",
+        value: state.tickerFocus.rawTicker,
+        sub: state.tickerFocus.isAlias ? `${state.tickerFocus.ticker} demo proxy` : state.tickerFocus.company.name
+      }
+    : { label: "Active companies", value: activeCompanies.length, sub: activeCompanies.map((company) => company.ticker).join(", ") || "None" };
 
   const tiles = [
-    { label: "Active companies", value: activeCompanies.length, sub: activeCompanies.map((company) => company.ticker).join(", ") || "None" },
+    focusTile,
     { label: "Enabled docs", value: enabledDocs.length, sub: `${state.uploadedDocs.length} uploaded` },
     { label: "Avg op margin", value: `${averageMargin.toFixed(1)}%`, sub: "Selected coverage" },
     { label: "Risk index", value: Math.round(averageRisk), sub: citationCount ? `${citationCount} current citations` : "Pre-query baseline" }
@@ -687,12 +711,87 @@ function renderValuationOptions() {
   }).join("");
 }
 
+function scanFilingFromCurrentQuestion() {
+  const current = els.queryInput.value.trim();
+  const focus = syncTickerFocus(current) || state.tickerFocus || {
+    rawTicker: state.selectedTicker,
+    ticker: state.selectedTicker,
+    company: getCompany(state.selectedTicker),
+    isAlias: false,
+    note: ""
+  };
+  const tickerToken = focus.rawTicker || focus.ticker;
+  const filingPrompt = current
+    ? `${current} Scan the 10-K risk factors, MD&A, liquidity, and earnings-call tone.`
+    : `Scan the 10-K risk factors, MD&A, liquidity, and earnings-call tone for $${tickerToken}.`;
+  els.queryInput.value = filingPrompt;
+  runAnalysis(filingPrompt);
+}
+
+function syncTickerFocus(question) {
+  const focus = resolveTickerFocus(question);
+  if (!focus) return null;
+  const key = `${focus.rawTicker}->${focus.ticker}`;
+  if (key === state.lastFocusKey) return focus;
+
+  state.lastFocusKey = key;
+  state.tickerFocus = focus;
+  state.selectedTicker = focus.ticker;
+  state.activeTickers.add(focus.ticker);
+  renderCoverage();
+  renderContextBand();
+  renderValuationOptions();
+  updateValuationFromCompany();
+  updateValuation();
+  drawSignalMap();
+  return focus;
+}
+
+function resolveTickerFocus(question) {
+  const text = String(question || "");
+  const companies = getCompanies();
+  const tickerMatch = text.match(/\$([A-Z][A-Z0-9.]{0,7})\b/i);
+  const rawTicker = tickerMatch ? normalizeTicker(tickerMatch[1]) : "";
+  if (rawTicker) {
+    const direct = companies.find((company) => company.ticker.toUpperCase() === rawTicker);
+    if (direct) {
+      return { rawTicker, ticker: direct.ticker, company: direct, isAlias: false, note: "" };
+    }
+    const alias = PUBLIC_TICKER_ALIASES[rawTicker];
+    if (alias) {
+      const company = getCompany(alias.ticker);
+      return { rawTicker, ticker: company.ticker, company, isAlias: true, note: alias.note };
+    }
+  }
+
+  const lower = text.toLowerCase();
+  const directMention = companies.find((company) => {
+    return lower.includes(company.ticker.toLowerCase()) || lower.includes(company.name.toLowerCase());
+  });
+  if (!directMention) return null;
+  return {
+    rawTicker: directMention.ticker,
+    ticker: directMention.ticker,
+    company: directMention,
+    isAlias: false,
+    note: ""
+  };
+}
+
+function addTickerContext(question, focus) {
+  if (!focus) return question;
+  const aliasText = focus.isAlias ? `${focus.rawTicker} maps to ${focus.ticker} as a static demo proxy. ${focus.note}.` : "";
+  return `${question} ${focus.ticker} ${focus.company.name} ${aliasText}`;
+}
+
 function runAnalysis(question) {
   if (!question) {
     els.queryInput.focus();
     return;
   }
 
+  const tickerFocus = syncTickerFocus(question);
+  const retrievalQuestion = addTickerContext(question, tickerFocus);
   const docs = getEnabledDocs();
   if (!docs.length) {
     renderNoDocs(question);
@@ -700,7 +799,7 @@ function runAnalysis(question) {
   }
 
   const chunks = buildChunks(docs);
-  const ranked = rankChunks(question, chunks).slice(0, 8);
+  const ranked = rankChunks(retrievalQuestion, chunks).slice(0, 8);
   if (!ranked.length) {
     renderNoHits(question);
     return;
@@ -712,8 +811,8 @@ function runAnalysis(question) {
   }));
   state.currentCitations = citations;
 
-  const intent = detectIntent(question);
-  const answerModel = buildAnswerModel(question, citations, intent);
+  const intent = detectIntent(retrievalQuestion);
+  const answerModel = buildAnswerModel(question, citations, intent, tickerFocus);
   state.lastBrief = answerModel.plainText;
   renderAnswer(answerModel);
   renderEvidence(citations);
@@ -749,13 +848,15 @@ function renderNoHits(question) {
   renderContextBand();
 }
 
-function buildAnswerModel(question, citations, intent) {
+function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const compareMode = isCompareQuestion(question, citations);
   const grouped = groupCitationsByTicker(citations);
   const rankedCompanies = rankCompaniesForQuestion(question, grouped, intent);
   const confidence = computeConfidence(citations, rankedCompanies);
   const headline = makeHeadline(question, compareMode, rankedCompanies, intent);
   const thesis = makeThesis(compareMode, rankedCompanies, citations, intent);
+  const toneMeter = makeToneMeter(rankedCompanies, citations);
+  const focusNotice = makeTickerFocusNotice(tickerFocus);
   const evidenceBullets = citations.slice(0, state.answerDepth === "brief" ? 3 : 5).map((citation, index) => {
     return `<li>${makeEvidenceSentence(citation, intent)} ${citationLink(index)}</li>`;
   }).join("");
@@ -822,20 +923,73 @@ function buildAnswerModel(question, citations, intent) {
       </div>
     </div>
     <div class="answer-body">
+      ${focusNotice}
+      ${toneMeter.html}
       ${sections.join("")}
     </div>
   `;
 
   const plainText = [
     `${intent.label} | ${confidence}% confidence`,
+    `Management tone: ${toneMeter.label} (${toneMeter.percent}/100)`,
+    tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
     stripHtml(headline),
     stripHtml(thesis),
     "Evidence:",
     ...citations.slice(0, 5).map((citation, index) => `${index + 1}. ${citation.company} ${citation.type} ${citation.section}: ${snippet(citation.text, 240)}`),
     `Valuation read-through: ${stripHtml(valuationRead)}`
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
   return { html, plainText, citations, confidence, headline: stripHtml(headline) };
+}
+
+function makeToneMeter(rankedCompanies, citations) {
+  const score = rankedCompanies[0]
+    ? rankedCompanies[0].tone
+    : citations.reduce((sum, citation) => sum + toneScore(citation.text), 0) / Math.max(citations.length, 1);
+  const percent = Math.max(5, Math.min(95, Math.round(50 + score * 12)));
+  const label = percent >= 62 ? "Bullish" : percent <= 38 ? "Bearish" : "Balanced";
+  const cls = percent >= 62 ? "positive" : percent <= 38 ? "negative" : "mixed";
+  const evidenceCount = citations.filter((citation) => /call|management|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
+  const sourceText = evidenceCount
+    ? `${evidenceCount} management-commentary source${evidenceCount === 1 ? "" : "s"} pulled into the read.`
+    : "Tone inferred from the retrieved filing and model language.";
+
+  return {
+    label,
+    percent,
+    html: `
+      <section class="tone-meter-card ${cls}" aria-label="Management tone meter">
+        <div class="tone-meter-top">
+          <span>Management tone</span>
+          <strong>${escapeHtml(label)} ${percent}/100</strong>
+        </div>
+        <div class="tone-track" aria-hidden="true">
+          <i style="left: ${percent}%"></i>
+        </div>
+        <div class="tone-scale">
+          <span>Bearish</span>
+          <span>Balanced</span>
+          <span>Bullish</span>
+        </div>
+        <p>${escapeHtml(sourceText)}</p>
+      </section>
+    `
+  };
+}
+
+function makeTickerFocusNotice(focus) {
+  if (!focus) return "";
+  const aliasText = focus.isAlias
+    ? ` Static demo maps $${focus.rawTicker} to ${focus.ticker} (${focus.note}) until live market data is connected.`
+    : "";
+  return `
+    <section class="ticker-focus-card">
+      <span>Ticker focus</span>
+      <strong>${escapeHtml(focus.company.ticker)} - ${escapeHtml(focus.company.name)}</strong>
+      <p>${escapeHtml(focus.company.thesis || "Research context updated from the question input.")}${escapeHtml(aliasText)}</p>
+    </section>
+  `;
 }
 
 function renderAnswer(answerModel) {

@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260507-19" />
+    <link rel="manifest" href="site.webmanifest?v=20260507-20" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -34,8 +34,8 @@
       content="Evidence-backed equity research across SEC filings, earnings calls, and valuation scenarios."
     />
     <meta name="twitter:image" content="https://dhirajnyse.github.io/citealpha-research-desk/assets/citealpha-social-card.png" />
-    <link rel="stylesheet" href="styles.css?v=20260507-19" />
-    <link rel="stylesheet" href="launch.css?v=20260507-19" />
+    <link rel="stylesheet" href="styles.css?v=20260507-20" />
+    <link rel="stylesheet" href="launch.css?v=20260507-20" />
   </head>
   <body>
     <div class="app-shell">
@@ -204,7 +204,10 @@
                   <button type="button" class="segment" data-depth="desk">Desk</button>
                   <button type="button" class="segment" data-depth="committee">Committee</button>
                 </div>
-                <button class="primary-button" type="submit">Run analysis</button>
+                <div class="query-run-actions">
+                  <button class="secondary-button scan-button" id="scanFilingButton" type="button">Scan filing</button>
+                  <button class="primary-button" type="submit">Run analysis</button>
+                </div>
               </div>
             </form>
           </section>
@@ -427,6 +430,6 @@
       </footer>
     </div>
 
-    <script src="app.js?v=20260507-19"></script>
+    <script src="app.js?v=20260507-20"></script>
   </body>
 </html>

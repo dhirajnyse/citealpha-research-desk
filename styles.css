@@ -434,6 +434,7 @@ button {
 .template-button,
 .source-toggle,
 .company-row,
+.secondary-button,
 .primary-button {
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -720,6 +721,29 @@ textarea:focus {
   font-weight: 900;
 }
 
+.secondary-button {
+  min-height: 42px;
+  padding: 0 14px;
+  color: var(--teal);
+  border-color: rgba(20, 118, 111, 0.28);
+  background: var(--teal-soft);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.secondary-button:hover {
+  border-color: rgba(20, 118, 111, 0.46);
+  background: #eef8f6;
+}
+
+.query-run-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .primary-button:hover {
   background: #263230;
 }
@@ -813,6 +837,82 @@ textarea:focus {
   display: grid;
   gap: 14px;
   padding-top: 16px;
+}
+
+.ticker-focus-card,
+.tone-meter-card {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.ticker-focus-card span,
+.tone-meter-top span {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ticker-focus-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.ticker-focus-card p,
+.tone-meter-card p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tone-meter-card {
+  display: grid;
+  gap: 8px;
+}
+
+.tone-meter-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.tone-meter-top strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.tone-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--red), var(--amber), var(--green));
+  overflow: hidden;
+}
+
+.tone-track i {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: var(--ink);
+  box-shadow: 0 3px 8px rgba(18, 24, 23, 0.24);
+  transform: translate(-50%, -50%);
+}
+
+.tone-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .answer-section {
@@ -1207,8 +1307,19 @@ input[type="range"] {
   }
 
   .segmented,
+  .query-run-actions,
+  .secondary-button,
   .primary-button {
     width: 100%;
+  }
+
+  .query-run-actions {
+    justify-content: stretch;
+  }
+
+  .tone-meter-top {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .answer-header {
