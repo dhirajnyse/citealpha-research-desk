@@ -483,6 +483,29 @@ button {
   background: #fbfcfc;
 }
 
+.demo-proxy-note {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(20, 118, 111, 0.24);
+  border-radius: 8px;
+  background: var(--teal-soft);
+}
+
+.demo-proxy-note strong {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.demo-proxy-note span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .company-row,
 .source-toggle {
   width: 100%;
@@ -955,6 +978,88 @@ textarea:focus {
 .answer-section li {
   margin: 7px 0;
   line-height: 1.45;
+}
+
+.risk-factor-section {
+  background: linear-gradient(180deg, #ffffff, var(--panel-strong));
+}
+
+.risk-factor-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: riskFactors;
+}
+
+.risk-factor-list li {
+  counter-increment: riskFactors;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.risk-factor-list li::before {
+  content: "R" counter(riskFactors);
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 8px;
+  border: 1px solid rgba(179, 38, 30, 0.22);
+  border-radius: 999px;
+  color: var(--red);
+  background: var(--red-soft);
+  font-size: 11px;
+  font-weight: 900;
+  vertical-align: top;
+}
+
+.risk-factor-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 40px);
+  vertical-align: top;
+}
+
+.risk-factor-top strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.risk-severity {
+  flex: 0 0 auto;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.risk-severity.high {
+  color: var(--red);
+  background: var(--red-soft);
+  border: 1px solid rgba(179, 38, 30, 0.22);
+}
+
+.risk-severity.medium {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid rgba(172, 101, 0, 0.22);
+}
+
+.risk-factor-list p {
+  margin: 8px 0 0 36px;
+  color: var(--ink-soft);
+  line-height: 1.48;
 }
 
 .citation-link {

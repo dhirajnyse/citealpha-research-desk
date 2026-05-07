@@ -66,6 +66,78 @@ const PUBLIC_TICKER_ALIASES = {
   BTC: { ticker: "HLGD", note: "BTC-style volatility and rate-sensitivity proxy" }
 };
 
+const RISK_FACTOR_LIBRARY = {
+  NSCP: [
+    {
+      title: "Customer concentration and demand volatility",
+      severity: "High",
+      terms: ["customer", "customers", "demand", "volatile", "cloud", "capital spending"],
+      body:
+        "Demand is tied to cloud and enterprise AI capital spending, while the top customers drive a large share of revenue. A customer loss, slower procurement cadence, or AI budget pause could pressure revenue, gross margin, and inventory."
+    },
+    {
+      title: "Supply commitments and working-capital drag",
+      severity: "Medium",
+      terms: ["commitments", "working capital", "cancellation", "cash conversion", "purchase"],
+      body:
+        "Capacity commitments protect supply but can become a cash-conversion headwind if demand normalizes faster than expected. The key underwriting question is whether backlog stays firm enough to absorb long-lead tooling and purchase commitments."
+    },
+    {
+      title: "Export controls, foundry capacity, and platform timing",
+      severity: "Medium",
+      terms: ["export", "foundry", "capacity", "delay", "platform", "redesign"],
+      body:
+        "Export restrictions, foundry bottlenecks, or a delayed accelerator transition could delay shipments or force redesign work. That would make the margin story more dependent on mix and yield execution."
+    }
+  ],
+  AURR: [
+    {
+      title: "Consumer pressure and trade-down behavior",
+      severity: "High",
+      terms: ["consumer", "inflation", "higher rates", "unemployment", "trade down"],
+      body:
+        "Discretionary demand can weaken when inflation, rates, or unemployment pressure household budgets. Trade-down behavior would test traffic, basket size, and private-label mix."
+    },
+    {
+      title: "Margin pressure from shrink, labor, and price investment",
+      severity: "Medium",
+      terms: ["shrink", "wage", "labor", "price investment", "margin"],
+      body:
+        "Shrink, wage inflation, and traffic-driving price investment can offset private-label gains. The risk is that gross margin support fades before SG&A automation benefits arrive."
+    },
+    {
+      title: "Lease and variable-rate debt exposure",
+      severity: "Medium",
+      terms: ["lease", "variable-rate", "debt", "refinancing", "interest"],
+      body:
+        "Lease obligations and variable-rate debt make cash generation more sensitive to refinancing costs. Higher credit spreads would reduce flexibility for remodels, fulfillment automation, and loyalty investment."
+    }
+  ],
+  HLGD: [
+    {
+      title: "Construction, permitting, and interconnection delays",
+      severity: "High",
+      terms: ["construction", "permitting", "interconnection", "delay", "queues"],
+      body:
+        "The backlog only converts into value if projects clear permitting, interconnection queues, and construction milestones. Delays can push revenue recognition, tax credit timing, and capital recycling further out."
+    },
+    {
+      title: "Financing-rate and tax-equity sensitivity",
+      severity: "High",
+      terms: ["financing", "tax equity", "interest rate", "rates", "debt service"],
+      body:
+        "Project returns rely on financing availability and tax-equity execution. A sustained rise in rates can reduce equity returns, delay asset sales, and increase debt service costs."
+    },
+    {
+      title: "Negative free cash flow during the build-out phase",
+      severity: "Medium",
+      terms: ["free cash flow", "negative", "capex", "development spend", "asset sales"],
+      body:
+        "Elevated capex and front-loaded battery projects keep free cash flow negative in the near term. The balance sheet depends on project completions, tax-equity closings, and minority asset sales."
+    }
+  ]
+};
+
 const SAMPLE_DOCS = [
   {
     id: "nscp-10k-2025",
@@ -474,6 +546,7 @@ function cacheElements() {
   els.valuationFootnote = document.querySelector("#valuationFootnote");
   els.copyBrief = document.querySelector("#copyBrief");
   els.saveBrief = document.querySelector("#saveBrief");
+  els.exportBrief = document.querySelector("#exportBrief");
   els.notebookList = document.querySelector("#notebookList");
   els.clearNotes = document.querySelector("#clearNotes");
   els.waitlistForm = document.querySelector("#waitlistForm");
@@ -590,6 +663,7 @@ function bindEvents() {
 
   els.copyBrief.addEventListener("click", copyCurrentBrief);
   els.saveBrief.addEventListener("click", saveCurrentBrief);
+  els.exportBrief.addEventListener("click", exportCurrentBrief);
   els.clearNotes.addEventListener("click", () => {
     state.notes = [];
     saveJson(STORAGE_KEYS.notes, state.notes);
@@ -906,6 +980,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const evidenceBullets = citations.slice(0, state.answerDepth === "brief" ? 3 : 5).map((citation, index) => {
     return `<li>${makeEvidenceSentence(citation, intent)} ${citationLink(index)}</li>`;
   }).join("");
+  const riskFactorSection = intent.id === "risk" ? makeRiskFactorSection(citations, rankedCompanies) : "";
   const watchItems = makeWatchItems(citations, rankedCompanies, intent);
   const valuationRead = makeValuationRead(rankedCompanies[0], intent);
   const debate = makeDebate(citations, rankedCompanies);
@@ -917,14 +992,19 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
         <h3>Bottom line</h3>
         <p>${thesis}</p>
       </section>
-    `,
     `
+  ];
+
+  if (intent.id === "risk") {
+    sections.push(riskFactorSection);
+  } else {
+    sections.push(`
       <section class="answer-section">
         <h3>Evidence</h3>
         <ul>${evidenceBullets}</ul>
       </section>
-    `
-  ];
+    `);
+  }
 
   if (state.answerDepth !== "brief") {
     sections.push(`
@@ -975,16 +1055,26 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     </div>
   `;
 
-  const plainText = [
+  const plainParts = [
     `${intent.label} | ${confidence}% confidence`,
     `Management tone: ${toneMeter.label} (${toneMeter.percent}/100)`,
     tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
     stripHtml(headline),
     stripHtml(thesis),
-    "Evidence:",
+    intent.id === "risk" ? "3 cited risk factors:" : "Evidence:"
+  ].filter(Boolean);
+
+  if (intent.id === "risk") {
+    plainParts.push(makeRiskFactorPlainText(citations, rankedCompanies));
+    plainParts.push("Evidence stack:");
+  }
+
+  plainParts.push(
     ...citations.slice(0, 5).map((citation, index) => `${index + 1}. ${citation.company} ${citation.type} ${citation.section}: ${snippet(citation.text, 240)}`),
     `Valuation read-through: ${stripHtml(valuationRead)}`
-  ].filter(Boolean).join("\n\n");
+  );
+
+  const plainText = plainParts.join("\n\n");
 
   return { html, plainText, citations, confidence, headline: stripHtml(headline) };
 }
@@ -1221,6 +1311,9 @@ function computeConfidence(citations, rankedCompanies) {
 function makeHeadline(question, compareMode, rankedCompanies, intent) {
   if (!rankedCompanies.length) return escapeHtml(question);
   const leader = rankedCompanies[0];
+  if (intent.id === "risk") {
+    return `${escapeHtml(leader.ticker)} has three source-backed risk factors to underwrite.`;
+  }
   if (compareMode && rankedCompanies.length > 1) {
     return `${escapeHtml(leader.ticker)} screens best on ${escapeHtml(intent.label.toLowerCase())}, but the answer is source-dependent.`;
   }
@@ -1235,10 +1328,104 @@ function makeThesis(compareMode, rankedCompanies, citations, intent) {
   const runnerUp = rankedCompanies[1];
   const topCitation = citations[0];
   const leaderMetrics = `${leader.growth}% revenue growth, ${leader.opMargin}% operating margin, and ${leader.fcfMargin}% FCF margin`;
+  if (intent.id === "risk") {
+    return `The retrieved source stack points to underwritable risks, not a single fatal flaw. ${escapeHtml(leader.ticker)} still shows ${escapeHtml(leaderMetrics)}, but the risk work should focus on the disclosures and call language tied to customer cadence, cash conversion, financing, and execution timing. The highest-weighted passage is from ${escapeHtml(topCitation.company)} ${escapeHtml(topCitation.type)}. ${citationLink(0)}`;
+  }
   if (compareMode && runnerUp) {
     return `${escapeHtml(leader.ticker)} leads because the retrieved sources combine stronger fundamentals (${escapeHtml(leaderMetrics)}) with more direct support on ${escapeHtml(intent.label.toLowerCase())}. ${escapeHtml(runnerUp.ticker)} has a credible counter-case, but its source stack carries more visible pressure points. The highest-weighted passage is from ${escapeHtml(topCitation.company)} ${escapeHtml(topCitation.type)}, which anchors the answer rather than relying on a broad sector narrative. ${citationLink(0)}`;
   }
   return `The source stack is ${toneLabel(leader.tone).toLowerCase()} rather than cleanly bullish. ${escapeHtml(leader.ticker)} shows ${escapeHtml(leaderMetrics)}, but the same documents also surface risks that should be tested in the valuation model. The best anchor is ${escapeHtml(topCitation.type)} coverage of ${escapeHtml(topCitation.section.toLowerCase())}. ${citationLink(0)}`;
+}
+
+function makeRiskFactorSection(citations, rankedCompanies) {
+  const factors = buildRiskFactors(citations, rankedCompanies[0]);
+  const items = factors.map((factor) => `
+    <li>
+      <div class="risk-factor-top">
+        <span class="risk-severity ${escapeAttr(factor.severityClass)}">${escapeHtml(factor.severity)}</span>
+        <strong>${escapeHtml(factor.title)}</strong>
+      </div>
+      <p>${escapeHtml(factor.body)} ${citationLink(factor.citationIndex)}</p>
+    </li>
+  `).join("");
+
+  return `
+    <section class="answer-section risk-factor-section">
+      <h3>3 cited risk factors</h3>
+      <ol class="risk-factor-list">${items}</ol>
+    </section>
+  `;
+}
+
+function makeRiskFactorPlainText(citations, rankedCompanies) {
+  return buildRiskFactors(citations, rankedCompanies[0]).map((factor, index) => {
+    const citation = citations[factor.citationIndex];
+    const citationText = citation ? ` [${citation.citationId} ${citation.type} - ${citation.section}]` : "";
+    return `${index + 1}. ${factor.title} (${factor.severity}): ${factor.body}${citationText}`;
+  }).join("\n");
+}
+
+function buildRiskFactors(citations, company) {
+  const fallbackCompany = company || getCompanies()[0];
+  const blueprint = RISK_FACTOR_LIBRARY[fallbackCompany.ticker] || makeGenericRiskBlueprint(fallbackCompany);
+  const factors = blueprint.slice(0, 3).map((factor, index) => {
+    const citationIndex = findRiskCitationIndex(citations, factor.terms, index);
+    return {
+      ...factor,
+      citationIndex,
+      severityClass: factor.severity.toLowerCase()
+    };
+  });
+
+  while (factors.length < 3) {
+    const index = factors.length;
+    factors.push({
+      title: "Source coverage gap",
+      severity: "Medium",
+      severityClass: "medium",
+      terms: [],
+      body: "Import more filings or transcripts to pressure-test this risk with a broader evidence base.",
+      citationIndex: Math.min(index, Math.max(citations.length - 1, 0))
+    });
+  }
+
+  return factors;
+}
+
+function makeGenericRiskBlueprint(company) {
+  return [
+    {
+      title: "Demand and revenue durability",
+      severity: "High",
+      terms: ["demand", "revenue", "customer", "growth"],
+      body: `${company.ticker} should be tested for demand volatility, customer concentration, and the durability of its revenue growth.`
+    },
+    {
+      title: "Margin and cash conversion",
+      severity: "Medium",
+      terms: ["margin", "cash", "working capital", "inventory", "capex"],
+      body: `${company.ticker} risk work should connect margin pressure to working capital, capex, and free cash flow conversion.`
+    },
+    {
+      title: "Balance sheet and execution timing",
+      severity: "Medium",
+      terms: ["debt", "financing", "delay", "execution", "rates"],
+      body: `${company.ticker} needs a timing and balance-sheet check so execution delays do not hide in the base valuation case.`
+    }
+  ];
+}
+
+function findRiskCitationIndex(citations, terms, fallbackIndex) {
+  if (!citations.length) return 0;
+  const lowerTerms = terms.map((term) => term.toLowerCase());
+  const scored = citations.map((citation, index) => {
+    const haystack = `${citation.type} ${citation.section} ${citation.text}`.toLowerCase();
+    const score = lowerTerms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0)
+      + (/risk|liquidity|q&a|management discussion/i.test(`${citation.section} ${citation.type}`) ? 0.5 : 0);
+    return { index, score };
+  }).sort((a, b) => b.score - a.score || a.index - b.index);
+  if (scored[0].score > 0) return scored[0].index;
+  return Math.min(fallbackIndex, citations.length - 1);
 }
 
 function makeEvidenceSentence(citation, intent) {
@@ -1516,6 +1703,49 @@ function saveCurrentBrief() {
   state.notes = [note, ...state.notes].slice(0, 10);
   saveJson(STORAGE_KEYS.notes, state.notes);
   renderNotebook();
+}
+
+function exportCurrentBrief() {
+  if (!state.lastBrief) return;
+  const ticker = state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker;
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `citealpha-${String(ticker || "desk").toLowerCase()}-brief-${date}.md`;
+  const evidence = state.currentCitations.length
+    ? state.currentCitations.map((citation) => {
+        return `### ${citation.citationId} - ${citation.company} ${citation.type} (${citation.period})\n\n${citation.section}: ${citation.text}`;
+      }).join("\n\n")
+    : "No evidence stack available. Run an analysis first.";
+  const content = [
+    "# CiteAlpha Research Brief",
+    "",
+    state.lastBrief,
+    "",
+    "## Evidence Stack",
+    "",
+    evidence,
+    "",
+    "_Synthetic demo corpus for product prototyping. Import source documents before using the workflow for live investment research._"
+  ].join("\n");
+
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  flashButtonLabel(els.exportBrief, "Exported");
+}
+
+function flashButtonLabel(button, label) {
+  if (!button) return;
+  const original = button.textContent;
+  button.textContent = label;
+  window.setTimeout(() => {
+    button.textContent = original;
+  }, 1200);
 }
 
 async function submitWaitlistLead() {

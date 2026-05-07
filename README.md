@@ -6,7 +6,9 @@ Evidence-backed equity research for retail investors. CiteAlpha lets users ask c
 
 - Client-side retrieval over a synthetic filing and earnings-call corpus.
 - Source-ranked answers with citation cards and confidence scoring.
+- Risk questions return exactly three cited risk factors with severity labels.
 - Company filters, document toggles, text/file import, saved briefs, and copy-to-clipboard.
+- Export current briefs as Markdown for sharing or review.
 - A valuation lens that flexes revenue CAGR, FCF margin, terminal multiple, and discount rate.
 - A signal map for growth, margin, and risk across the selected coverage universe.
 - Launch hero, pricing plans, and static waitlist capture for early feedback.
@@ -45,3 +47,5 @@ The form captures email, investor style, plan interest, top tickers, most valuab
 ## Notes
 
 The bundled companies and documents are synthetic so the prototype is safe to evaluate offline. Import real filing text or call transcripts before using the workflow for live research. CiteAlpha is research software, not investment advice. The valuation panel is a scenario lens, not a price target.
+
+Demo ticker mapping is included for product testing: `$NVDA` maps to `NSCP`, `$AAPL` maps to `AURR`, and `$TSLA` or `$BTC` maps to `HLGD` until live market and SEC filing APIs are connected.
