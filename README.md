@@ -8,7 +8,7 @@ Evidence-backed equity research for retail investors. CiteAlpha lets users ask c
 - Source-ranked answers with citation cards and confidence scoring.
 - Risk questions return exactly three cited risk factors with severity labels.
 - Company filters, document toggles, text/file import, saved briefs, and copy-to-clipboard.
-- Export current briefs as Markdown for sharing or review.
+- Export current briefs as PDF-style investment committee memos, with Markdown retained for editable notes.
 - A valuation lens that flexes revenue CAGR, FCF margin, terminal multiple, and discount rate.
 - A signal map for growth, margin, and risk across the selected coverage universe.
 - Launch hero, pricing plans, and static waitlist capture for early feedback.
@@ -43,6 +43,10 @@ No build step or server is required.
 The waitlist form posts to FormSubmit at `dhirajnyse@gmail.com` and also stores a local browser fallback. On the first live submission, FormSubmit sends an activation email to the destination address. Confirm that email once, then future waitlist submissions will arrive by email.
 
 The form captures email, investor style, plan interest, top tickers, most valuable feature, and the first research question. Use these fields to prioritize the first real-data MVP workflow.
+
+## Export workflow
+
+Use `PDF` after running an analysis to open a clean one-page memo in the browser print dialog. Choose "Save as PDF" in Chrome or Edge. Use `MD` when you want an editable Markdown version of the same brief.
 
 ## Notes
 

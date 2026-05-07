@@ -473,6 +473,7 @@ const state = {
   notes: [],
   waitlistLeads: [],
   lastBrief: null,
+  lastAnswerModel: null,
   currentCitations: [],
   isRunning: false
 };
@@ -546,7 +547,8 @@ function cacheElements() {
   els.valuationFootnote = document.querySelector("#valuationFootnote");
   els.copyBrief = document.querySelector("#copyBrief");
   els.saveBrief = document.querySelector("#saveBrief");
-  els.exportBrief = document.querySelector("#exportBrief");
+  els.exportPdfBrief = document.querySelector("#exportPdfBrief");
+  els.exportMarkdownBrief = document.querySelector("#exportMarkdownBrief");
   els.notebookList = document.querySelector("#notebookList");
   els.clearNotes = document.querySelector("#clearNotes");
   els.waitlistForm = document.querySelector("#waitlistForm");
@@ -663,7 +665,8 @@ function bindEvents() {
 
   els.copyBrief.addEventListener("click", copyCurrentBrief);
   els.saveBrief.addEventListener("click", saveCurrentBrief);
-  els.exportBrief.addEventListener("click", exportCurrentBrief);
+  els.exportPdfBrief.addEventListener("click", exportPdfBrief);
+  els.exportMarkdownBrief.addEventListener("click", exportMarkdownBrief);
   els.clearNotes.addEventListener("click", () => {
     state.notes = [];
     saveJson(STORAGE_KEYS.notes, state.notes);
@@ -934,6 +937,7 @@ function runAnalysis(question) {
   const intent = detectIntent(retrievalQuestion);
   const answerModel = buildAnswerModel(question, citations, intent, tickerFocus);
   state.lastBrief = answerModel.plainText;
+  state.lastAnswerModel = answerModel;
   renderAnswer(answerModel);
   renderEvidence(citations);
   renderContextBand();
@@ -943,6 +947,7 @@ function runAnalysis(question) {
 function renderNoDocs(question) {
   state.currentCitations = [];
   state.lastBrief = `No enabled documents for: ${question}`;
+  state.lastAnswerModel = null;
   els.answerPanel.innerHTML = `
     <div class="empty-state">
       <div class="empty-kicker">No corpus</div>
@@ -957,6 +962,7 @@ function renderNoDocs(question) {
 function renderNoHits(question) {
   state.currentCitations = [];
   state.lastBrief = `No high-confidence passages for: ${question}`;
+  state.lastAnswerModel = null;
   els.answerPanel.innerHTML = `
     <div class="empty-state">
       <div class="empty-kicker">Low recall</div>
@@ -1076,7 +1082,18 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
 
   const plainText = plainParts.join("\n\n");
 
-  return { html, plainText, citations, confidence, headline: stripHtml(headline) };
+  return {
+    html,
+    plainText,
+    citations,
+    confidence,
+    headline: stripHtml(headline),
+    intentId: intent.id,
+    intentLabel: intent.label,
+    toneLabel: toneMeter.label,
+    tonePercent: toneMeter.percent,
+    tickerFocus
+  };
 }
 
 function makeToneMeter(rankedCompanies, citations) {
@@ -1705,29 +1722,51 @@ function saveCurrentBrief() {
   renderNotebook();
 }
 
-function exportCurrentBrief() {
+function exportMarkdownBrief() {
   if (!state.lastBrief) return;
   const ticker = state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker;
   const date = new Date().toISOString().slice(0, 10);
   const filename = `citealpha-${String(ticker || "desk").toLowerCase()}-brief-${date}.md`;
-  const evidence = state.currentCitations.length
-    ? state.currentCitations.map((citation) => {
-        return `### ${citation.citationId} - ${citation.company} ${citation.type} (${citation.period})\n\n${citation.section}: ${citation.text}`;
-      }).join("\n\n")
-    : "No evidence stack available. Run an analysis first.";
   const content = [
     "# CiteAlpha Research Brief",
     "",
-    state.lastBrief,
+    cleanBriefTextForExport(),
     "",
     "## Evidence Stack",
     "",
-    evidence,
+    makeMarkdownEvidenceStack(),
     "",
     "_Synthetic demo corpus for product prototyping. Import source documents before using the workflow for live investment research._"
   ].join("\n");
 
-  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  downloadTextFile(filename, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportMarkdownBrief, "Saved");
+}
+
+function exportPdfBrief() {
+  if (!state.lastBrief) {
+    flashButtonLabel(els.exportPdfBrief, "Run first");
+    return;
+  }
+  const printableHtml = buildPrintableBriefHtml();
+  const printWindow = window.open("", "_blank", "width=920,height=1100");
+  if (!printWindow) {
+    printCurrentPageFallback();
+    return;
+  }
+  printWindow.opener = null;
+  printWindow.document.open();
+  printWindow.document.write(printableHtml);
+  printWindow.document.close();
+  printWindow.setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 300);
+  flashButtonLabel(els.exportPdfBrief, "Ready");
+}
+
+function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -1736,7 +1775,290 @@ function exportCurrentBrief() {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  flashButtonLabel(els.exportBrief, "Exported");
+}
+
+function cleanBriefTextForExport() {
+  const text = String(state.lastBrief || "").trim();
+  const lines = text.split(/\n/);
+  const evidenceStart = lines.findIndex((line) => /^Evidence stack:/i.test(line.trim()));
+  const valuationStart = lines.findIndex((line, index) => evidenceStart >= 0 && index > evidenceStart && /^Valuation read-through:/i.test(line.trim()));
+  if (evidenceStart >= 0 && valuationStart > evidenceStart) {
+    return [...lines.slice(0, evidenceStart), ...lines.slice(valuationStart)].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  return text;
+}
+
+function makeMarkdownEvidenceStack() {
+  if (!state.currentCitations.length) {
+    return "No evidence stack available. Run an analysis first.";
+  }
+  return state.currentCitations.map((citation) => {
+    return `### ${citation.citationId} - ${citation.company} ${citation.type} (${citation.period})\n\n${citation.section}: ${citation.text}`;
+  }).join("\n\n");
+}
+
+function buildPrintableBriefHtml() {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CiteAlpha PDF Memo</title>
+    <style>${buildPrintableStyles()}</style>
+  </head>
+  <body>${buildPrintableBriefBody()}</body>
+</html>`;
+}
+
+function buildPrintableBriefBody() {
+  const model = state.lastAnswerModel || {};
+  const company = getExportCompany();
+  const tickerDisplay = makePrintTickerDisplay(model, company);
+  const generatedAt = new Date().toLocaleString();
+  const thesis = getMemoThesis(model);
+  const valuation = getMemoValuation();
+  const cues = makeDecisionCues(model, company);
+  const evidenceCards = state.currentCitations.slice(0, 6).map((citation) => `
+    <article class="print-evidence">
+      <div><strong>${escapeHtml(citation.citationId)}</strong><span>${escapeHtml(citation.score.toFixed(1))}</span></div>
+      <h3>${escapeHtml(citation.company)} - ${escapeHtml(citation.type)}</h3>
+      <p><b>${escapeHtml(citation.section)}:</b> ${escapeHtml(citation.text)}</p>
+    </article>
+  `).join("");
+
+  return `
+    <main class="print-memo">
+      <header class="print-hero">
+        <div>
+          <span class="print-brand">CiteAlpha</span>
+          <h1>Investment Committee Memo</h1>
+          <p>Evidence-backed equity research generated from filings, earnings calls, and valuation notes.</p>
+        </div>
+        <aside>
+          <strong>${escapeHtml(tickerDisplay)}</strong>
+          <span>${escapeHtml(generatedAt)}</span>
+        </aside>
+      </header>
+
+      <section class="print-snapshot">
+        <div><span>Focus</span><strong>${escapeHtml(tickerDisplay)}</strong></div>
+        <div><span>Question type</span><strong>${escapeHtml(model.intentLabel || "Research brief")}</strong></div>
+        <div><span>Confidence</span><strong>${escapeHtml(String(model.confidence || 0))}%</strong></div>
+        <div><span>Management tone</span><strong>${escapeHtml(model.toneLabel || "Balanced")} ${escapeHtml(String(model.tonePercent || 0))}/100</strong></div>
+      </section>
+
+      <section class="print-section">
+        <p class="print-kicker">Bottom line</p>
+        <h2>${escapeHtml(model.headline || "Run an analysis to generate a brief.")}</h2>
+        <p>${escapeHtml(thesis)}</p>
+      </section>
+
+      ${model.intentId === "risk" ? makePrintableRiskSection(company) : makePrintableEvidenceHighlights()}
+
+      <section class="print-section">
+        <p class="print-kicker">Committee cues</p>
+        <div class="print-cues">
+          ${cues.map((cue) => `<article><span>${escapeHtml(cue.label)}</span><strong>${escapeHtml(cue.title)}</strong><p>${escapeHtml(cue.body)}</p></article>`).join("")}
+        </div>
+      </section>
+
+      <section class="print-section">
+        <p class="print-kicker">Valuation read-through</p>
+        <p>${escapeHtml(valuation)}</p>
+      </section>
+
+      <section class="print-section">
+        <p class="print-kicker">Evidence pack</p>
+        <div class="print-evidence-grid">${evidenceCards || "<p>No evidence stack available.</p>"}</div>
+      </section>
+
+      <footer class="print-disclosure">
+        Synthetic demo corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
+      </footer>
+    </main>
+  `;
+}
+
+function buildPrintableStyles() {
+  return `
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #121817; background: #ffffff; font-family: Inter, Arial, sans-serif; }
+    .print-memo { width: min(100%, 980px); margin: 0 auto; padding: 28px; }
+    .print-hero { display: grid; grid-template-columns: 1fr auto; gap: 18px; padding-bottom: 18px; border-bottom: 3px solid #121817; }
+    .print-brand, .print-kicker { color: #14766f; font-size: 11px; font-weight: 900; letter-spacing: 0; text-transform: uppercase; }
+    .print-hero h1 { margin: 8px 0 0; font-size: 34px; line-height: 1.02; }
+    .print-hero p { max-width: 620px; margin: 8px 0 0; color: #64716d; font-size: 13px; line-height: 1.45; }
+    .print-hero aside { min-width: 170px; align-self: start; padding: 12px; border: 1px solid #d8dfdc; border-radius: 8px; text-align: right; }
+    .print-hero aside strong { display: block; font-size: 19px; }
+    .print-hero aside span { display: block; margin-top: 5px; color: #64716d; font-size: 11px; }
+    .print-snapshot { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .print-snapshot div, .print-section, .print-evidence, .print-cues article, .print-risk-list li { border: 1px solid #d8dfdc; border-radius: 8px; background: #f7f9f8; }
+    .print-snapshot div { padding: 10px; }
+    .print-snapshot span, .print-cues span { display: block; color: #64716d; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .print-snapshot strong { display: block; margin-top: 5px; font-size: 16px; line-height: 1.15; }
+    .print-section { margin-top: 12px; padding: 14px; background: #ffffff; break-inside: avoid; }
+    .print-section h2 { margin: 6px 0 0; font-size: 23px; line-height: 1.13; }
+    .print-section p { margin: 8px 0 0; color: #263230; font-size: 13px; line-height: 1.5; }
+    .print-risk-list { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+    .print-risk-list li { padding: 11px; background: #ffffff; }
+    .print-risk-list strong { display: block; font-size: 14px; }
+    .print-risk-list small { display: inline-flex; margin-bottom: 6px; padding: 3px 7px; border-radius: 999px; color: #b3261e; background: #fdebea; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .print-cues { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+    .print-cues article { padding: 10px; background: #f7f9f8; }
+    .print-cues strong { display: block; margin-top: 5px; font-size: 13px; }
+    .print-cues p { font-size: 12px; }
+    .print-evidence-grid { display: grid; gap: 8px; margin-top: 10px; }
+    .print-evidence { padding: 10px; background: #ffffff; break-inside: avoid; }
+    .print-evidence div { display: flex; justify-content: space-between; gap: 10px; color: #64716d; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .print-evidence h3 { margin: 6px 0 0; font-size: 13px; }
+    .print-evidence p { margin-top: 5px; font-size: 11px; line-height: 1.42; }
+    .print-disclosure { margin-top: 14px; padding-top: 10px; border-top: 1px solid #d8dfdc; color: #64716d; font-size: 10px; line-height: 1.4; }
+    @page { margin: 12mm; }
+    @media print {
+      .print-memo { padding: 0; }
+      .print-hero h1 { font-size: 30px; }
+      .print-section { margin-top: 10px; }
+    }
+  `;
+}
+
+function printCurrentPageFallback() {
+  const style = document.createElement("style");
+  style.id = "printBriefStyles";
+  style.textContent = `
+    @media screen { #printBriefRoot { display: none; } }
+    @media print {
+      body > *:not(#printBriefRoot):not(#printBriefStyles) { display: none !important; }
+      #printBriefRoot { display: block !important; }
+    }
+    ${buildPrintableStyles()}
+  `;
+  const root = document.createElement("section");
+  root.id = "printBriefRoot";
+  root.innerHTML = buildPrintableBriefBody();
+  document.body.appendChild(style);
+  document.body.appendChild(root);
+  window.setTimeout(() => {
+    window.print();
+    window.setTimeout(() => {
+      root.remove();
+      style.remove();
+    }, 500);
+  }, 60);
+  flashButtonLabel(els.exportPdfBrief, "Print");
+}
+
+function getExportCompany() {
+  const ticker = state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker;
+  return getCompanies().find((company) => company.ticker === ticker) || getCompanies()[0] || SAMPLE_COMPANIES[0];
+}
+
+function makePrintTickerDisplay(model, company) {
+  const focus = model && model.tickerFocus;
+  if (focus && focus.isAlias) return `$${focus.rawTicker} -> ${focus.ticker}`;
+  return company ? company.ticker : "Desk";
+}
+
+function getMemoThesis(model) {
+  const blocks = cleanBriefTextForExport().split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const headline = model && model.headline;
+  const headlineIndex = blocks.findIndex((block) => block === headline);
+  if (headlineIndex >= 0 && blocks[headlineIndex + 1]) return blocks[headlineIndex + 1];
+  return blocks.find((block) => !/confidence|management tone|ticker focus/i.test(block)) || "Run an analysis to generate a cited memo.";
+}
+
+function getMemoValuation() {
+  const block = cleanBriefTextForExport().split(/\n{2,}/).find((item) => /^Valuation read-through:/i.test(item.trim()));
+  return block ? block.replace(/^Valuation read-through:\s*/i, "") : "Use the valuation lens to flex FCF margin, terminal multiple, and discount rate against the source evidence.";
+}
+
+function makePrintableRiskSection(company) {
+  const factors = buildRiskFactors(state.currentCitations, company);
+  return `
+    <section class="print-section">
+      <p class="print-kicker">Three cited risk factors</p>
+      <ol class="print-risk-list">
+        ${factors.map((factor) => {
+          const citation = state.currentCitations[factor.citationIndex];
+          const citationText = citation ? `${citation.citationId} - ${citation.type}, ${citation.section}` : "Evidence stack";
+          return `<li><small>${escapeHtml(factor.severity)}</small><strong>${escapeHtml(factor.title)}</strong><p>${escapeHtml(factor.body)} <b>${escapeHtml(citationText)}</b></p></li>`;
+        }).join("")}
+      </ol>
+    </section>
+  `;
+}
+
+function makePrintableEvidenceHighlights() {
+  const items = state.currentCitations.slice(0, 3).map((citation) => `
+    <li>
+      <small>${escapeHtml(citation.citationId)}</small>
+      <strong>${escapeHtml(citation.type)} - ${escapeHtml(citation.section)}</strong>
+      <p>${escapeHtml(snippet(citation.text, 220))}</p>
+    </li>
+  `).join("");
+  return `
+    <section class="print-section">
+      <p class="print-kicker">Evidence highlights</p>
+      <ol class="print-risk-list">${items || "<li><strong>No retrieved evidence.</strong></li>"}</ol>
+    </section>
+  `;
+}
+
+function makeDecisionCues(model, company) {
+  if (model && model.intentId === "risk") {
+    return [
+      {
+        label: "Underwrite",
+        title: "Risk is concentrated, not fatal",
+        body: "The memo frames the key downside drivers so the investor can model them instead of reacting to the headline."
+      },
+      {
+        label: "Model first",
+        title: "Flex FCF margin",
+        body: "Cash conversion is the first valuation sensitivity because several risk factors flow through working capital or capex."
+      },
+      {
+        label: "Watch",
+        title: "Next filing language",
+        body: "Look for changes in customer cadence, commitments, platform timing, and management wording in the next update."
+      }
+    ];
+  }
+  if (model && model.intentId === "rates") {
+    return [
+      {
+        label: "Underwrite",
+        title: "Balance sheet first",
+        body: "Rate sensitivity should be tested through debt, discount rate, and cash conversion before changing the multiple."
+      },
+      {
+        label: "Compare",
+        title: "Quality of funding",
+        body: "Companies with stronger FCF and lower net debt deserve more credit when financing conditions tighten."
+      },
+      {
+        label: "Watch",
+        title: "Refinancing window",
+        body: "Track comments on credit spreads, variable-rate exposure, and project funding availability."
+      }
+    ];
+  }
+  return [
+    {
+      label: "Underwrite",
+      title: "Source quality",
+      body: `${company.ticker} should be judged by retrieved source evidence, not a static sector narrative.`
+    },
+    {
+      label: "Model first",
+      title: "Operating driver",
+      body: "Flex the operating variable most directly supported by the filing before moving terminal multiple."
+    },
+    {
+      label: "Watch",
+      title: "Management tone",
+      body: "Compare call confidence with filing language to catch gaps between narrative and disclosure."
+    }
+  ];
 }
 
 function flashButtonLabel(button, label) {

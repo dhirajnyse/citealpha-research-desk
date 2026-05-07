@@ -459,6 +459,23 @@ button {
   background: var(--panel-strong);
 }
 
+.top-actions #exportPdfBrief {
+  color: #ffffff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.top-actions #exportPdfBrief:hover {
+  color: #ffffff;
+  background: #24302e;
+}
+
+.top-actions #exportMarkdownBrief {
+  color: var(--teal);
+  border-color: rgba(20, 118, 111, 0.28);
+  background: var(--teal-soft);
+}
+
 .danger {
   color: var(--red);
 }
