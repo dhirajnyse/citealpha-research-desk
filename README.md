@@ -12,6 +12,7 @@ Evidence-backed equity research for retail investors. CiteAlpha lets users ask c
 - Launch hero, pricing plans, and static waitlist capture for early feedback.
 - A 3D-style SVG brand mark in `assets/citealpha-logo.svg`.
 - Launch-ready metadata with favicon, web app manifest, and social preview artwork.
+- Versioned CSS/JS asset links to avoid stale GitHub Pages browser cache.
 
 ## Product positioning
 

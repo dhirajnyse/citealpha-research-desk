@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest" />
+    <link rel="manifest" href="site.webmanifest?v=20260507-7" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -34,7 +34,8 @@
       content="Evidence-backed equity research across SEC filings, earnings calls, and valuation scenarios."
     />
     <meta name="twitter:image" content="https://dhirajnyse.github.io/citealpha-research-desk/assets/citealpha-social-card.png" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260507-7" />
+    <link rel="stylesheet" href="launch.css?v=20260507-7" />
   </head>
   <body>
     <div class="app-shell">
@@ -73,19 +74,36 @@
             <a class="primary-link" href="#desk">Try the research desk</a>
             <a class="secondary-link" href="#waitlist">Join waitlist</a>
           </div>
+          <div class="workflow-strip" aria-label="How CiteAlpha works">
+            <span>Import</span>
+            <span>Ask</span>
+            <span>Verify</span>
+            <span>Model</span>
+          </div>
         </div>
-        <div class="launch-proof" aria-label="Launch metrics">
-          <div>
-            <strong>$10-49</strong>
-            <span>target monthly plans</span>
+        <div class="research-preview" aria-label="Example research brief preview">
+          <div class="preview-topline">
+            <span>Brief Preview</span>
+            <strong>86%</strong>
           </div>
-          <div>
-            <strong>7</strong>
-            <span>sample research sources</span>
+          <h3>Which company has better margin durability if rates stay high?</h3>
+          <p>NSCP leads on margin resilience because filings show higher accelerator mix, net cash, and better FCF conversion.</p>
+          <div class="preview-evidence">
+            <div>
+              <span>C1</span>
+              <strong>10-K filing</strong>
+              <em>Gross margin expanded to 58.2%.</em>
+            </div>
+            <div>
+              <span>C2</span>
+              <strong>Earnings call</strong>
+              <em>Management is protecting margin through yield and mix.</em>
+            </div>
           </div>
-          <div>
-            <strong>0</strong>
-            <span>terminal required</span>
+          <div class="preview-stats">
+            <span>$10-49/mo</span>
+            <span>Source-linked</span>
+            <span>No terminal</span>
           </div>
         </div>
       </section>
@@ -256,10 +274,11 @@
         </aside>
       </main>
 
-      <section class="launch-section" aria-labelledby="pricingTitle" id="pricing">
+      <section class="launch-section pricing-section" aria-labelledby="pricingTitle" id="pricing">
         <div class="section-heading">
           <span>Pricing</span>
           <h2 id="pricingTitle">Start light. Scale into a real research workflow.</h2>
+          <p>Simple early-access packages for investors who want cited answers before paying terminal-level prices.</p>
         </div>
         <div class="pricing-grid">
           <article class="pricing-card">
@@ -271,6 +290,7 @@
               <li>Limited document imports</li>
               <li>Saved briefs</li>
             </ul>
+            <a class="plan-link" href="#waitlist">Join Starter</a>
           </article>
           <article class="pricing-card is-featured">
             <span class="plan-label">Pro</span>
@@ -281,6 +301,7 @@
               <li>Multi-document answer stack</li>
               <li>Valuation scenario exports</li>
             </ul>
+            <a class="plan-link" href="#waitlist">Join Pro</a>
           </article>
           <article class="pricing-card">
             <span class="plan-label">Analyst</span>
@@ -291,14 +312,22 @@
               <li>Priority filing refresh</li>
               <li>Portfolio research queue</li>
             </ul>
+            <a class="plan-link" href="#waitlist">Join Analyst</a>
           </article>
         </div>
       </section>
 
       <section class="launch-section waitlist-section" aria-labelledby="waitlistTitle" id="waitlist">
-        <div class="section-heading">
-          <span>Waitlist</span>
-          <h2 id="waitlistTitle">Help shape the first real data release.</h2>
+        <div class="waitlist-copy">
+          <div class="section-heading">
+            <span>Waitlist</span>
+            <h2 id="waitlistTitle">Help shape the first real data release.</h2>
+            <p>Tell us what ticker or question you care about. The early pilot will prioritize real filings, earnings calls, and comparison workflows from user requests.</p>
+          </div>
+          <div class="pilot-note">
+            <strong>Early pilot goal</strong>
+            <span>10 serious testers, 50 real questions, one data-backed workflow worth charging for.</span>
+          </div>
         </div>
         <form class="waitlist-form" id="waitlistForm" action="https://formsubmit.co/ajax/dhirajnyse@gmail.com" method="POST">
           <input type="hidden" name="_subject" value="New CiteAlpha waitlist lead" />
@@ -331,6 +360,6 @@
       </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260507-7"></script>
   </body>
 </html>
