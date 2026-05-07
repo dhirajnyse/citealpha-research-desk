@@ -1908,6 +1908,9 @@ function buildPrintableStyles() {
 }
 
 function printCurrentPageFallback() {
+  document.querySelector("#printBriefRoot")?.remove();
+  document.querySelector("#printBriefStyles")?.remove();
+
   const style = document.createElement("style");
   style.id = "printBriefStyles";
   style.textContent = `
@@ -1923,14 +1926,24 @@ function printCurrentPageFallback() {
   root.innerHTML = buildPrintableBriefBody();
   document.body.appendChild(style);
   document.body.appendChild(root);
+
+  let cleanupTimer = null;
+  const cleanup = () => {
+    window.clearTimeout(cleanupTimer);
+    window.removeEventListener("afterprint", cleanup);
+    root.remove();
+    style.remove();
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  cleanupTimer = window.setTimeout(cleanup, 120000);
+
   window.setTimeout(() => {
-    window.print();
-    window.setTimeout(() => {
-      root.remove();
-      style.remove();
-    }, 500);
+    window.requestAnimationFrame(() => {
+      flashButtonLabel(els.exportPdfBrief, "Print");
+      window.print();
+    });
   }, 60);
-  flashButtonLabel(els.exportPdfBrief, "Print");
 }
 
 function getExportCompany() {

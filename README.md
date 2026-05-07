@@ -48,7 +48,7 @@ The form captures email, investor style, plan interest, top tickers, most valuab
 
 Use `PDF` after running an analysis to open a clean one-page memo in the browser print dialog. Choose "Save as PDF" in Chrome or Edge. Use `MD` when you want an editable Markdown version of the same brief.
 
-V21 uses the current page print flow for PDF export and includes an inline loading-safe shell so GitHub Pages cache/deploy timing cannot leave visitors on a blank screen.
+V21 uses the current page print flow for PDF export and includes an inline loading-safe shell so GitHub Pages cache/deploy timing cannot leave visitors on a blank screen. V22 keeps the printable memo mounted until the browser `afterprint` event so saved PDFs do not come out blank.
 
 ## Notes
 
