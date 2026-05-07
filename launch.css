@@ -1,7 +1,7 @@
 .launch-hero,
 .launch-section {
   width: calc(100% - 24px);
-  max-width: 1500px;
+  max-width: 1280px;
   margin: 12px auto 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -11,9 +11,10 @@
 
 .launch-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 430px);
-  gap: 22px;
-  padding: 30px;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  align-items: center;
+  gap: 28px;
+  padding: 24px 30px;
   overflow: hidden;
   position: relative;
 }
@@ -43,7 +44,7 @@
 }
 
 .launch-copy {
-  max-width: 760px;
+  max-width: 640px;
 }
 
 .launch-kicker,
@@ -66,7 +67,7 @@
 .section-heading h2 {
   margin: 12px 0 0;
   color: var(--ink);
-  font-size: 46px;
+  font-size: 42px;
   line-height: 1;
 }
 
@@ -75,7 +76,7 @@
   max-width: 700px;
   margin: 12px 0 0;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -118,21 +119,22 @@
 }
 
 .workflow-strip {
-  max-width: 590px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .workflow-strip span {
-  min-height: 44px;
-  display: grid;
-  place-items: center;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.74);
   color: var(--ink-soft);
+  padding: 0 16px;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -140,6 +142,9 @@
 
 .research-preview {
   align-self: center;
+  justify-self: end;
+  width: 100%;
+  max-width: 430px;
   padding: 16px;
   border: 1px solid rgba(20, 118, 111, 0.24);
   border-radius: 8px;
@@ -176,7 +181,7 @@
 .research-preview h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.18;
 }
 
@@ -252,6 +257,7 @@
 }
 
 .launch-section {
+  max-width: 1280px;
   padding: 24px;
 }
 
@@ -405,6 +411,11 @@
     grid-template-columns: 1fr;
   }
 
+  .research-preview {
+    justify-self: stretch;
+    max-width: none;
+  }
+
   .waitlist-result {
     grid-column: 1;
   }
@@ -438,9 +449,17 @@
   }
 
   .workflow-strip,
-  .preview-stats,
   .waitlist-form {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .research-preview {
+    display: none;
   }
 
   .primary-link,
