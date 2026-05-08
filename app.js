@@ -1748,11 +1748,28 @@ function exportPdfBrief() {
     flashButtonLabel(els.exportPdfBrief, "Run first");
     return;
   }
-  printCurrentPageFallback();
+  const ticker = state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker;
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `citealpha-${String(ticker || "desk").toLowerCase()}-memo-${date}.pdf`;
+  const pdfBytes = buildDirectPdfBrief();
+  downloadBinaryFile(filename, pdfBytes, "application/pdf");
+  flashButtonLabel(els.exportPdfBrief, "Saved");
 }
 
 function downloadTextFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadBinaryFile(filename, bytes, mimeType) {
+  const blob = new Blob([bytes], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -1781,6 +1798,205 @@ function makeMarkdownEvidenceStack() {
   return state.currentCitations.map((citation) => {
     return `### ${citation.citationId} - ${citation.company} ${citation.type} (${citation.period})\n\n${citation.section}: ${citation.text}`;
   }).join("\n\n");
+}
+
+function buildDirectPdfBrief() {
+  return createSimplePdf(buildPdfMemoBlocks());
+}
+
+function buildPdfMemoBlocks() {
+  const model = state.lastAnswerModel || {};
+  const company = getExportCompany();
+  const tickerDisplay = makePrintTickerDisplay(model, company);
+  const generatedAt = new Date().toLocaleString();
+  const blocks = [
+    { type: "eyebrow", text: "CiteAlpha | Investment Committee Memo" },
+    { type: "title", text: model.headline || "Research brief" },
+    { type: "meta", text: `Focus: ${tickerDisplay} | Question type: ${model.intentLabel || "Research brief"} | Confidence: ${model.confidence || 0}% | Tone: ${model.toneLabel || "Balanced"} ${model.tonePercent || 0}/100 | Generated: ${generatedAt}` },
+    { type: "heading", text: "Bottom line" },
+    { type: "body", text: getMemoThesis(model) }
+  ];
+
+  if (model.intentId === "risk") {
+    blocks.push({ type: "heading", text: "Three cited risk factors" });
+    buildRiskFactors(state.currentCitations, company).forEach((factor, index) => {
+      const citation = state.currentCitations[factor.citationIndex];
+      const citationText = citation ? `${citation.citationId} ${citation.type} - ${citation.section}` : "Evidence stack";
+      blocks.push({
+        type: "bullet",
+        text: `${index + 1}. ${factor.title} (${factor.severity}) - ${factor.body} [${citationText}]`
+      });
+    });
+  } else {
+    blocks.push({ type: "heading", text: "Evidence highlights" });
+    state.currentCitations.slice(0, 3).forEach((citation, index) => {
+      blocks.push({
+        type: "bullet",
+        text: `${index + 1}. ${citation.citationId} ${citation.type} - ${citation.section}: ${snippet(citation.text, 260)}`
+      });
+    });
+  }
+
+  blocks.push({ type: "heading", text: "Committee cues" });
+  makeDecisionCues(model, company).forEach((cue, index) => {
+    blocks.push({ type: "bullet", text: `${index + 1}. ${cue.label}: ${cue.title} - ${cue.body}` });
+  });
+
+  blocks.push({ type: "heading", text: "Valuation read-through" });
+  blocks.push({ type: "body", text: getMemoValuation() });
+
+  blocks.push({ type: "heading", text: "Evidence pack" });
+  state.currentCitations.slice(0, 6).forEach((citation) => {
+    blocks.push({
+      type: "body",
+      text: `${citation.citationId} | ${citation.company} | ${citation.type} | ${citation.period} | ${citation.section}: ${citation.text}`
+    });
+  });
+
+  blocks.push({
+    type: "footnote",
+    text: "Synthetic demo corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice."
+  });
+
+  return blocks;
+}
+
+function createSimplePdf(blocks) {
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 54;
+  const bottom = 54;
+  const maxWidth = pageWidth - margin * 2;
+  const pages = [[]];
+  let y = pageHeight - margin;
+
+  const currentPage = () => pages[pages.length - 1];
+  const newPage = () => {
+    pages.push([]);
+    y = pageHeight - margin;
+  };
+  const ensureSpace = (height) => {
+    if (y - height < bottom) newPage();
+  };
+  const addText = (text, options = {}) => {
+    const size = options.size || 11;
+    const font = options.font || "F1";
+    const leading = options.leading || Math.ceil(size * 1.35);
+    const indent = options.indent || 0;
+    const gapBefore = options.gapBefore || 0;
+    const gapAfter = options.gapAfter || 0;
+    const chars = Math.max(24, Math.floor((maxWidth - indent) / (size * 0.52)));
+    const lines = wrapPdfText(text, chars);
+    ensureSpace(gapBefore + lines.length * leading + gapAfter);
+    y -= gapBefore;
+    lines.forEach((line) => {
+      currentPage().push(`BT /${font} ${size} Tf ${margin + indent} ${y} Td (${pdfEscape(line)}) Tj ET`);
+      y -= leading;
+    });
+    y -= gapAfter;
+  };
+  const addRule = () => {
+    ensureSpace(12);
+    currentPage().push(`0.09 0.46 0.43 RG ${margin} ${y} m ${pageWidth - margin} ${y} l S`);
+    y -= 12;
+  };
+
+  blocks.forEach((block, index) => {
+    if (block.type === "eyebrow") addText(block.text, { size: 10, font: "F2", leading: 13, gapAfter: 4 });
+    else if (block.type === "title") {
+      addText(block.text, { size: 19, font: "F2", leading: 23, gapAfter: 6 });
+      addRule();
+    } else if (block.type === "meta") addText(block.text, { size: 9, font: "F1", leading: 12, gapAfter: 8 });
+    else if (block.type === "heading") addText(block.text, { size: 13, font: "F2", leading: 16, gapBefore: index ? 8 : 0, gapAfter: 2 });
+    else if (block.type === "bullet") addText(block.text, { size: 10.5, font: "F1", leading: 14, indent: 12, gapAfter: 3 });
+    else if (block.type === "footnote") addText(block.text, { size: 8.5, font: "F1", leading: 11, gapBefore: 10 });
+    else addText(block.text, { size: 10.5, font: "F1", leading: 14, gapAfter: 3 });
+  });
+
+  return encodePdf(pages, pageWidth, pageHeight);
+}
+
+function encodePdf(pages, pageWidth, pageHeight) {
+  const objects = [];
+  const pageObjectNumbers = [];
+  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
+  objects.push("");
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+  pages.forEach((commands) => {
+    const pageNumber = objects.length + 1;
+    const contentNumber = pageNumber + 1;
+    pageObjectNumbers.push(pageNumber);
+    const content = commands.join("\n");
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`);
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  });
+
+  objects[1] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  const bytes = new Uint8Array(pdf.length);
+  for (let index = 0; index < pdf.length; index += 1) {
+    bytes[index] = pdf.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function wrapPdfText(text, maxChars) {
+  const words = pdfPlainText(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    if (word.length > maxChars) {
+      if (line) {
+        lines.push(line);
+        line = "";
+      }
+      for (let index = 0; index < word.length; index += maxChars) {
+        lines.push(word.slice(index, index + maxChars));
+      }
+      return;
+    }
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxChars && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function pdfPlainText(value) {
+  return String(value || "")
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pdfEscape(value) {
+  return pdfPlainText(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 }
 
 function buildPrintableBriefHtml() {

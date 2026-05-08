@@ -46,9 +46,10 @@ The form captures email, investor style, plan interest, top tickers, most valuab
 
 ## Export workflow
 
-Use `PDF` after running an analysis to open a clean one-page memo in the browser print dialog. Choose "Save as PDF" in Chrome or Edge. Use `MD` when you want an editable Markdown version of the same brief.
+Use `PDF` after running an analysis to download a clean investment committee memo as a real PDF file. Use `MD` when you want an editable Markdown version of the same brief.
 
 V21 uses the current page print flow for PDF export and includes an inline loading-safe shell so GitHub Pages cache/deploy timing cannot leave visitors on a blank screen. V22 keeps the printable memo mounted until the browser `afterprint` event so saved PDFs do not come out blank.
+V23 replaces browser print with a direct JavaScript PDF generator so the exported PDF has page text streams even when Chrome print preview is unreliable.
 
 ## Notes
 
