@@ -56,6 +56,7 @@ V26 polishes PDF spacing so risk severity labels, risk titles, and committee cue
 V27 compacts the PDF evidence pack into a two-column source grid so standard risk memos fit into a cleaner executive-report layout.
 V28 adds a source trust layer: imported documents receive quality diagnostics, uploaded sources are prioritized during retrieval, answers show sample-vs-user data badges, and PDF memos disclose the data source.
 V29 adds one-click NVDA, AAPL, and TSLA demo import packs so users can test the `Your data` workflow without finding source files first.
+V30 adds an SEC filing bridge that looks up recent SEC submissions metadata when browser access allows it, then falls back to a clearly labeled SEC mock source when live access is blocked.
 
 ## Notes
 

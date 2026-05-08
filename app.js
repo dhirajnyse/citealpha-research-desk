@@ -7,6 +7,8 @@ const STORAGE_KEYS = {
 };
 
 const WAITLIST_ENDPOINT = "https://formsubmit.co/ajax/dhirajnyse@gmail.com";
+const SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
+const SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK";
 
 const SAMPLE_COMPANIES = [
   {
@@ -577,6 +579,10 @@ function cacheElements() {
   els.fileInput = document.querySelector("#fileInput");
   els.fileDrop = document.querySelector(".file-drop");
   els.demoPackActions = document.querySelector("#demoPackActions");
+  els.secBridgeForm = document.querySelector("#secBridgeForm");
+  els.secBridgeTicker = document.querySelector("#secBridgeTicker");
+  els.secBridgeType = document.querySelector("#secBridgeType");
+  els.secBridgeStatus = document.querySelector("#secBridgeStatus");
   els.sourceQualityPanel = document.querySelector("#sourceQualityPanel");
   els.pasteForm = document.querySelector("#pasteForm");
   els.pasteTicker = document.querySelector("#pasteTicker");
@@ -684,6 +690,11 @@ function bindEvents() {
     button.addEventListener("click", () => {
       loadDemoImportPack(button.dataset.pack);
     });
+  });
+
+  els.secBridgeForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await connectSecFilingBridge();
   });
 
   els.pasteForm.addEventListener("submit", (event) => {
@@ -834,12 +845,12 @@ function renderCoverage() {
 
 function renderLibrary() {
   const docs = getLibraryDocs();
-  const uploadedCount = docs.filter(isUploadedDoc).length;
-  els.documentCount.textContent = uploadedCount ? `${docs.length} docs | ${uploadedCount} yours` : `${docs.length} docs`;
+  const trustedCount = docs.filter(isPriorityDoc).length;
+  els.documentCount.textContent = trustedCount ? `${docs.length} docs | ${trustedCount} external` : `${docs.length} docs`;
   els.libraryList.innerHTML = docs.map((doc) => {
     const checked = state.enabledDocIds.has(doc.id) ? "checked" : "";
-    const trustClass = isUploadedDoc(doc) ? "is-user" : "is-sample";
-    const trustLabel = isUploadedDoc(doc) ? "Your data" : "Sample";
+    const trustClass = getSourceClass(doc);
+    const trustLabel = getDocSourceLabel(doc);
     const quality = doc.sourceQuality ? `${doc.sourceQuality.quality}/100` : "Demo";
     return `
       <label class="source-toggle">
@@ -897,7 +908,7 @@ function renderSourceQuality() {
 function renderContextBand() {
   const enabledDocs = getEnabledDocs();
   const activeCompanies = getCompanies().filter((company) => state.activeTickers.has(company.ticker));
-  const enabledUploaded = enabledDocs.filter(isUploadedDoc).length;
+  const dataMode = summarizeDataMode(enabledDocs);
   const averageMargin = activeCompanies.length
     ? activeCompanies.reduce((sum, company) => sum + company.opMargin, 0) / activeCompanies.length
     : 0;
@@ -915,7 +926,7 @@ function renderContextBand() {
 
   const tiles = [
     focusTile,
-    { label: "Data mode", value: enabledUploaded ? "Your data" : "Sample", sub: enabledUploaded ? `${enabledUploaded} imported source${enabledUploaded === 1 ? "" : "s"} active` : `${enabledDocs.length} sample docs active` },
+    { label: "Data mode", value: dataMode.label, sub: dataMode.sub },
     { label: "Avg op margin", value: `${averageMargin.toFixed(1)}%`, sub: "Selected coverage" },
     { label: "Risk index", value: Math.round(averageRisk), sub: citationCount ? `${citationCount} current citations` : "Pre-query baseline" }
   ];
@@ -1259,45 +1270,57 @@ function makeTickerFocusNotice(focus) {
 }
 
 function makeSourceTrust(citations) {
-  const imported = citations.filter(isUploadedCitation).length;
-  const sample = Math.max(0, citations.length - imported);
-  const label = imported ? (sample ? "Your data + sample" : "Your data") : "Sample data";
-  const note = imported
-    ? `${imported} imported citation${imported === 1 ? "" : "s"} prioritized in this answer.`
-    : "Answer is based on the bundled sample corpus until source documents are imported.";
+  const sample = citations.filter((citation) => getSourceKind(citation) === "sample").length;
+  const live = citations.filter((citation) => getSourceKind(citation) === "sec-live").length;
+  const mock = citations.filter((citation) => getSourceKind(citation) === "sec-mock").length;
+  const user = citations.filter((citation) => getSourceKind(citation) === "uploaded").length;
+  const sourceParts = [
+    live ? "SEC live" : "",
+    mock ? "SEC mock" : "",
+    user ? "Your data" : "",
+    sample ? "sample" : ""
+  ].filter(Boolean);
+  const label = sourceParts.length ? sourceParts.join(" + ") : "Sample data";
+  const prioritized = live + mock + user;
+  const note = prioritized
+    ? `${prioritized} non-sample citation${prioritized === 1 ? "" : "s"} prioritized in this answer.`
+    : "Answer is based on the bundled sample corpus until source documents are imported or connected.";
+  const className = live ? "is-sec-live" : mock ? "is-sec-mock" : user ? "is-user" : "is-sample";
   return {
     label,
-    imported,
+    imported: user,
+    live,
+    mock,
     sample,
     note,
-    className: imported ? "is-user" : "is-sample",
+    className,
     plainText: `Data source: ${label}. ${note}`
   };
 }
 
 function makeSourceAudit(citations, rankedCompanies) {
   const docCount = new Set(citations.map((citation) => citation.docId)).size;
-  const importedCount = citations.filter(isUploadedCitation).length;
-  const sampleCount = Math.max(0, citations.length - importedCount);
+  const trustedCount = citations.filter(isPriorityCitation).length;
+  const sampleCount = citations.length - trustedCount;
   const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
   const callCount = citations.filter((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
   const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
   const topScore = citations[0] ? citations[0].score : 0;
   const coverageLabel = docCount >= 4 ? "Broad" : docCount >= 2 ? "Focused" : "Narrow";
   const companyLabel = rankedCompanies[0] ? rankedCompanies[0].ticker : "Desk";
-  const dataLabel = importedCount ? (sampleCount ? "Hybrid" : "Imported") : "Sample";
+  const dataLabel = makeAuditDataLabel(citations);
   const balance = [
     filingCount ? `${filingCount} filing` : "",
     callCount ? `${callCount} call` : "",
     modelCount ? `${modelCount} model` : ""
   ].filter(Boolean).join(" / ") || "No retrieved sources";
-  const quality = Math.max(42, Math.min(98, Math.round(42 + docCount * 7 + filingCount * 4 + callCount * 3 + importedCount * 4 + Math.min(topScore, 18))));
+  const quality = Math.max(42, Math.min(98, Math.round(42 + docCount * 7 + filingCount * 4 + callCount * 3 + trustedCount * 4 + Math.min(topScore, 18))));
 
   return {
     coverageLabel,
     balance,
     dataLabel,
-    importedCount,
+    importedCount: trustedCount,
     sampleCount,
     quality,
     plainText: `Source audit: ${quality}/100 quality, ${coverageLabel.toLowerCase()} coverage, ${balance}. Data mode: ${dataLabel}.`,
@@ -1343,7 +1366,7 @@ function renderEvidence(citations) {
     <article class="evidence-card" id="evidence-${escapeAttr(citation.citationId)}">
       <div class="evidence-meta">
         <span>${escapeHtml(citation.citationId)} - ${escapeHtml(citation.ticker)}</span>
-        <span>${escapeHtml(isUploadedCitation(citation) ? "Your data" : "Sample")} | ${citation.score.toFixed(1)}</span>
+        <span>${escapeHtml(getCitationSourceLabel(citation))} | ${citation.score.toFixed(1)}</span>
       </div>
       <strong>${escapeHtml(citation.type)} - ${escapeHtml(citation.period)} - ${escapeHtml(citation.section)}</strong>
       <p>${escapeHtml(snippet(citation.text, 280))}</p>
@@ -1372,7 +1395,7 @@ function buildChunks(docs) {
           date: doc.date,
           section: section.title,
           text,
-          sourceKind: isUploadedDoc(doc) ? "uploaded" : "sample",
+          sourceKind: getSourceKind(doc),
           sourceQuality: doc.sourceQuality || null,
           tokens,
           tokenCounts
@@ -1409,7 +1432,7 @@ function rankChunks(question, chunks) {
       if (/filing|10-k|risk factor|mda|md&a/.test(lowerQuestion) && /filing/i.test(chunk.type)) score += 3.5;
       if (/valuation|model|multiple|discount/.test(lowerQuestion) && /model/i.test(chunk.type)) score += 5;
       if (/risk|headwind|pressure/.test(lowerQuestion) && /risk/i.test(chunk.section)) score += 2.5;
-      if (chunk.sourceKind === "uploaded" && (!tickersInQuestion.length || tickersInQuestion.includes(chunk.ticker))) {
+      if (chunk.sourceKind !== "sample" && (!tickersInQuestion.length || tickersInQuestion.includes(chunk.ticker))) {
         score += 5.5 + ((chunk.sourceQuality && chunk.sourceQuality.quality) || 70) / 100;
       }
       score += toneRelevance(question, chunk.text) * 0.55;
@@ -1718,12 +1741,12 @@ function isCompareQuestion(question, citations) {
 function getEnabledDocs() {
   return state.documents
     .filter((doc) => state.enabledDocIds.has(doc.id) && state.activeTickers.has(doc.ticker))
-    .sort((a, b) => Number(isUploadedDoc(b)) - Number(isUploadedDoc(a)));
+    .sort((a, b) => getSourceRank(b) - getSourceRank(a));
 }
 
 function getLibraryDocs() {
   return state.documents.slice().sort((a, b) => {
-    const sourceDelta = Number(isUploadedDoc(b)) - Number(isUploadedDoc(a));
+    const sourceDelta = getSourceRank(b) - getSourceRank(a);
     if (sourceDelta) return sourceDelta;
     return String(a.ticker).localeCompare(String(b.ticker)) || String(a.period).localeCompare(String(b.period));
   });
@@ -1735,6 +1758,75 @@ function isUploadedDoc(doc) {
 
 function isUploadedCitation(citation) {
   return Boolean(citation && citation.sourceKind === "uploaded");
+}
+
+function isSecBridgeDoc(doc) {
+  return Boolean(doc && /^sec-/.test(getSourceKind(doc)));
+}
+
+function isPriorityDoc(doc) {
+  return getSourceKind(doc) !== "sample";
+}
+
+function isPriorityCitation(citation) {
+  return getSourceKind(citation) !== "sample";
+}
+
+function getSourceKind(source) {
+  const kind = String((source && source.sourceKind) || "");
+  if (kind === "sec-live" || kind === "sec-mock" || kind === "uploaded") return kind;
+  if (source && String(source.id || "").startsWith("upload-")) return "uploaded";
+  return "sample";
+}
+
+function getSourceRank(source) {
+  const kind = getSourceKind(source);
+  if (kind === "sec-live") return 4;
+  if (kind === "uploaded") return 3;
+  if (kind === "sec-mock") return 2;
+  return 1;
+}
+
+function getDocSourceLabel(doc) {
+  const kind = getSourceKind(doc);
+  if (kind === "sec-live") return "SEC live";
+  if (kind === "sec-mock") return "SEC mock";
+  if (kind === "uploaded") return "Your data";
+  return "Sample";
+}
+
+function getCitationSourceLabel(citation) {
+  const kind = getSourceKind(citation);
+  if (kind === "sec-live") return "SEC live";
+  if (kind === "sec-mock") return "SEC mock";
+  if (kind === "uploaded") return "User";
+  return "Sample";
+}
+
+function getSourceClass(source) {
+  const kind = getSourceKind(source);
+  if (kind === "uploaded") return "is-user";
+  if (kind === "sample") return "is-sample";
+  return `is-${kind}`;
+}
+
+function summarizeDataMode(docs) {
+  const counts = docs.reduce((acc, doc) => {
+    acc[getSourceKind(doc)] = (acc[getSourceKind(doc)] || 0) + 1;
+    return acc;
+  }, {});
+  if (counts["sec-live"]) return { label: "SEC live", sub: `${counts["sec-live"]} live SEC source${counts["sec-live"] === 1 ? "" : "s"} active` };
+  if (counts.uploaded) return { label: "Your data", sub: `${counts.uploaded} imported source${counts.uploaded === 1 ? "" : "s"} active` };
+  if (counts["sec-mock"]) return { label: "SEC mock", sub: `${counts["sec-mock"]} bridge fallback source${counts["sec-mock"] === 1 ? "" : "s"} active` };
+  return { label: "Sample", sub: `${docs.length} sample docs active` };
+}
+
+function makeAuditDataLabel(citations) {
+  const kinds = new Set(citations.map(getSourceKind));
+  if (kinds.has("sec-live")) return kinds.size > 1 ? "SEC live hybrid" : "SEC live";
+  if (kinds.has("uploaded")) return kinds.size > 1 ? "Hybrid" : "Imported";
+  if (kinds.has("sec-mock")) return kinds.size > 1 ? "SEC mock hybrid" : "SEC mock";
+  return "Sample";
 }
 
 function getCompanies() {
@@ -2065,7 +2157,7 @@ function buildPdfMemoBlocks() {
     type: "sourceTable",
     rows: state.currentCitations.slice(0, 6).map((citation) => ({
       id: citation.citationId,
-      source: `${isUploadedCitation(citation) ? "User" : "Sample"} | ${citation.company} | ${citation.type} | ${citation.period}`,
+      source: `${getCitationSourceLabel(citation)} | ${citation.company} | ${citation.type} | ${citation.period}`,
       section: citation.section,
       score: citation.score.toFixed(1),
       text: citation.text
@@ -2817,6 +2909,131 @@ function loadDemoImportPack(packKey) {
   els.queryInput.focus();
 }
 
+async function connectSecFilingBridge() {
+  const ticker = normalizeTicker(els.secBridgeTicker.value || state.selectedTicker);
+  const formType = String(els.secBridgeType.value || "10-K").toUpperCase();
+  setSecBridgeStatus(`Checking SEC submissions for ${ticker}...`, "loading");
+  try {
+    const docs = await fetchSecBridgeDocs(ticker, formType);
+    addUploadedDocs(docs, { replaceTicker: ticker, sourceLabel: `${ticker} SEC live bridge` });
+    els.queryInput.value = makeSecBridgeQuestion(ticker, formType);
+    syncTickerFocus(els.queryInput.value);
+    setSecBridgeStatus(`Connected ${docs.length} live SEC ${formType} metadata source${docs.length === 1 ? "" : "s"} for ${ticker}. Run analysis to use them.`, "success");
+  } catch (error) {
+    const docs = makeSecBridgeFallbackDocs(ticker, formType, error);
+    addUploadedDocs(docs, { replaceTicker: ticker, sourceLabel: `${ticker} SEC mock bridge` });
+    els.queryInput.value = makeSecBridgeQuestion(ticker, formType);
+    syncTickerFocus(els.queryInput.value);
+    setSecBridgeStatus(`SEC browser fetch fell back to labeled mock bridge data for ${ticker}. Production should use a backend User-Agent bridge.`, "fallback");
+  }
+  els.queryInput.focus();
+}
+
+async function fetchSecBridgeDocs(ticker, formType) {
+  if (!window.fetch) throw new Error("Browser fetch is unavailable.");
+  const tickerResponse = await fetch(SEC_COMPANY_TICKERS_URL, { cache: "no-store" });
+  if (!tickerResponse.ok) throw new Error(`Ticker lookup failed with ${tickerResponse.status}.`);
+  const tickerJson = await tickerResponse.json();
+  const companies = Object.values(tickerJson || {});
+  const match = companies.find((entry) => normalizeTicker(entry.ticker) === ticker);
+  if (!match) throw new Error(`No SEC ticker match for ${ticker}.`);
+  const cik = String(match.cik_str || "").padStart(10, "0");
+  const submissionResponse = await fetch(`${SEC_SUBMISSIONS_URL}${cik}.json`, { cache: "no-store" });
+  if (!submissionResponse.ok) throw new Error(`SEC submissions failed with ${submissionResponse.status}.`);
+  const submission = await submissionResponse.json();
+  return makeSecLiveDocs(ticker, formType, submission, match, cik);
+}
+
+function makeSecLiveDocs(ticker, formType, submission, tickerMatch, cik) {
+  const recent = submission && submission.filings && submission.filings.recent;
+  if (!recent || !Array.isArray(recent.form)) throw new Error("SEC submissions response did not include recent filings.");
+  const wanted = recent.form
+    .map((form, index) => ({ form, index }))
+    .filter((item) => String(item.form || "").toUpperCase() === formType)
+    .slice(0, 3);
+  if (!wanted.length) throw new Error(`No recent ${formType} filing metadata found for ${ticker}.`);
+  const companyName = submission.name || tickerMatch.title || `${ticker} SEC filer`;
+  return wanted.map(({ form, index }) => {
+    const accession = recent.accessionNumber[index] || "accession pending";
+    const filingDate = recent.filingDate[index] || new Date().toISOString().slice(0, 10);
+    const reportDate = recent.reportDate[index] || filingDate;
+    const primaryDoc = recent.primaryDocument[index] || "primary document pending";
+    const description = recent.primaryDocDescription[index] || `${form} filing`;
+    const filingUrl = makeSecArchiveUrl(cik, accession, primaryDoc);
+    const text = [
+      `SEC live filing bridge metadata for ${companyName} (${ticker}).`,
+      `Form ${form} was filed on ${filingDate} for report date ${reportDate}.`,
+      `Primary document: ${primaryDoc}. Description: ${description}.`,
+      `Accession number: ${accession}. Filing URL: ${filingUrl}.`,
+      "This browser bridge imports SEC submissions metadata now; full filing text ingestion should be routed through a backend connector with declared SEC User-Agent compliance.",
+      `${form} research workflow should inspect risk factors, management discussion, liquidity, capital resources, revenue durability, margin pressure, and management tone before producing a live investment memo.`
+    ].join(" ");
+    return makeBridgeDoc({
+      ticker,
+      company: `${ticker} SEC live bridge`,
+      title: `SEC ${form} metadata ${filingDate}`,
+      type: `${form} metadata`,
+      text,
+      sourceKind: "sec-live",
+      date: filingDate
+    });
+  });
+}
+
+function makeSecBridgeFallbackDocs(ticker, formType, error) {
+  const pack = DEMO_IMPORT_PACKS[ticker];
+  const baseText = pack && pack.docs.length
+    ? pack.docs.map((doc) => `${doc.title}. ${doc.text}`).join(" ")
+    : [
+        `SEC mock bridge fallback for ${ticker}.`,
+        `${formType} filing analysis should inspect risk factors, management discussion, liquidity, capital resources, customer concentration, margin durability, debt exposure, and execution timing.`,
+        "The live browser request may be blocked by CORS, fair-access controls, or a missing backend User-Agent bridge. This mock source is labeled separately so it cannot be confused with live SEC data."
+      ].join(" ");
+  return [
+    makeBridgeDoc({
+      ticker,
+      company: `${ticker} SEC mock bridge`,
+      title: `SEC bridge mock ${formType}`,
+      type: `${formType} bridge mock`,
+      text: `${baseText} Mock bridge note: ${String(error && error.message ? error.message : "Live SEC fetch unavailable")}.`,
+      sourceKind: "sec-mock",
+      date: new Date().toISOString().slice(0, 10)
+    })
+  ];
+}
+
+function makeBridgeDoc({ ticker, company, title, type, text, sourceKind, date }) {
+  const doc = {
+    id: `${sourceKind}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    ticker: normalizeTicker(ticker),
+    company,
+    type,
+    period: title,
+    date,
+    sourceKind,
+    sections: splitImportedText(String(text || "").replace(/\s+/g, " ").trim())
+  };
+  doc.sourceQuality = assessSourceQuality(doc);
+  return doc;
+}
+
+function makeSecBridgeQuestion(ticker, formType) {
+  if (formType === "8-K") return `What new risks or signals appear in the latest SEC filing for $${ticker}?`;
+  if (formType === "10-Q") return `What changed in the latest 10-Q risk and liquidity discussion for $${ticker}?`;
+  return `What are the risks for $${ticker}?`;
+}
+
+function makeSecArchiveUrl(cik, accession, primaryDoc) {
+  const compactAccession = String(accession || "").replace(/-/g, "");
+  return `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${compactAccession}/${primaryDoc}`;
+}
+
+function setSecBridgeStatus(message, status = "") {
+  if (!els.secBridgeStatus) return;
+  els.secBridgeStatus.className = `sec-bridge-status ${status ? `is-${status}` : ""}`;
+  els.secBridgeStatus.textContent = message;
+}
+
 function makeUploadedDoc({ ticker, title, type, text }) {
   const safeTicker = normalizeTicker(ticker);
   const cleanTitle = String(title || "Imported document").trim().slice(0, 90);
@@ -2859,13 +3076,14 @@ function addUploadedDocs(docs, options = {}) {
 
 function normalizeUploadedDoc(doc) {
   const source = doc || {};
+  const sourceKind = ["sec-live", "sec-mock", "uploaded"].includes(source.sourceKind) ? source.sourceKind : "uploaded";
   const normalized = {
     ...source,
     ticker: normalizeTicker(source.ticker),
     type: String(source.type || "Research note"),
     period: String(source.period || source.title || "Imported document"),
     date: String(source.date || new Date().toISOString().slice(0, 10)),
-    sourceKind: "uploaded",
+    sourceKind,
     sections: Array.isArray(source.sections) ? source.sections : []
   };
   normalized.company = normalized.company || `${normalized.ticker} imported corpus`;

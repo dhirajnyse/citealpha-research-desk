@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260508-06" />
+    <link rel="manifest" href="site.webmanifest?v=20260508-07" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -52,8 +52,8 @@
       .right-rail, .left-rail, .workbench { display: grid; gap: 12px; }
       @media (max-width: 900px) { .topbar, .terminal-layout { grid-template-columns: 1fr; } }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260508-06" />
-    <link rel="stylesheet" href="launch.css?v=20260508-06" />
+    <link rel="stylesheet" href="styles.css?v=20260508-07" />
+    <link rel="stylesheet" href="launch.css?v=20260508-07" />
   </head>
   <body>
     <div class="app-shell">
@@ -197,6 +197,28 @@
                 <button class="text-button demo-pack-button" type="button" data-pack="TSLA">TSLA pack</button>
               </div>
             </div>
+            <form class="sec-bridge-panel" id="secBridgeForm" aria-label="SEC filing bridge">
+              <div>
+                <strong>SEC filing bridge</strong>
+                <span>Lookup recent SEC submissions. If browser access is blocked, CiteAlpha imports a labeled mock bridge source instead.</span>
+              </div>
+              <div class="field-row">
+                <label>
+                  <span>Ticker</span>
+                  <input id="secBridgeTicker" type="text" maxlength="8" value="NVDA" />
+                </label>
+                <label>
+                  <span>Filing</span>
+                  <select id="secBridgeType">
+                    <option>10-K</option>
+                    <option>10-Q</option>
+                    <option>8-K</option>
+                  </select>
+                </label>
+              </div>
+              <button class="secondary-button small" type="submit">Connect filings</button>
+              <div class="sec-bridge-status" id="secBridgeStatus" aria-live="polite"></div>
+            </form>
             <div class="source-quality-panel" id="sourceQualityPanel" aria-live="polite"></div>
             <form class="paste-form" id="pasteForm">
               <div class="field-row">
@@ -470,6 +492,6 @@
       </footer>
     </div>
 
-    <script src="app.js?v=20260508-06" defer></script>
+    <script src="app.js?v=20260508-07" defer></script>
   </body>
 </html>
