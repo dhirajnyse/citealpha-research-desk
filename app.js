@@ -472,6 +472,7 @@ const state = {
   uploadedDocs: [],
   notes: [],
   waitlistLeads: [],
+  lastImportAudit: null,
   lastBrief: null,
   lastAnswerModel: null,
   currentCitations: [],
@@ -486,10 +487,10 @@ function init() {
   cacheElements();
   window.CiteAlphaRunAnalysis = submitCurrentQuestion;
   window.CiteAlphaScanFiling = scanFilingFromCurrentQuestion;
-  state.uploadedDocs = loadJson(STORAGE_KEYS.uploads, []);
+  state.uploadedDocs = loadJson(STORAGE_KEYS.uploads, []).map(normalizeUploadedDoc);
   state.notes = loadJson(STORAGE_KEYS.notes, []);
   state.waitlistLeads = loadJson(STORAGE_KEYS.waitlist, []);
-  state.documents = [...SAMPLE_DOCS, ...state.uploadedDocs];
+  state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
   state.documents.forEach((doc) => state.enabledDocIds.add(doc.id));
   for (const doc of state.uploadedDocs) {
     state.activeTickers.add(doc.ticker);
@@ -498,6 +499,7 @@ function init() {
   renderTemplates();
   renderCoverage();
   renderLibrary();
+  renderSourceQuality();
   renderContextBand();
   renderValuationOptions();
   renderNotebook();
@@ -517,6 +519,7 @@ function cacheElements() {
   els.documentCount = document.querySelector("#documentCount");
   els.fileInput = document.querySelector("#fileInput");
   els.fileDrop = document.querySelector(".file-drop");
+  els.sourceQualityPanel = document.querySelector("#sourceQualityPanel");
   els.pasteForm = document.querySelector("#pasteForm");
   els.pasteTicker = document.querySelector("#pasteTicker");
   els.pasteType = document.querySelector("#pasteType");
@@ -642,9 +645,11 @@ function bindEvents() {
     state.documents = [...SAMPLE_DOCS];
     state.enabledDocIds = new Set(state.documents.map((doc) => doc.id));
     state.activeTickers = new Set(SAMPLE_COMPANIES.map((company) => company.ticker));
+    state.lastImportAudit = null;
     saveJson(STORAGE_KEYS.uploads, []);
     renderCoverage();
     renderLibrary();
+    renderSourceQuality();
     renderContextBand();
     renderValuationOptions();
     updateValuationFromCompany();
@@ -764,18 +769,22 @@ function renderCoverage() {
 }
 
 function renderLibrary() {
-  const docs = state.documents;
-  els.documentCount.textContent = `${docs.length} docs`;
+  const docs = getLibraryDocs();
+  const uploadedCount = docs.filter(isUploadedDoc).length;
+  els.documentCount.textContent = uploadedCount ? `${docs.length} docs | ${uploadedCount} yours` : `${docs.length} docs`;
   els.libraryList.innerHTML = docs.map((doc) => {
     const checked = state.enabledDocIds.has(doc.id) ? "checked" : "";
+    const trustClass = isUploadedDoc(doc) ? "is-user" : "is-sample";
+    const trustLabel = isUploadedDoc(doc) ? "Your data" : "Sample";
+    const quality = doc.sourceQuality ? `${doc.sourceQuality.quality}/100` : "Demo";
     return `
       <label class="source-toggle">
         <input type="checkbox" data-doc-id="${escapeAttr(doc.id)}" ${checked} />
         <span class="source-main">
           <strong>${escapeHtml(doc.ticker)} - ${escapeHtml(doc.period)}</strong>
-          <span>${escapeHtml(doc.company)} - ${escapeHtml(doc.date)}</span>
+          <span>${escapeHtml(doc.company)} - ${escapeHtml(doc.date)} - ${escapeHtml(quality)}</span>
         </span>
-        <span class="source-kind">${escapeHtml(shortDocType(doc.type))}</span>
+        <span class="source-kind ${trustClass}">${escapeHtml(shortDocType(doc.type))} | ${escapeHtml(trustLabel)}</span>
       </label>
     `;
   }).join("");
@@ -787,14 +796,44 @@ function renderLibrary() {
       } else {
         state.enabledDocIds.delete(input.dataset.docId);
       }
+      renderSourceQuality();
       renderContextBand();
     });
   });
 }
 
+function renderSourceQuality() {
+  if (!els.sourceQualityPanel) return;
+  const enabledUploaded = state.uploadedDocs.filter((doc) => state.enabledDocIds.has(doc.id));
+  const audit = state.lastImportAudit || (enabledUploaded.length ? summarizeImportAudit(enabledUploaded) : null);
+  if (!audit) {
+    els.sourceQualityPanel.innerHTML = `
+      <div class="source-quality-empty">
+        <strong>Source quality check</strong>
+        <span>Import a filing, transcript, or note to see ticker detection, sections, citation-ready passages, and trust score.</span>
+      </div>
+    `;
+    return;
+  }
+  els.sourceQualityPanel.innerHTML = `
+    <div class="source-quality-top">
+      <span>${escapeHtml(audit.label)}</span>
+      <strong>${escapeHtml(String(audit.quality))}/100</strong>
+    </div>
+    <dl class="source-quality-grid">
+      <div><dt>Ticker</dt><dd>${escapeHtml(audit.ticker)}</dd></div>
+      <div><dt>Type</dt><dd>${escapeHtml(audit.type)}</dd></div>
+      <div><dt>Sections</dt><dd>${escapeHtml(String(audit.sections))}</dd></div>
+      <div><dt>Citations</dt><dd>${escapeHtml(String(audit.passages))}</dd></div>
+    </dl>
+    <p>${escapeHtml(audit.note)}</p>
+  `;
+}
+
 function renderContextBand() {
   const enabledDocs = getEnabledDocs();
   const activeCompanies = getCompanies().filter((company) => state.activeTickers.has(company.ticker));
+  const enabledUploaded = enabledDocs.filter(isUploadedDoc).length;
   const averageMargin = activeCompanies.length
     ? activeCompanies.reduce((sum, company) => sum + company.opMargin, 0) / activeCompanies.length
     : 0;
@@ -812,7 +851,7 @@ function renderContextBand() {
 
   const tiles = [
     focusTile,
-    { label: "Enabled docs", value: enabledDocs.length, sub: `${state.uploadedDocs.length} uploaded` },
+    { label: "Data mode", value: enabledUploaded ? "Your data" : "Sample", sub: enabledUploaded ? `${enabledUploaded} imported source${enabledUploaded === 1 ? "" : "s"} active` : `${enabledDocs.length} sample docs active` },
     { label: "Avg op margin", value: `${averageMargin.toFixed(1)}%`, sub: "Selected coverage" },
     { label: "Risk index", value: Math.round(averageRisk), sub: citationCount ? `${citationCount} current citations` : "Pre-query baseline" }
   ];
@@ -983,6 +1022,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const thesis = makeThesis(compareMode, rankedCompanies, citations, intent);
   const toneMeter = makeToneMeter(rankedCompanies, citations);
   const focusNotice = makeTickerFocusNotice(tickerFocus);
+  const sourceTrust = makeSourceTrust(citations);
   const sourceAudit = makeSourceAudit(citations, rankedCompanies);
   const evidenceBullets = citations.slice(0, state.answerDepth === "brief" ? 3 : 5).map((citation, index) => {
     return `<li>${makeEvidenceSentence(citation, intent)} ${citationLink(index)}</li>`;
@@ -1047,7 +1087,10 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const html = `
     <div class="answer-header">
       <div>
-        <div class="answer-kicker">${escapeHtml(intent.label)}</div>
+        <div class="answer-kicker-row">
+          <span class="answer-kicker">${escapeHtml(intent.label)}</span>
+          <span class="trust-pill ${escapeAttr(sourceTrust.className)}">${escapeHtml(sourceTrust.label)}</span>
+        </div>
         <h2>${headline}</h2>
       </div>
       <div class="confidence-box">
@@ -1067,6 +1110,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     `${intent.label} | ${confidence}% confidence`,
     `Management tone: ${toneMeter.label} (${toneMeter.percent}/100)`,
     tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
+    sourceTrust.plainText,
     sourceAudit.plainText,
     stripHtml(headline),
     stripHtml(thesis),
@@ -1095,6 +1139,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     intentLabel: intent.label,
     toneLabel: toneMeter.label,
     tonePercent: toneMeter.percent,
+    sourceTrust,
     sourceAudit,
     tickerFocus
   };
@@ -1149,26 +1194,49 @@ function makeTickerFocusNotice(focus) {
   `;
 }
 
+function makeSourceTrust(citations) {
+  const imported = citations.filter(isUploadedCitation).length;
+  const sample = Math.max(0, citations.length - imported);
+  const label = imported ? (sample ? "Your data + sample" : "Your data") : "Sample data";
+  const note = imported
+    ? `${imported} imported citation${imported === 1 ? "" : "s"} prioritized in this answer.`
+    : "Answer is based on the bundled sample corpus until source documents are imported.";
+  return {
+    label,
+    imported,
+    sample,
+    note,
+    className: imported ? "is-user" : "is-sample",
+    plainText: `Data source: ${label}. ${note}`
+  };
+}
+
 function makeSourceAudit(citations, rankedCompanies) {
   const docCount = new Set(citations.map((citation) => citation.docId)).size;
+  const importedCount = citations.filter(isUploadedCitation).length;
+  const sampleCount = Math.max(0, citations.length - importedCount);
   const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
   const callCount = citations.filter((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
   const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
   const topScore = citations[0] ? citations[0].score : 0;
   const coverageLabel = docCount >= 4 ? "Broad" : docCount >= 2 ? "Focused" : "Narrow";
   const companyLabel = rankedCompanies[0] ? rankedCompanies[0].ticker : "Desk";
+  const dataLabel = importedCount ? (sampleCount ? "Hybrid" : "Imported") : "Sample";
   const balance = [
     filingCount ? `${filingCount} filing` : "",
     callCount ? `${callCount} call` : "",
     modelCount ? `${modelCount} model` : ""
   ].filter(Boolean).join(" / ") || "No retrieved sources";
-  const quality = Math.max(42, Math.min(96, Math.round(42 + docCount * 7 + filingCount * 4 + callCount * 3 + Math.min(topScore, 18))));
+  const quality = Math.max(42, Math.min(98, Math.round(42 + docCount * 7 + filingCount * 4 + callCount * 3 + importedCount * 4 + Math.min(topScore, 18))));
 
   return {
     coverageLabel,
     balance,
+    dataLabel,
+    importedCount,
+    sampleCount,
     quality,
-    plainText: `Source audit: ${quality}/100 quality, ${coverageLabel.toLowerCase()} coverage, ${balance}.`,
+    plainText: `Source audit: ${quality}/100 quality, ${coverageLabel.toLowerCase()} coverage, ${balance}. Data mode: ${dataLabel}.`,
     html: `
       <section class="source-audit-card" aria-label="Source audit">
         <div>
@@ -1177,6 +1245,7 @@ function makeSourceAudit(citations, rankedCompanies) {
         </div>
         <dl>
           <div><dt>Coverage</dt><dd>${escapeHtml(coverageLabel)}</dd></div>
+          <div><dt>Data</dt><dd>${escapeHtml(dataLabel)}</dd></div>
           <div><dt>Mix</dt><dd>${escapeHtml(balance)}</dd></div>
           <div><dt>Anchor</dt><dd>${escapeHtml(companyLabel)}</dd></div>
         </dl>
@@ -1210,7 +1279,7 @@ function renderEvidence(citations) {
     <article class="evidence-card" id="evidence-${escapeAttr(citation.citationId)}">
       <div class="evidence-meta">
         <span>${escapeHtml(citation.citationId)} - ${escapeHtml(citation.ticker)}</span>
-        <span>${citation.score.toFixed(1)}</span>
+        <span>${escapeHtml(isUploadedCitation(citation) ? "Your data" : "Sample")} | ${citation.score.toFixed(1)}</span>
       </div>
       <strong>${escapeHtml(citation.type)} - ${escapeHtml(citation.period)} - ${escapeHtml(citation.section)}</strong>
       <p>${escapeHtml(snippet(citation.text, 280))}</p>
@@ -1239,6 +1308,8 @@ function buildChunks(docs) {
           date: doc.date,
           section: section.title,
           text,
+          sourceKind: isUploadedDoc(doc) ? "uploaded" : "sample",
+          sourceQuality: doc.sourceQuality || null,
           tokens,
           tokenCounts
         });
@@ -1274,6 +1345,9 @@ function rankChunks(question, chunks) {
       if (/filing|10-k|risk factor|mda|md&a/.test(lowerQuestion) && /filing/i.test(chunk.type)) score += 3.5;
       if (/valuation|model|multiple|discount/.test(lowerQuestion) && /model/i.test(chunk.type)) score += 5;
       if (/risk|headwind|pressure/.test(lowerQuestion) && /risk/i.test(chunk.section)) score += 2.5;
+      if (chunk.sourceKind === "uploaded" && (!tickersInQuestion.length || tickersInQuestion.includes(chunk.ticker))) {
+        score += 5.5 + ((chunk.sourceQuality && chunk.sourceQuality.quality) || 70) / 100;
+      }
       score += toneRelevance(question, chunk.text) * 0.55;
       return { ...chunk, score };
     })
@@ -1578,7 +1652,25 @@ function isCompareQuestion(question, citations) {
 }
 
 function getEnabledDocs() {
-  return state.documents.filter((doc) => state.enabledDocIds.has(doc.id) && state.activeTickers.has(doc.ticker));
+  return state.documents
+    .filter((doc) => state.enabledDocIds.has(doc.id) && state.activeTickers.has(doc.ticker))
+    .sort((a, b) => Number(isUploadedDoc(b)) - Number(isUploadedDoc(a)));
+}
+
+function getLibraryDocs() {
+  return state.documents.slice().sort((a, b) => {
+    const sourceDelta = Number(isUploadedDoc(b)) - Number(isUploadedDoc(a));
+    if (sourceDelta) return sourceDelta;
+    return String(a.ticker).localeCompare(String(b.ticker)) || String(a.period).localeCompare(String(b.period));
+  });
+}
+
+function isUploadedDoc(doc) {
+  return Boolean(doc && (doc.sourceKind === "uploaded" || String(doc.id || "").startsWith("upload-")));
+}
+
+function isUploadedCitation(citation) {
+  return Boolean(citation && citation.sourceKind === "uploaded");
 }
 
 function getCompanies() {
@@ -1848,6 +1940,7 @@ function buildPdfMemoBlocks() {
   const model = state.lastAnswerModel || {};
   const company = getExportCompany();
   const tickerDisplay = makePrintTickerDisplay(model, company);
+  const sourceTrust = model.sourceTrust || makeSourceTrust(state.currentCitations);
   const generatedAt = new Date().toLocaleString();
   const blocks = [
     {
@@ -1863,7 +1956,7 @@ function buildPdfMemoBlocks() {
         { label: "Focus", value: tickerDisplay },
         { label: "Confidence", value: `${model.confidence || 0}%` },
         { label: "Tone", value: `${model.toneLabel || "Balanced"} ${model.tonePercent || 0}/100` },
-        { label: "Question", value: model.intentLabel || "Research brief" }
+        { label: "Data", value: sourceTrust.label || "Sample data" }
       ]
     },
     { type: "audit", text: makePdfSourceAuditLine(model) },
@@ -1908,7 +2001,7 @@ function buildPdfMemoBlocks() {
     type: "sourceTable",
     rows: state.currentCitations.slice(0, 6).map((citation) => ({
       id: citation.citationId,
-      source: `${citation.company} | ${citation.type} | ${citation.period}`,
+      source: `${isUploadedCitation(citation) ? "User" : "Sample"} | ${citation.company} | ${citation.type} | ${citation.period}`,
       section: citation.section,
       score: citation.score.toFixed(1),
       text: citation.text
@@ -1917,7 +2010,7 @@ function buildPdfMemoBlocks() {
 
   blocks.push({
     type: "footnote",
-    text: "Synthetic demo corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice."
+    text: `${sourceTrust.plainText} CiteAlpha is research software, not investment advice.`
   });
 
   return blocks;
@@ -1926,7 +2019,7 @@ function buildPdfMemoBlocks() {
 function makePdfSourceAuditLine(model) {
   const audit = model && model.sourceAudit;
   if (!audit) return "Source audit: Evidence quality pending.";
-  return `Source audit: ${audit.quality}/100 quality | ${audit.coverageLabel} coverage | Mix: ${audit.balance}`;
+  return `Source audit: ${audit.quality}/100 quality | ${audit.coverageLabel} coverage | Data: ${audit.dataLabel || "Sample"} | Mix: ${audit.balance}`;
 }
 
 function createSimplePdf(blocks) {
@@ -2649,22 +2742,26 @@ function makeUploadedDoc({ ticker, title, type, text }) {
   const safeTicker = normalizeTicker(ticker);
   const cleanTitle = String(title || "Imported document").trim().slice(0, 90);
   const cleanText = String(text || "").replace(/\s+/g, " ").trim();
-  return {
+  const doc = {
     id: `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     ticker: safeTicker,
     company: `${safeTicker} imported corpus`,
     type: String(type || "Research note"),
     period: cleanTitle,
     date: new Date().toISOString().slice(0, 10),
+    sourceKind: "uploaded",
     sections: splitImportedText(cleanText)
   };
+  doc.sourceQuality = assessSourceQuality(doc);
+  return doc;
 }
 
 function addUploadedDocs(docs) {
-  const filtered = docs.filter((doc) => doc.sections.some((section) => section.text.length > 30));
+  const filtered = docs.map(normalizeUploadedDoc).filter((doc) => doc.sections.some((section) => section.text.length > 30));
   if (!filtered.length) return;
   state.uploadedDocs = [...filtered, ...state.uploadedDocs].slice(0, 18);
-  state.documents = [...SAMPLE_DOCS, ...state.uploadedDocs];
+  state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
+  state.lastImportAudit = summarizeImportAudit(filtered);
   filtered.forEach((doc) => {
     state.enabledDocIds.add(doc.id);
     state.activeTickers.add(doc.ticker);
@@ -2672,9 +2769,66 @@ function addUploadedDocs(docs) {
   saveJson(STORAGE_KEYS.uploads, state.uploadedDocs);
   renderCoverage();
   renderLibrary();
+  renderSourceQuality();
   renderContextBand();
   renderValuationOptions();
   drawSignalMap();
+}
+
+function normalizeUploadedDoc(doc) {
+  const source = doc || {};
+  const normalized = {
+    ...source,
+    ticker: normalizeTicker(source.ticker),
+    type: String(source.type || "Research note"),
+    period: String(source.period || source.title || "Imported document"),
+    date: String(source.date || new Date().toISOString().slice(0, 10)),
+    sourceKind: "uploaded",
+    sections: Array.isArray(source.sections) ? source.sections : []
+  };
+  normalized.company = normalized.company || `${normalized.ticker} imported corpus`;
+  normalized.sourceQuality = assessSourceQuality(normalized);
+  return normalized;
+}
+
+function assessSourceQuality(doc) {
+  const text = doc.sections.map((section) => section.text).join(" ");
+  const sections = doc.sections.length;
+  const passages = doc.sections.reduce((sum, section) => sum + splitIntoChunks(section.text, 520).length, 0);
+  const hasFilingSignal = /risk factors|management discussion|md&a|liquidity|capital resources|10-k|10-q/i.test(text);
+  const hasCallSignal = /prepared remarks|analyst q&a|question-and-answer|operator|guidance|management/i.test(text);
+  const metrics = extractMetrics(text).length;
+  const lengthScore = Math.min(24, Math.floor(text.length / 260));
+  const structureScore = Math.min(20, sections * 5 + passages * 2);
+  const sourceScore = (hasFilingSignal ? 12 : 0) + (hasCallSignal ? 10 : 0) + (/model|valuation/i.test(doc.type) ? 8 : 0);
+  const metricScore = Math.min(12, metrics * 2);
+  const quality = Math.max(35, Math.min(98, 36 + lengthScore + structureScore + sourceScore + metricScore));
+  return {
+    quality,
+    sections,
+    passages,
+    metrics,
+    hasFilingSignal,
+    hasCallSignal
+  };
+}
+
+function summarizeImportAudit(docs) {
+  const first = docs[0];
+  const sections = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.sections) || doc.sections.length), 0);
+  const passages = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.passages) || 0), 0);
+  const quality = Math.round(docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.quality) || 50), 0) / docs.length);
+  const tickerList = Array.from(new Set(docs.map((doc) => doc.ticker))).join(", ");
+  const typeList = Array.from(new Set(docs.map((doc) => shortDocType(doc.type)))).join(", ");
+  return {
+    label: docs.length === 1 ? "Source quality check" : "Import batch quality",
+    ticker: tickerList,
+    type: typeList,
+    sections,
+    passages,
+    quality,
+    note: `${docs.length} imported source${docs.length === 1 ? "" : "s"} added and prioritized ahead of the sample corpus when enabled.${first ? ` Latest: ${first.period}.` : ""}`
+  };
 }
 
 function splitImportedText(text) {

@@ -54,6 +54,7 @@ V24 improves memo formatting with justified PDF body text, page headers/footers,
 V25 upgrades the PDF into a visual executive report with a branded cover band, KPI cards, source-audit band, boxed risk cards, committee cue cards, and an evidence source table.
 V26 polishes PDF spacing so risk severity labels, risk titles, and committee cue cards read cleanly in the exported report.
 V27 compacts the PDF evidence pack into a two-column source grid so standard risk memos fit into a cleaner executive-report layout.
+V28 adds a source trust layer: imported documents receive quality diagnostics, uploaded sources are prioritized during retrieval, answers show sample-vs-user data badges, and PDF memos disclose the data source.
 
 ## Notes
 
