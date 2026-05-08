@@ -2084,7 +2084,7 @@ function createSimplePdf(blocks) {
       addStrokeRect(x, top - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.45);
       addFillRect(x + 8, top - 22, 26, 15, "0.89 0.95 0.94");
       addTextLine(row.id, x + 14, top - 17, { size: 7.5, font: "F2", color: "0.09 0.46 0.43" });
-      addWrappedAt(`${snippet(row.source, 44)} | ${row.score}`, x + 42, top - 14, cardWidth - 52, { size: 7.4, font: "F2", leading: 9, maxLines: 1 });
+      addWrappedAt(`${row.score} | ${snippet(row.source, 38)}`, x + 42, top - 14, cardWidth - 52, { size: 7.4, font: "F2", leading: 9, maxLines: 1 });
       addWrappedAt(snippet(row.section, 58), x + 9, top - 33, cardWidth - 18, { size: 7.8, leading: 9, maxLines: 1, color: "0.15 0.2 0.19" });
       addWrappedAt(snippet(row.text, 115), x + 9, top - 46, cardWidth - 18, { size: 7.1, leading: 8.3, maxLines: 1, color: "0.39 0.44 0.43" });
     });
