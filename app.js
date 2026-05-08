@@ -1850,12 +1850,25 @@ function buildPdfMemoBlocks() {
   const tickerDisplay = makePrintTickerDisplay(model, company);
   const generatedAt = new Date().toLocaleString();
   const blocks = [
-    { type: "eyebrow", text: "CiteAlpha | Investment Committee Memo" },
-    { type: "title", text: model.headline || "Research brief" },
-    { type: "meta", text: `Focus: ${tickerDisplay} | Question type: ${model.intentLabel || "Research brief"} | Confidence: ${model.confidence || 0}% | Tone: ${model.toneLabel || "Balanced"} ${model.tonePercent || 0}/100 | Generated: ${generatedAt}` },
+    {
+      type: "cover",
+      eyebrow: "CiteAlpha investment memo",
+      title: model.headline || "Research brief",
+      subtitle: "Evidence-backed equity research generated from filings, earnings calls, and valuation notes.",
+      generatedAt
+    },
+    {
+      type: "snapshot",
+      items: [
+        { label: "Focus", value: tickerDisplay },
+        { label: "Confidence", value: `${model.confidence || 0}%` },
+        { label: "Tone", value: `${model.toneLabel || "Balanced"} ${model.tonePercent || 0}/100` },
+        { label: "Question", value: model.intentLabel || "Research brief" }
+      ]
+    },
     { type: "audit", text: makePdfSourceAuditLine(model) },
     { type: "heading", text: "Bottom line" },
-    { type: "body", text: getMemoThesis(model) }
+    { type: "callout", text: getMemoThesis(model) }
   ];
 
   if (model.intentId === "risk") {
@@ -1864,34 +1877,42 @@ function buildPdfMemoBlocks() {
       const citation = state.currentCitations[factor.citationIndex];
       const citationText = citation ? `${citation.citationId} ${citation.type} - ${citation.section}` : "Evidence stack";
       blocks.push({
-        type: "bullet",
-        text: `${index + 1}. ${factor.title} (${factor.severity}) - ${factor.body} [${citationText}]`
+        type: "riskCard",
+        number: index + 1,
+        title: factor.title,
+        severity: factor.severity,
+        body: factor.body,
+        citation: citationText
       });
     });
   } else {
     blocks.push({ type: "heading", text: "Evidence highlights" });
     state.currentCitations.slice(0, 3).forEach((citation, index) => {
       blocks.push({
-        type: "bullet",
-        text: `${index + 1}. ${citation.citationId} ${citation.type} - ${citation.section}: ${snippet(citation.text, 260)}`
+        type: "evidenceCard",
+        label: `${index + 1}. ${citation.citationId} ${citation.type}`,
+        title: citation.section,
+        text: snippet(citation.text, 280)
       });
     });
   }
 
   blocks.push({ type: "heading", text: "Committee cues" });
-  makeDecisionCues(model, company).forEach((cue, index) => {
-    blocks.push({ type: "bullet", text: `${index + 1}. ${cue.label}: ${cue.title} - ${cue.body}` });
-  });
+  blocks.push({ type: "cueGrid", items: makeDecisionCues(model, company) });
 
   blocks.push({ type: "heading", text: "Valuation read-through" });
-  blocks.push({ type: "body", text: getMemoValuation() });
+  blocks.push({ type: "callout", text: getMemoValuation() });
 
   blocks.push({ type: "heading", text: "Evidence pack" });
-  state.currentCitations.slice(0, 6).forEach((citation) => {
-    blocks.push({
-      type: "body",
-      text: `${citation.citationId} | ${citation.company} | ${citation.type} | ${citation.period} | ${citation.section}: ${citation.text}`
-    });
+  blocks.push({
+    type: "sourceTable",
+    rows: state.currentCitations.slice(0, 6).map((citation) => ({
+      id: citation.citationId,
+      source: `${citation.company} | ${citation.type} | ${citation.period}`,
+      section: citation.section,
+      score: citation.score.toFixed(1),
+      text: citation.text
+    }))
   });
 
   blocks.push({
@@ -1928,6 +1949,135 @@ function createSimplePdf(blocks) {
   const addFillRect = (x, rectY, width, height, color = "0.97 0.98 0.98") => {
     currentPage().push(`q ${color} rg ${x} ${rectY} ${width} ${height} re f Q`);
   };
+  const addStrokeRect = (x, rectY, width, height, color = "0.84 0.87 0.86", lineWidth = 0.6) => {
+    currentPage().push(`q ${color} RG ${lineWidth} w ${x} ${rectY} ${width} ${height} re S Q`);
+  };
+  const addTextLine = (text, x, textY, options = {}) => {
+    const size = options.size || 10;
+    const font = options.font || "F1";
+    const color = options.color || "0.07 0.09 0.09";
+    currentPage().push(`q ${color} rg BT /${font} ${size} Tf 0 Tw ${x} ${textY} Td (${pdfEscape(text)}) Tj ET Q`);
+  };
+  const addWrappedAt = (text, x, startY, width, options = {}) => {
+    const size = options.size || 10;
+    const font = options.font || "F1";
+    const leading = options.leading || Math.ceil(size * 1.35);
+    const color = options.color || "0.15 0.2 0.19";
+    const chars = Math.max(18, Math.floor(width / (size * 0.52)));
+    const lines = wrapPdfText(text, chars).slice(0, options.maxLines || 20);
+    let localY = startY;
+    lines.forEach((line, index) => {
+      const justify = Boolean(options.justify && index < lines.length - 1 && line.split(" ").length > 4);
+      const wordSpacing = justify ? computePdfWordSpacing(line, size, width) : 0;
+      currentPage().push(`q ${color} rg BT /${font} ${size} Tf ${wordSpacing.toFixed(3)} Tw ${x} ${localY} Td (${pdfEscape(line)}) Tj ET Q`);
+      localY -= leading;
+    });
+    return localY;
+  };
+  const addCover = (block) => {
+    ensureSpace(112);
+    addFillRect(margin, y - 84, maxWidth, 88, "0.93 0.97 0.96");
+    addStrokeRect(margin, y - 84, maxWidth, 88, "0.55 0.76 0.73", 0.8);
+    addFillRect(margin + 16, y - 50, 34, 34, "0.07 0.09 0.09");
+    addTextLine("CA", margin + 23, y - 37, { size: 11, font: "F2", color: "0.90 0.56 0.17" });
+    addTextLine(block.eyebrow, margin + 62, y - 18, { size: 9, font: "F2", color: "0.09 0.46 0.43" });
+    const afterTitle = addWrappedAt(block.title, margin + 62, y - 36, maxWidth - 84, { size: 18, font: "F2", leading: 21, color: "0.07 0.09 0.09", maxLines: 2 });
+    addWrappedAt(block.subtitle, margin + 62, afterTitle - 3, maxWidth - 84, { size: 9.5, leading: 12, color: "0.39 0.44 0.43", maxLines: 2 });
+    addTextLine(`Generated ${block.generatedAt}`, pageWidth - margin - 154, y - 70, { size: 8, color: "0.39 0.44 0.43" });
+    y -= 104;
+  };
+  const addSnapshot = (block) => {
+    ensureSpace(76);
+    const gap = 8;
+    const cardWidth = (maxWidth - gap * 3) / 4;
+    const cardHeight = 56;
+    block.items.forEach((item, index) => {
+      const x = margin + index * (cardWidth + gap);
+      addFillRect(x, y - cardHeight, cardWidth, cardHeight, "0.98 0.99 0.99");
+      addStrokeRect(x, y - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.6);
+      addTextLine(item.label, x + 9, y - 16, { size: 7.5, font: "F2", color: "0.39 0.44 0.43" });
+      addWrappedAt(item.value, x + 9, y - 31, cardWidth - 18, { size: 11, font: "F2", leading: 12, maxLines: 2, color: "0.07 0.09 0.09" });
+    });
+    y -= cardHeight + 12;
+  };
+  const addAuditBand = (text) => {
+    ensureSpace(38);
+    addFillRect(margin, y - 28, maxWidth, 30, "0.89 0.95 0.94");
+    addStrokeRect(margin, y - 28, maxWidth, 30, "0.56 0.76 0.73", 0.6);
+    addTextLine("SOURCE AUDIT", margin + 10, y - 11, { size: 7.5, font: "F2", color: "0.09 0.46 0.43" });
+    addWrappedAt(text.replace(/^Source audit:\s*/i, ""), margin + 88, y - 11, maxWidth - 100, { size: 9, font: "F2", leading: 11, maxLines: 2, color: "0.07 0.09 0.09" });
+    y -= 42;
+  };
+  const addCallout = (text) => {
+    const size = 10.25;
+    const chars = Math.max(24, Math.floor((maxWidth - 24) / (size * 0.52)));
+    const lines = wrapPdfText(text, chars);
+    const height = Math.max(48, 22 + lines.length * 14);
+    ensureSpace(height + 4);
+    addFillRect(margin, y - height, maxWidth, height, "0.98 0.99 0.99");
+    addStrokeRect(margin, y - height, maxWidth, height, "0.84 0.87 0.86", 0.6);
+    addWrappedAt(text, margin + 12, y - 18, maxWidth - 24, { size, leading: 14, justify: true, maxLines: 14 });
+    y -= height + 5;
+  };
+  const addRiskCard = (block) => {
+    const body = `${block.body} [${block.citation}]`;
+    const lines = wrapPdfText(body, Math.floor((maxWidth - 34) / (10.1 * 0.52)));
+    const height = Math.max(78, 48 + lines.length * 13);
+    ensureSpace(height + 6);
+    addFillRect(margin, y - height, maxWidth, height, "1 1 1");
+    addStrokeRect(margin, y - height, maxWidth, height, block.severity === "High" ? "0.70 0.15 0.12" : "0.70 0.41 0.00", 0.7);
+    addFillRect(margin + 10, y - 25, 28, 18, block.severity === "High" ? "0.99 0.92 0.92" : "1 0.95 0.86");
+    addTextLine(`R${block.number}`, margin + 16, y - 19, { size: 8, font: "F2", color: block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00" });
+    addTextLine(block.severity.toUpperCase(), pageWidth - margin - 68, y - 19, { size: 7.5, font: "F2", color: block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00" });
+    addWrappedAt(block.title, margin + 46, y - 18, maxWidth - 128, { size: 11, font: "F2", leading: 13, maxLines: 2, color: "0.07 0.09 0.09" });
+    addWrappedAt(body, margin + 18, y - 43, maxWidth - 36, { size: 10.1, leading: 13, justify: true, maxLines: 8 });
+    y -= height + 7;
+  };
+  const addCueGrid = (block) => {
+    ensureSpace(108);
+    const gap = 8;
+    const cardWidth = (maxWidth - gap * 2) / 3;
+    const cardHeight = 96;
+    block.items.forEach((cue, index) => {
+      const x = margin + index * (cardWidth + gap);
+      addFillRect(x, y - cardHeight, cardWidth, cardHeight, "0.98 0.99 0.99");
+      addStrokeRect(x, y - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.6);
+      addTextLine(cue.label.toUpperCase(), x + 9, y - 15, { size: 7.3, font: "F2", color: "0.09 0.46 0.43" });
+      const afterTitle = addWrappedAt(cue.title, x + 9, y - 30, cardWidth - 18, { size: 10, font: "F2", leading: 12, maxLines: 2 });
+      addWrappedAt(cue.body, x + 9, afterTitle - 3, cardWidth - 18, { size: 8.5, leading: 10.5, maxLines: 4 });
+    });
+    y -= cardHeight + 10;
+  };
+  const addEvidenceCard = (block) => {
+    ensureSpace(70);
+    addFillRect(margin, y - 60, maxWidth, 60, "1 1 1");
+    addStrokeRect(margin, y - 60, maxWidth, 60, "0.84 0.87 0.86", 0.6);
+    addTextLine(block.label, margin + 10, y - 15, { size: 8, font: "F2", color: "0.09 0.46 0.43" });
+    addTextLine(block.title, margin + 10, y - 29, { size: 10, font: "F2" });
+    addWrappedAt(block.text, margin + 10, y - 43, maxWidth - 20, { size: 8.8, leading: 10.5, maxLines: 2 });
+    y -= 68;
+  };
+  const addSourceTable = (block) => {
+    if (!block.rows.length) return;
+    ensureSpace(30);
+    addFillRect(margin, y - 22, maxWidth, 22, "0.07 0.09 0.09");
+    addTextLine("ID", margin + 8, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
+    addTextLine("SOURCE", margin + 46, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
+    addTextLine("SECTION", margin + 240, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
+    addTextLine("SCORE", pageWidth - margin - 42, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
+    y -= 26;
+    block.rows.forEach((row) => {
+      ensureSpace(52);
+      addFillRect(margin, y - 44, maxWidth, 44, "1 1 1");
+      addStrokeRect(margin, y - 44, maxWidth, 44, "0.84 0.87 0.86", 0.4);
+      addTextLine(row.id, margin + 8, y - 13, { size: 8.5, font: "F2", color: "0.09 0.46 0.43" });
+      addWrappedAt(row.source, margin + 46, y - 12, 180, { size: 8.2, leading: 9.5, maxLines: 2 });
+      addWrappedAt(row.section, margin + 240, y - 12, 166, { size: 8.2, leading: 9.5, maxLines: 2 });
+      addTextLine(row.score, pageWidth - margin - 36, y - 13, { size: 8.5, font: "F2" });
+      addWrappedAt(snippet(row.text, 135), margin + 46, y - 31, maxWidth - 90, { size: 7.6, leading: 9, maxLines: 1 });
+      y -= 49;
+    });
+  };
   const addText = (text, options = {}) => {
     const size = options.size || 11;
     const font = options.font || "F1";
@@ -1954,16 +2104,20 @@ function createSimplePdf(blocks) {
   };
 
   blocks.forEach((block, index) => {
-    if (block.type === "eyebrow") addText(block.text, { size: 10, font: "F2", leading: 13, gapAfter: 4 });
+    if (block.type === "cover") addCover(block);
+    else if (block.type === "snapshot") addSnapshot(block);
+    else if (block.type === "callout") addCallout(block.text);
+    else if (block.type === "riskCard") addRiskCard(block);
+    else if (block.type === "cueGrid") addCueGrid(block);
+    else if (block.type === "evidenceCard") addEvidenceCard(block);
+    else if (block.type === "sourceTable") addSourceTable(block);
+    else if (block.type === "eyebrow") addText(block.text, { size: 10, font: "F2", leading: 13, gapAfter: 4 });
     else if (block.type === "title") {
       addText(block.text, { size: 19, font: "F2", leading: 23, gapAfter: 6 });
       addRule();
     } else if (block.type === "meta") addText(block.text, { size: 9, font: "F1", leading: 12, gapAfter: 8 });
-    else if (block.type === "audit") {
-      ensureSpace(34);
-      addFillRect(margin, y - 22, maxWidth, 26, "0.89 0.95 0.94");
-      addText(block.text, { size: 9.5, font: "F2", leading: 12, indent: 10, gapBefore: 2, gapAfter: 8 });
-    } else if (block.type === "heading") {
+    else if (block.type === "audit") addAuditBand(block.text);
+    else if (block.type === "heading") {
       addText(block.text, { size: 13, font: "F2", leading: 16, gapBefore: index ? 9 : 0, gapAfter: 2 });
       currentPage().push(`0.84 0.87 0.86 RG 0.5 w ${margin} ${y + 4} m ${pageWidth - margin} ${y + 4} l S`);
     } else if (block.type === "bullet") addText(block.text, { size: 10.25, font: "F1", leading: 14, indent: 12, gapAfter: 3, justify: true });
