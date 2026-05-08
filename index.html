@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260508-05" />
+    <link rel="manifest" href="site.webmanifest?v=20260508-06" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -52,8 +52,8 @@
       .right-rail, .left-rail, .workbench { display: grid; gap: 12px; }
       @media (max-width: 900px) { .topbar, .terminal-layout { grid-template-columns: 1fr; } }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260508-05" />
-    <link rel="stylesheet" href="launch.css?v=20260508-05" />
+    <link rel="stylesheet" href="styles.css?v=20260508-06" />
+    <link rel="stylesheet" href="launch.css?v=20260508-06" />
   </head>
   <body>
     <div class="app-shell">
@@ -186,6 +186,17 @@
               <span>Drop filing text, call transcripts, MD&A extracts, or model notes. Imported sources are ranked ahead of sample data.</span>
               <input id="fileInput" type="file" accept=".txt,.md,.csv,.html,.json" multiple />
             </label>
+            <div class="demo-import-panel" aria-label="Demo import packs">
+              <div>
+                <strong>Try the Your Data path</strong>
+                <span>Load a small source pack, then ask the suggested question.</span>
+              </div>
+              <div class="demo-pack-actions" id="demoPackActions">
+                <button class="text-button demo-pack-button" type="button" data-pack="NVDA">NVDA pack</button>
+                <button class="text-button demo-pack-button" type="button" data-pack="AAPL">AAPL pack</button>
+                <button class="text-button demo-pack-button" type="button" data-pack="TSLA">TSLA pack</button>
+              </div>
+            </div>
             <div class="source-quality-panel" id="sourceQualityPanel" aria-live="polite"></div>
             <form class="paste-form" id="pasteForm">
               <div class="field-row">
@@ -459,6 +470,6 @@
       </footer>
     </div>
 
-    <script src="app.js?v=20260508-05" defer></script>
+    <script src="app.js?v=20260508-06" defer></script>
   </body>
 </html>

@@ -66,6 +66,63 @@ const PUBLIC_TICKER_ALIASES = {
   BTC: { ticker: "HLGD", note: "BTC-style volatility and rate-sensitivity proxy" }
 };
 
+const DEMO_IMPORT_PACKS = {
+  NVDA: {
+    ticker: "NVDA",
+    question: "What are the risks for $NVDA?",
+    docs: [
+      {
+        title: "NVDA demo 10-K risk factors",
+        type: "10-K filing",
+        text:
+          "Risk factors. NVDA demo filing language says AI accelerator demand depends on hyperscale and enterprise capital spending cycles. A pause in customer procurement, lower cloud budget growth, or a shift toward internally designed chips could materially affect revenue, gross margin, and inventory. Management discussion and analysis says supply purchase commitments, advanced packaging capacity, and long-lead tooling deposits may pressure cash conversion if demand normalizes faster than expected. Liquidity and capital resources remain strong with net cash, but export controls, foundry capacity constraints, and delayed platform transitions could reduce shipment timing and force redesign work. The company notes that customer concentration remains elevated, and a small number of cloud customers represent a significant share of accelerator revenue."
+      },
+      {
+        title: "NVDA demo Q4 earnings call",
+        type: "Earnings call",
+        text:
+          "Prepared remarks. Management said demand for AI inference and training systems remains strong, but order timing can move between quarters as cloud customers optimize deployment plans. Analyst Q&A. The CFO said gross margin protection depends on mix, yield, and packaging availability rather than further price increases. Management acknowledged that export rules and platform qualification timing are the most visible execution risks for the next two quarters. When asked about supply commitments, management said cancellation exposure is manageable under the base demand plan but could become a working-capital drag if customer ramps pause."
+      }
+    ]
+  },
+  AAPL: {
+    ticker: "AAPL",
+    question: "Where does management sound less confident than the filing for $AAPL?",
+    docs: [
+      {
+        title: "AAPL demo 10-K business and risk factors",
+        type: "10-K filing",
+        text:
+          "Business overview. AAPL demo filing language describes a premium device and services ecosystem with high customer loyalty, recurring services revenue, and a large installed base. Risk factors. Hardware demand may be affected by replacement cycles, foreign exchange, consumer confidence, and competitive product launches. Gross margin could be pressured by component costs, regional price investment, and a richer mix of entry-level devices. Regulatory scrutiny around app distribution, payments, search arrangements, and platform rules could affect services economics. Management discussion and analysis says services growth remains durable, but product revenue can vary with launch timing and channel inventory."
+      },
+      {
+        title: "AAPL demo earnings call",
+        type: "Earnings call",
+        text:
+          "Prepared remarks. Management said the installed base reached a new high and services revenue grew at a double-digit pace. Analyst Q&A. When asked about hardware demand, management sounded more measured, saying customers remain selective in some regions and currency remains a headwind. The CFO said gross margin will depend on product mix, commodity costs, and services contribution. Management was confident in long-term ecosystem engagement but less specific about near-term unit growth and regulatory outcomes."
+      }
+    ]
+  },
+  TSLA: {
+    ticker: "TSLA",
+    question: "Is $TSLA capex a free-cash-flow risk or a growth moat?",
+    docs: [
+      {
+        title: "TSLA demo 10-K capex and liquidity",
+        type: "10-K filing",
+        text:
+          "Management discussion and analysis. TSLA demo filing language says revenue growth depends on vehicle deliveries, energy storage deployments, software adoption, and manufacturing scale. Capital expenditures remain elevated for factory tooling, battery capacity, compute infrastructure, and new platform development. Liquidity and capital resources are adequate under the base plan, but negative free cash flow could occur if price reductions, inventory growth, or factory ramps absorb cash faster than expected. Risk factors. Demand may be affected by interest rates, EV incentives, competition, residual values, charging availability, and execution timing."
+      },
+      {
+        title: "TSLA demo investor call",
+        type: "Earnings call",
+        text:
+          "Prepared remarks. Management framed capex as a growth moat because battery supply, AI compute, manufacturing automation, and charging infrastructure create scale advantages. Analyst Q&A. The CFO said free cash flow will be uneven during major platform transitions and energy storage ramps. Management acknowledged that higher rates can pressure affordability and leasing economics. The key debate is whether capital intensity converts into durable cost leadership or becomes a cash-consumption risk during slower demand periods."
+      }
+    ]
+  }
+};
+
 const RISK_FACTOR_LIBRARY = {
   NSCP: [
     {
@@ -519,6 +576,7 @@ function cacheElements() {
   els.documentCount = document.querySelector("#documentCount");
   els.fileInput = document.querySelector("#fileInput");
   els.fileDrop = document.querySelector(".file-drop");
+  els.demoPackActions = document.querySelector("#demoPackActions");
   els.sourceQualityPanel = document.querySelector("#sourceQualityPanel");
   els.pasteForm = document.querySelector("#pasteForm");
   els.pasteTicker = document.querySelector("#pasteTicker");
@@ -620,6 +678,12 @@ function bindEvents() {
     els.fileDrop.classList.remove("is-dragging");
     const files = Array.from(event.dataTransfer.files || []);
     await processFiles(files);
+  });
+
+  els.demoPackActions.querySelectorAll("[data-pack]").forEach((button) => {
+    button.addEventListener("click", () => {
+      loadDemoImportPack(button.dataset.pack);
+    });
   });
 
   els.pasteForm.addEventListener("submit", (event) => {
@@ -2738,6 +2802,21 @@ function readUploadedFile(file) {
   });
 }
 
+function loadDemoImportPack(packKey) {
+  const pack = DEMO_IMPORT_PACKS[String(packKey || "").toUpperCase()];
+  if (!pack) return;
+  const docs = pack.docs.map((doc) => makeUploadedDoc({
+    ticker: pack.ticker,
+    title: doc.title,
+    type: doc.type,
+    text: doc.text
+  }));
+  addUploadedDocs(docs, { replaceTicker: pack.ticker, sourceLabel: `${pack.ticker} demo import pack` });
+  els.queryInput.value = pack.question;
+  syncTickerFocus(pack.question);
+  els.queryInput.focus();
+}
+
 function makeUploadedDoc({ ticker, title, type, text }) {
   const safeTicker = normalizeTicker(ticker);
   const cleanTitle = String(title || "Imported document").trim().slice(0, 90);
@@ -2756,12 +2835,15 @@ function makeUploadedDoc({ ticker, title, type, text }) {
   return doc;
 }
 
-function addUploadedDocs(docs) {
+function addUploadedDocs(docs, options = {}) {
   const filtered = docs.map(normalizeUploadedDoc).filter((doc) => doc.sections.some((section) => section.text.length > 30));
   if (!filtered.length) return;
-  state.uploadedDocs = [...filtered, ...state.uploadedDocs].slice(0, 18);
+  const existing = options.replaceTicker
+    ? state.uploadedDocs.filter((doc) => doc.ticker !== normalizeTicker(options.replaceTicker))
+    : state.uploadedDocs;
+  state.uploadedDocs = [...filtered, ...existing].slice(0, 18);
   state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
-  state.lastImportAudit = summarizeImportAudit(filtered);
+  state.lastImportAudit = summarizeImportAudit(filtered, options.sourceLabel);
   filtered.forEach((doc) => {
     state.enabledDocIds.add(doc.id);
     state.activeTickers.add(doc.ticker);
@@ -2813,7 +2895,7 @@ function assessSourceQuality(doc) {
   };
 }
 
-function summarizeImportAudit(docs) {
+function summarizeImportAudit(docs, sourceLabel = "") {
   const first = docs[0];
   const sections = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.sections) || doc.sections.length), 0);
   const passages = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.passages) || 0), 0);
@@ -2827,7 +2909,7 @@ function summarizeImportAudit(docs) {
     sections,
     passages,
     quality,
-    note: `${docs.length} imported source${docs.length === 1 ? "" : "s"} added and prioritized ahead of the sample corpus when enabled.${first ? ` Latest: ${first.period}.` : ""}`
+    note: `${sourceLabel ? `${sourceLabel}: ` : ""}${docs.length} imported source${docs.length === 1 ? "" : "s"} added and prioritized ahead of the sample corpus when enabled.${first ? ` Latest: ${first.period}.` : ""}`
   };
 }
 
