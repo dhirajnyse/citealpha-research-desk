@@ -2064,24 +2064,31 @@ function createSimplePdf(blocks) {
   };
   const addSourceTable = (block) => {
     if (!block.rows.length) return;
-    ensureSpace(30);
+    const rows = block.rows.slice(0, 6);
+    const gap = 8;
+    const cardWidth = (maxWidth - gap) / 2;
+    const cardHeight = 58;
+    const rowCount = Math.ceil(rows.length / 2);
+    const totalHeight = 28 + rowCount * cardHeight + Math.max(0, rowCount - 1) * gap + 4;
+    ensureSpace(totalHeight);
     addFillRect(margin, y - 22, maxWidth, 22, "0.07 0.09 0.09");
-    addTextLine("ID", margin + 8, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
-    addTextLine("SOURCE", margin + 46, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
-    addTextLine("SECTION", margin + 240, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
-    addTextLine("SCORE", pageWidth - margin - 42, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
-    y -= 26;
-    block.rows.forEach((row) => {
-      ensureSpace(52);
-      addFillRect(margin, y - 44, maxWidth, 44, "1 1 1");
-      addStrokeRect(margin, y - 44, maxWidth, 44, "0.84 0.87 0.86", 0.4);
-      addTextLine(row.id, margin + 8, y - 13, { size: 8.5, font: "F2", color: "0.09 0.46 0.43" });
-      addWrappedAt(row.source, margin + 46, y - 12, 180, { size: 8.2, leading: 9.5, maxLines: 2 });
-      addWrappedAt(row.section, margin + 240, y - 12, 166, { size: 8.2, leading: 9.5, maxLines: 2 });
-      addTextLine(row.score, pageWidth - margin - 36, y - 13, { size: 8.5, font: "F2" });
-      addWrappedAt(snippet(row.text, 135), margin + 46, y - 31, maxWidth - 90, { size: 7.6, leading: 9, maxLines: 1 });
-      y -= 49;
+    addTextLine("SOURCE STACK", margin + 9, y - 14, { size: 7.5, font: "F2", color: "1 1 1" });
+    addTextLine(`${rows.length} passages sorted by relevance`, pageWidth - margin - 142, y - 14, { size: 7.2, font: "F2", color: "1 1 1" });
+    y -= 30;
+    rows.forEach((row, index) => {
+      const column = index % 2;
+      const rowIndex = Math.floor(index / 2);
+      const x = margin + column * (cardWidth + gap);
+      const top = y - rowIndex * (cardHeight + gap);
+      addFillRect(x, top - cardHeight, cardWidth, cardHeight, "1 1 1");
+      addStrokeRect(x, top - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.45);
+      addFillRect(x + 8, top - 22, 26, 15, "0.89 0.95 0.94");
+      addTextLine(row.id, x + 14, top - 17, { size: 7.5, font: "F2", color: "0.09 0.46 0.43" });
+      addWrappedAt(`${snippet(row.source, 44)} | ${row.score}`, x + 42, top - 14, cardWidth - 52, { size: 7.4, font: "F2", leading: 9, maxLines: 1 });
+      addWrappedAt(snippet(row.section, 58), x + 9, top - 33, cardWidth - 18, { size: 7.8, leading: 9, maxLines: 1, color: "0.15 0.2 0.19" });
+      addWrappedAt(snippet(row.text, 115), x + 9, top - 46, cardWidth - 18, { size: 7.1, leading: 8.3, maxLines: 1, color: "0.39 0.44 0.43" });
     });
+    y -= rowCount * cardHeight + Math.max(0, rowCount - 1) * gap + 8;
   };
   const addText = (text, options = {}) => {
     const size = options.size || 11;
@@ -2126,7 +2133,7 @@ function createSimplePdf(blocks) {
       addText(block.text, { size: 13, font: "F2", leading: 16, gapBefore: index ? 9 : 0, gapAfter: 2 });
       currentPage().push(`0.84 0.87 0.86 RG 0.5 w ${margin} ${y + 4} m ${pageWidth - margin} ${y + 4} l S`);
     } else if (block.type === "bullet") addText(block.text, { size: 10.25, font: "F1", leading: 14, indent: 12, gapAfter: 3, justify: true });
-    else if (block.type === "footnote") addText(block.text, { size: 8.5, font: "F1", leading: 11, gapBefore: 10, justify: true });
+    else if (block.type === "footnote") addText(block.text, { size: 8.1, font: "F1", leading: 10, gapBefore: 6, justify: true });
     else addText(block.text, { size: 10.5, font: "F1", leading: 14, gapAfter: 3, justify: true });
   });
 
