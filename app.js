@@ -983,6 +983,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const thesis = makeThesis(compareMode, rankedCompanies, citations, intent);
   const toneMeter = makeToneMeter(rankedCompanies, citations);
   const focusNotice = makeTickerFocusNotice(tickerFocus);
+  const sourceAudit = makeSourceAudit(citations, rankedCompanies);
   const evidenceBullets = citations.slice(0, state.answerDepth === "brief" ? 3 : 5).map((citation, index) => {
     return `<li>${makeEvidenceSentence(citation, intent)} ${citationLink(index)}</li>`;
   }).join("");
@@ -1057,6 +1058,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     <div class="answer-body">
       ${focusNotice}
       ${toneMeter.html}
+      ${sourceAudit.html}
       ${sections.join("")}
     </div>
   `;
@@ -1065,6 +1067,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     `${intent.label} | ${confidence}% confidence`,
     `Management tone: ${toneMeter.label} (${toneMeter.percent}/100)`,
     tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
+    sourceAudit.plainText,
     stripHtml(headline),
     stripHtml(thesis),
     intent.id === "risk" ? "3 cited risk factors:" : "Evidence:"
@@ -1092,6 +1095,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     intentLabel: intent.label,
     toneLabel: toneMeter.label,
     tonePercent: toneMeter.percent,
+    sourceAudit,
     tickerFocus
   };
 }
@@ -1143,6 +1147,42 @@ function makeTickerFocusNotice(focus) {
       <p>${escapeHtml(focus.company.thesis || "Research context updated from the question input.")}${escapeHtml(aliasText)}</p>
     </section>
   `;
+}
+
+function makeSourceAudit(citations, rankedCompanies) {
+  const docCount = new Set(citations.map((citation) => citation.docId)).size;
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
+  const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  const topScore = citations[0] ? citations[0].score : 0;
+  const coverageLabel = docCount >= 4 ? "Broad" : docCount >= 2 ? "Focused" : "Narrow";
+  const companyLabel = rankedCompanies[0] ? rankedCompanies[0].ticker : "Desk";
+  const balance = [
+    filingCount ? `${filingCount} filing` : "",
+    callCount ? `${callCount} call` : "",
+    modelCount ? `${modelCount} model` : ""
+  ].filter(Boolean).join(" / ") || "No retrieved sources";
+  const quality = Math.max(42, Math.min(96, Math.round(42 + docCount * 7 + filingCount * 4 + callCount * 3 + Math.min(topScore, 18))));
+
+  return {
+    coverageLabel,
+    balance,
+    quality,
+    plainText: `Source audit: ${quality}/100 quality, ${coverageLabel.toLowerCase()} coverage, ${balance}.`,
+    html: `
+      <section class="source-audit-card" aria-label="Source audit">
+        <div>
+          <span>Source audit</span>
+          <strong>${quality}/100</strong>
+        </div>
+        <dl>
+          <div><dt>Coverage</dt><dd>${escapeHtml(coverageLabel)}</dd></div>
+          <div><dt>Mix</dt><dd>${escapeHtml(balance)}</dd></div>
+          <div><dt>Anchor</dt><dd>${escapeHtml(companyLabel)}</dd></div>
+        </dl>
+      </section>
+    `
+  };
 }
 
 function renderAnswer(answerModel) {
@@ -1813,6 +1853,7 @@ function buildPdfMemoBlocks() {
     { type: "eyebrow", text: "CiteAlpha | Investment Committee Memo" },
     { type: "title", text: model.headline || "Research brief" },
     { type: "meta", text: `Focus: ${tickerDisplay} | Question type: ${model.intentLabel || "Research brief"} | Confidence: ${model.confidence || 0}% | Tone: ${model.toneLabel || "Balanced"} ${model.tonePercent || 0}/100 | Generated: ${generatedAt}` },
+    { type: "audit", text: makePdfSourceAuditLine(model) },
     { type: "heading", text: "Bottom line" },
     { type: "body", text: getMemoThesis(model) }
   ];
@@ -1861,6 +1902,12 @@ function buildPdfMemoBlocks() {
   return blocks;
 }
 
+function makePdfSourceAuditLine(model) {
+  const audit = model && model.sourceAudit;
+  if (!audit) return "Source audit: Evidence quality pending.";
+  return `Source audit: ${audit.quality}/100 quality | ${audit.coverageLabel} coverage | Mix: ${audit.balance}`;
+}
+
 function createSimplePdf(blocks) {
   const pageWidth = 612;
   const pageHeight = 792;
@@ -1878,6 +1925,9 @@ function createSimplePdf(blocks) {
   const ensureSpace = (height) => {
     if (y - height < bottom) newPage();
   };
+  const addFillRect = (x, rectY, width, height, color = "0.97 0.98 0.98") => {
+    currentPage().push(`q ${color} rg ${x} ${rectY} ${width} ${height} re f Q`);
+  };
   const addText = (text, options = {}) => {
     const size = options.size || 11;
     const font = options.font || "F1";
@@ -1889,15 +1939,17 @@ function createSimplePdf(blocks) {
     const lines = wrapPdfText(text, chars);
     ensureSpace(gapBefore + lines.length * leading + gapAfter);
     y -= gapBefore;
-    lines.forEach((line) => {
-      currentPage().push(`BT /${font} ${size} Tf ${margin + indent} ${y} Td (${pdfEscape(line)}) Tj ET`);
+    lines.forEach((line, lineIndex) => {
+      const justify = Boolean(options.justify && lineIndex < lines.length - 1 && line.split(" ").length > 4);
+      const wordSpacing = justify ? computePdfWordSpacing(line, size, maxWidth - indent) : 0;
+      currentPage().push(`BT /${font} ${size} Tf ${wordSpacing.toFixed(3)} Tw ${margin + indent} ${y} Td (${pdfEscape(line)}) Tj ET`);
       y -= leading;
     });
     y -= gapAfter;
   };
   const addRule = () => {
     ensureSpace(12);
-    currentPage().push(`0.09 0.46 0.43 RG ${margin} ${y} m ${pageWidth - margin} ${y} l S`);
+    currentPage().push(`0.09 0.46 0.43 RG 1.2 w ${margin} ${y} m ${pageWidth - margin} ${y} l S`);
     y -= 12;
   };
 
@@ -1907,13 +1959,34 @@ function createSimplePdf(blocks) {
       addText(block.text, { size: 19, font: "F2", leading: 23, gapAfter: 6 });
       addRule();
     } else if (block.type === "meta") addText(block.text, { size: 9, font: "F1", leading: 12, gapAfter: 8 });
-    else if (block.type === "heading") addText(block.text, { size: 13, font: "F2", leading: 16, gapBefore: index ? 8 : 0, gapAfter: 2 });
-    else if (block.type === "bullet") addText(block.text, { size: 10.5, font: "F1", leading: 14, indent: 12, gapAfter: 3 });
-    else if (block.type === "footnote") addText(block.text, { size: 8.5, font: "F1", leading: 11, gapBefore: 10 });
-    else addText(block.text, { size: 10.5, font: "F1", leading: 14, gapAfter: 3 });
+    else if (block.type === "audit") {
+      ensureSpace(34);
+      addFillRect(margin, y - 22, maxWidth, 26, "0.89 0.95 0.94");
+      addText(block.text, { size: 9.5, font: "F2", leading: 12, indent: 10, gapBefore: 2, gapAfter: 8 });
+    } else if (block.type === "heading") {
+      addText(block.text, { size: 13, font: "F2", leading: 16, gapBefore: index ? 9 : 0, gapAfter: 2 });
+      currentPage().push(`0.84 0.87 0.86 RG 0.5 w ${margin} ${y + 4} m ${pageWidth - margin} ${y + 4} l S`);
+    } else if (block.type === "bullet") addText(block.text, { size: 10.25, font: "F1", leading: 14, indent: 12, gapAfter: 3, justify: true });
+    else if (block.type === "footnote") addText(block.text, { size: 8.5, font: "F1", leading: 11, gapBefore: 10, justify: true });
+    else addText(block.text, { size: 10.5, font: "F1", leading: 14, gapAfter: 3, justify: true });
   });
 
+  decoratePdfPages(pages, pageWidth, pageHeight, margin);
   return encodePdf(pages, pageWidth, pageHeight);
+}
+
+function decoratePdfPages(pages, pageWidth, pageHeight, margin) {
+  pages.forEach((commands, index) => {
+    commands.unshift(
+      `0.09 0.46 0.43 RG 0.8 w ${margin} ${pageHeight - 36} m ${pageWidth - margin} ${pageHeight - 36} l S`,
+      `BT /F2 8 Tf 0 Tw ${margin} ${pageHeight - 27} Td (CiteAlpha Research Memo) Tj ET`
+    );
+    commands.push(
+      `0.84 0.87 0.86 RG 0.5 w ${margin} 36 m ${pageWidth - margin} 36 l S`,
+      `BT /F1 8 Tf 0 Tw ${margin} 24 Td (Synthetic research software - not investment advice) Tj ET`,
+      `BT /F1 8 Tf 0 Tw ${pageWidth - margin - 42} 24 Td (Page ${index + 1}/${pages.length}) Tj ET`
+    );
+  });
 }
 
 function encodePdf(pages, pageWidth, pageHeight) {
@@ -1980,6 +2053,26 @@ function wrapPdfText(text, maxChars) {
   });
   if (line) lines.push(line);
   return lines.length ? lines : [""];
+}
+
+function computePdfWordSpacing(line, size, width) {
+  const spaces = (line.match(/ /g) || []).length;
+  if (!spaces) return 0;
+  const estimatedWidth = estimatePdfTextWidth(line, size);
+  const extra = width - estimatedWidth;
+  if (extra <= 0 || extra > 48) return 0;
+  return Math.min(5.5, extra / spaces);
+}
+
+function estimatePdfTextWidth(text, size) {
+  return pdfPlainText(text).split("").reduce((sum, char) => {
+    if (char === " ") return sum + size * 0.27;
+    if (/[il.,:;|'`]/.test(char)) return sum + size * 0.23;
+    if (/[mwMW]/.test(char)) return sum + size * 0.78;
+    if (/[A-Z]/.test(char)) return sum + size * 0.58;
+    if (/[0-9$%]/.test(char)) return sum + size * 0.52;
+    return sum + size * 0.48;
+  }, 0);
 }
 
 function pdfPlainText(value) {

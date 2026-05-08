@@ -50,6 +50,7 @@ Use `PDF` after running an analysis to download a clean investment committee mem
 
 V21 uses the current page print flow for PDF export and includes an inline loading-safe shell so GitHub Pages cache/deploy timing cannot leave visitors on a blank screen. V22 keeps the printable memo mounted until the browser `afterprint` event so saved PDFs do not come out blank.
 V23 replaces browser print with a direct JavaScript PDF generator so the exported PDF has page text streams even when Chrome print preview is unreliable.
+V24 improves memo formatting with justified PDF body text, page headers/footers, section rules, and a source-audit score shown in both the app and exported memo.
 
 ## Notes
 
