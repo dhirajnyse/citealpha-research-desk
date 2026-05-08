@@ -2021,32 +2021,37 @@ function createSimplePdf(blocks) {
   };
   const addRiskCard = (block) => {
     const body = `${block.body} [${block.citation}]`;
-    const lines = wrapPdfText(body, Math.floor((maxWidth - 34) / (10.1 * 0.52)));
-    const height = Math.max(78, 48 + lines.length * 13);
+    const severityColor = block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00";
+    const severityBg = block.severity === "High" ? "0.99 0.92 0.92" : "1 0.95 0.86";
+    const titleLines = wrapPdfText(block.title, Math.floor((maxWidth - 98) / (10.8 * 0.52))).slice(0, 2);
+    const lines = wrapPdfText(body, Math.floor((maxWidth - 36) / (9.8 * 0.52)));
+    const bodyStart = y - 50 - titleLines.length * 7;
+    const height = Math.max(96, 56 + titleLines.length * 8 + lines.length * 12.5);
     ensureSpace(height + 6);
     addFillRect(margin, y - height, maxWidth, height, "1 1 1");
     addStrokeRect(margin, y - height, maxWidth, height, block.severity === "High" ? "0.70 0.15 0.12" : "0.70 0.41 0.00", 0.7);
-    addFillRect(margin + 10, y - 25, 28, 18, block.severity === "High" ? "0.99 0.92 0.92" : "1 0.95 0.86");
-    addTextLine(`R${block.number}`, margin + 16, y - 19, { size: 8, font: "F2", color: block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00" });
-    addTextLine(block.severity.toUpperCase(), pageWidth - margin - 68, y - 19, { size: 7.5, font: "F2", color: block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00" });
-    addWrappedAt(block.title, margin + 46, y - 18, maxWidth - 128, { size: 11, font: "F2", leading: 13, maxLines: 2, color: "0.07 0.09 0.09" });
-    addWrappedAt(body, margin + 18, y - 43, maxWidth - 36, { size: 10.1, leading: 13, justify: true, maxLines: 8 });
-    y -= height + 7;
+    addFillRect(margin + 10, y - 25, 28, 18, severityBg);
+    addTextLine(`R${block.number}`, margin + 16, y - 19, { size: 8, font: "F2", color: severityColor });
+    addFillRect(margin + 10, y - 48, 56, 17, severityBg);
+    addTextLine(block.severity.toUpperCase(), margin + 19, y - 42, { size: 7.2, font: "F2", color: severityColor });
+    addWrappedAt(block.title, margin + 76, y - 18, maxWidth - 96, { size: 10.8, font: "F2", leading: 13, maxLines: 2, color: "0.07 0.09 0.09" });
+    addWrappedAt(body, margin + 18, bodyStart, maxWidth - 36, { size: 9.8, leading: 12.5, justify: true, maxLines: 8 });
+    y -= height + 8;
   };
   const addCueGrid = (block) => {
-    ensureSpace(108);
+    ensureSpace(124);
     const gap = 8;
     const cardWidth = (maxWidth - gap * 2) / 3;
-    const cardHeight = 96;
+    const cardHeight = 112;
     block.items.forEach((cue, index) => {
       const x = margin + index * (cardWidth + gap);
       addFillRect(x, y - cardHeight, cardWidth, cardHeight, "0.98 0.99 0.99");
       addStrokeRect(x, y - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.6);
       addTextLine(cue.label.toUpperCase(), x + 9, y - 15, { size: 7.3, font: "F2", color: "0.09 0.46 0.43" });
-      const afterTitle = addWrappedAt(cue.title, x + 9, y - 30, cardWidth - 18, { size: 10, font: "F2", leading: 12, maxLines: 2 });
-      addWrappedAt(cue.body, x + 9, afterTitle - 3, cardWidth - 18, { size: 8.5, leading: 10.5, maxLines: 4 });
+      const afterTitle = addWrappedAt(cue.title, x + 9, y - 31, cardWidth - 18, { size: 9.8, font: "F2", leading: 11.8, maxLines: 2 });
+      addWrappedAt(cue.body, x + 9, afterTitle - 4, cardWidth - 18, { size: 8.1, leading: 10.2, maxLines: 5 });
     });
-    y -= cardHeight + 10;
+    y -= cardHeight + 12;
   };
   const addEvidenceCard = (block) => {
     ensureSpace(70);
