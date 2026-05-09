@@ -3,12 +3,87 @@
 const STORAGE_KEYS = {
   uploads: "citealpha-uploads-v1",
   notes: "citealpha-notes-v1",
-  waitlist: "citealpha-waitlist-v1"
+  waitlist: "citealpha-waitlist-v1",
+  marketSettings: "citealpha-market-settings-v1",
+  workflowEvents: "citealpha-workflow-events-v1",
+  portfolio: "citealpha-portfolio-v1",
+  decisions: "citealpha-decisions-v1",
+  alerts: "citealpha-alerts-v1",
+  revenue: "citealpha-revenue-v1",
+  pipeline: "citealpha-pipeline-v1",
+  eval: "citealpha-eval-v1",
+  compliance: "citealpha-compliance-v1",
+  complianceEvents: "citealpha-compliance-events-v1",
+  trace: "citealpha-trace-v1",
+  peer: "citealpha-peer-v1",
+  stress: "citealpha-stress-v1"
 };
 
 const WAITLIST_ENDPOINT = "https://formsubmit.co/ajax/dhirajnyse@gmail.com";
 const SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
 const SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK";
+
+const MARKET_PROVIDER_LABELS = {
+  demo: "Demo quote",
+  "alpha-vantage": "Alpha Vantage",
+  fmp: "Financial Modeling Prep"
+};
+
+const DEFAULT_PORTFOLIO_POSITIONS = [
+  { ticker: "NVDA", weight: 35 },
+  { ticker: "AAPL", weight: 25 },
+  { ticker: "TSLA", weight: 20 },
+  { ticker: "MSFT", weight: 15 },
+  { ticker: "CASH", weight: 5 }
+];
+
+const DEMO_MARKET_QUOTES = {
+  NVDA: { name: "NVIDIA Corp.", price: 874.2, change: 18.4, changePercent: 2.15, marketCap: 2150000000000, pe: 71.2, dividendYield: 0.02 },
+  AAPL: { name: "Apple Inc.", price: 189.7, change: -1.6, changePercent: -0.84, marketCap: 2920000000000, pe: 29.8, dividendYield: 0.51 },
+  TSLA: { name: "Tesla Inc.", price: 182.4, change: 5.8, changePercent: 3.28, marketCap: 580000000000, pe: 62.4, dividendYield: 0 },
+  MSFT: { name: "Microsoft Corp.", price: 421.9, change: 3.1, changePercent: 0.74, marketCap: 3130000000000, pe: 36.5, dividendYield: 0.71 },
+  AMZN: { name: "Amazon.com Inc.", price: 184.1, change: 2.2, changePercent: 1.21, marketCap: 1910000000000, pe: 51.6, dividendYield: 0 },
+  META: { name: "Meta Platforms Inc.", price: 477.5, change: -4.9, changePercent: -1.02, marketCap: 1210000000000, pe: 25.4, dividendYield: 0.43 }
+};
+
+const SECURITY_PATTERNS = [
+  {
+    id: "script-html",
+    label: "Script or HTML injection marker",
+    severity: "high",
+    pattern: /<\s*script|javascript:|onerror\s*=|onload\s*=|<\s*iframe/i,
+    advice: "Render as escaped text and review before using as a source."
+  },
+  {
+    id: "prompt-injection",
+    label: "Prompt-injection language",
+    severity: "medium",
+    pattern: /ignore (all )?(previous|prior)|disregard (all )?(previous|prior)|system prompt|developer message|jailbreak|you are now|override instructions/i,
+    advice: "Treat retrieved text as evidence only, never as instructions."
+  },
+  {
+    id: "secret-leak",
+    label: "Secret-like token or credential wording",
+    severity: "high",
+    pattern: /api[_\s-]?key|access[_\s-]?token|client[_\s-]?secret|password|bearer\s+[a-z0-9._-]{12,}|sk-[a-z0-9]{16,}/i,
+    advice: "Remove credentials before saving or exporting."
+  },
+  {
+    id: "remote-code",
+    label: "Browser/code execution marker",
+    severity: "medium",
+    pattern: /eval\s*\(|new Function|document\.cookie|localStorage|sessionStorage|fetch\s*\(/i,
+    advice: "Keep imported documents inert and avoid executing source content."
+  }
+];
+
+const SECURITY_BASELINE = [
+  "No API keys committed to the repository",
+  "Imported text is escaped before rendering",
+  "Source passages are evidence, not AI instructions",
+  "Live-provider keys stay in the browser session",
+  "Static prototype avoids server-side data storage"
+];
 
 const SAMPLE_COMPANIES = [
   {
@@ -531,6 +606,27 @@ const state = {
   uploadedDocs: [],
   notes: [],
   waitlistLeads: [],
+  workflowEvents: [],
+  portfolioPositions: [],
+  decisions: [],
+  currentDecision: null,
+  alertRules: [],
+  revenueModel: null,
+  pipelineModel: null,
+  evalConfig: null,
+  currentEval: null,
+  complianceModel: null,
+  complianceEvents: [],
+  traceConfig: null,
+  currentTrace: null,
+  peerConfig: null,
+  currentPeer: null,
+  stressConfig: null,
+  currentStress: null,
+  marketSettings: { provider: "demo", ticker: "NVDA", apiKey: "" },
+  marketQuote: null,
+  marketStatus: { level: "idle", message: "Demo quote ready" },
+  lastQuestionSecurity: null,
   lastImportAudit: null,
   lastBrief: null,
   lastAnswerModel: null,
@@ -549,6 +645,19 @@ function init() {
   state.uploadedDocs = loadJson(STORAGE_KEYS.uploads, []).map(normalizeUploadedDoc);
   state.notes = loadJson(STORAGE_KEYS.notes, []);
   state.waitlistLeads = loadJson(STORAGE_KEYS.waitlist, []);
+  state.workflowEvents = loadJson(STORAGE_KEYS.workflowEvents, []);
+  state.portfolioPositions = loadPortfolioPositions();
+  state.decisions = loadJson(STORAGE_KEYS.decisions, []);
+  state.alertRules = loadAlertRules();
+  state.revenueModel = loadRevenueModel();
+  state.pipelineModel = loadPipelineModel();
+  state.evalConfig = loadEvalConfig();
+  state.complianceModel = loadComplianceModel();
+  state.complianceEvents = loadJson(STORAGE_KEYS.complianceEvents, []).map(normalizeComplianceEvent);
+  state.traceConfig = loadTraceConfig();
+  state.peerConfig = loadPeerConfig();
+  state.stressConfig = loadStressConfig();
+  state.marketSettings = loadMarketSettings();
   state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
   state.documents.forEach((doc) => state.enabledDocIds.add(doc.id));
   for (const doc of state.uploadedDocs) {
@@ -559,12 +668,28 @@ function init() {
   renderCoverage();
   renderLibrary();
   renderSourceQuality();
+  renderSecurityPosture();
   renderContextBand();
+  renderLiveDataControl();
+  renderMarketStatusRail();
+  renderQuestionSecurityStrip();
   renderValuationOptions();
   renderNotebook();
+  renderLaunchOps();
+  renderPortfolioLens();
+  renderDecisionRoom();
+  renderAlertCenter();
+  renderRevenueConsole();
+  renderPipelineConsole();
+  renderEvalLab();
+  renderComplianceCenter();
+  renderTraceInspector();
+  renderPeerScreener();
+  renderStressLab();
   bindEvents();
   updateValuationFromCompany();
   updateValuation();
+  renderMarketQuoteCard();
   renderEvidence([]);
   drawSignalMap();
 }
@@ -583,7 +708,13 @@ function cacheElements() {
   els.secBridgeTicker = document.querySelector("#secBridgeTicker");
   els.secBridgeType = document.querySelector("#secBridgeType");
   els.secBridgeStatus = document.querySelector("#secBridgeStatus");
+  els.liveDataForm = document.querySelector("#liveDataForm");
+  els.marketProvider = document.querySelector("#marketProvider");
+  els.marketTicker = document.querySelector("#marketTicker");
+  els.marketApiKey = document.querySelector("#marketApiKey");
+  els.liveDataStatus = document.querySelector("#liveDataStatus");
   els.sourceQualityPanel = document.querySelector("#sourceQualityPanel");
+  els.securityPosturePanel = document.querySelector("#securityPosturePanel");
   els.pasteForm = document.querySelector("#pasteForm");
   els.pasteTicker = document.querySelector("#pasteTicker");
   els.pasteType = document.querySelector("#pasteType");
@@ -592,6 +723,8 @@ function cacheElements() {
   els.clearUploads = document.querySelector("#clearUploads");
   els.queryForm = document.querySelector("#queryForm");
   els.queryInput = document.querySelector("#queryInput");
+  els.marketStatusRail = document.querySelector("#marketStatusRail");
+  els.questionSecurityStrip = document.querySelector("#questionSecurityStrip");
   els.scanFilingButton = document.querySelector("#scanFilingButton");
   els.runAnalysisButton = document.querySelector("#runAnalysisButton");
   els.contextBand = document.querySelector("#contextBand");
@@ -612,6 +745,7 @@ function cacheElements() {
   els.valuePerShare = document.querySelector("#valuePerShare");
   els.equityValue = document.querySelector("#equityValue");
   els.valuationFootnote = document.querySelector("#valuationFootnote");
+  els.marketQuoteCard = document.querySelector("#marketQuoteCard");
   els.copyBrief = document.querySelector("#copyBrief");
   els.saveBrief = document.querySelector("#saveBrief");
   els.exportPdfBrief = document.querySelector("#exportPdfBrief");
@@ -626,6 +760,185 @@ function cacheElements() {
   els.waitlistTickers = document.querySelector("#waitlistTickers");
   els.waitlistQuestion = document.querySelector("#waitlistQuestion");
   els.waitlistResult = document.querySelector("#waitlistResult");
+  els.opsMetricGrid = document.querySelector("#opsMetricGrid");
+  els.leadQualityScore = document.querySelector("#leadQualityScore");
+  els.leadQualityBoard = document.querySelector("#leadQualityBoard");
+  els.workflowScore = document.querySelector("#workflowScore");
+  els.workflowHeatmap = document.querySelector("#workflowHeatmap");
+  els.launchReadinessScore = document.querySelector("#launchReadinessScore");
+  els.launchChecklist = document.querySelector("#launchChecklist");
+  els.opsPriority = document.querySelector("#opsPriority");
+  els.opsSignalGrid = document.querySelector("#opsSignalGrid");
+  els.exportFounderBrief = document.querySelector("#exportFounderBrief");
+  els.portfolioInput = document.querySelector("#portfolioInput");
+  els.applyPortfolio = document.querySelector("#applyPortfolio");
+  els.useActiveTickers = document.querySelector("#useActiveTickers");
+  els.exportPortfolioBrief = document.querySelector("#exportPortfolioBrief");
+  els.portfolioMetricGrid = document.querySelector("#portfolioMetricGrid");
+  els.portfolioPositionCount = document.querySelector("#portfolioPositionCount");
+  els.portfolioRiskScore = document.querySelector("#portfolioRiskScore");
+  els.portfolioScenarioLabel = document.querySelector("#portfolioScenarioLabel");
+  els.portfolioPriorityList = document.querySelector("#portfolioPriorityList");
+  els.portfolioScenarioBoard = document.querySelector("#portfolioScenarioBoard");
+  els.portfolioQueueCount = document.querySelector("#portfolioQueueCount");
+  els.portfolioQuestionQueue = document.querySelector("#portfolioQuestionQueue");
+  els.decisionForm = document.querySelector("#decisionForm");
+  els.decisionTicker = document.querySelector("#decisionTicker");
+  els.decisionAction = document.querySelector("#decisionAction");
+  els.decisionWeight = document.querySelector("#decisionWeight");
+  els.decisionHorizon = document.querySelector("#decisionHorizon");
+  els.decisionThesis = document.querySelector("#decisionThesis");
+  els.decisionBear = document.querySelector("#decisionBear");
+  els.decisionCatalyst = document.querySelector("#decisionCatalyst");
+  els.decisionKill = document.querySelector("#decisionKill");
+  els.saveDecision = document.querySelector("#saveDecision");
+  els.useCurrentResearch = document.querySelector("#useCurrentResearch");
+  els.exportDecisionMemo = document.querySelector("#exportDecisionMemo");
+  els.decisionMetricGrid = document.querySelector("#decisionMetricGrid");
+  els.decisionPreview = document.querySelector("#decisionPreview");
+  els.decisionGateScore = document.querySelector("#decisionGateScore");
+  els.decisionGateList = document.querySelector("#decisionGateList");
+  els.decisionHistoryCount = document.querySelector("#decisionHistoryCount");
+  els.decisionHistory = document.querySelector("#decisionHistory");
+  els.alertForm = document.querySelector("#alertForm");
+  els.alertTicker = document.querySelector("#alertTicker");
+  els.alertTrigger = document.querySelector("#alertTrigger");
+  els.alertPriority = document.querySelector("#alertPriority");
+  els.alertDueDate = document.querySelector("#alertDueDate");
+  els.alertCondition = document.querySelector("#alertCondition");
+  els.buildAlertsFromPortfolio = document.querySelector("#buildAlertsFromPortfolio");
+  els.clearAlerts = document.querySelector("#clearAlerts");
+  els.exportAlertBrief = document.querySelector("#exportAlertBrief");
+  els.alertMetricGrid = document.querySelector("#alertMetricGrid");
+  els.alertCount = document.querySelector("#alertCount");
+  els.alertList = document.querySelector("#alertList");
+  els.catalystCount = document.querySelector("#catalystCount");
+  els.catalystCalendar = document.querySelector("#catalystCalendar");
+  els.alertActionCount = document.querySelector("#alertActionCount");
+  els.alertActionQueue = document.querySelector("#alertActionQueue");
+  els.revenueForm = document.querySelector("#revenueForm");
+  els.revenueLeadTarget = document.querySelector("#revenueLeadTarget");
+  els.revenueConversion = document.querySelector("#revenueConversion");
+  els.revenueChurn = document.querySelector("#revenueChurn");
+  els.revenueGrowth = document.querySelector("#revenueGrowth");
+  els.revenueStarterMix = document.querySelector("#revenueStarterMix");
+  els.revenueProMix = document.querySelector("#revenueProMix");
+  els.revenueAnalystMix = document.querySelector("#revenueAnalystMix");
+  els.revenueTrialDays = document.querySelector("#revenueTrialDays");
+  els.useWaitlistRevenue = document.querySelector("#useWaitlistRevenue");
+  els.resetRevenueModel = document.querySelector("#resetRevenueModel");
+  els.exportRevenueBrief = document.querySelector("#exportRevenueBrief");
+  els.revenueMetricGrid = document.querySelector("#revenueMetricGrid");
+  els.revenuePlanCount = document.querySelector("#revenuePlanCount");
+  els.revenuePlanMix = document.querySelector("#revenuePlanMix");
+  els.revenueEntitlementScore = document.querySelector("#revenueEntitlementScore");
+  els.revenueEntitlements = document.querySelector("#revenueEntitlements");
+  els.checkoutReadinessScore = document.querySelector("#checkoutReadinessScore");
+  els.checkoutReadiness = document.querySelector("#checkoutReadiness");
+  els.pipelineForm = document.querySelector("#pipelineForm");
+  els.pipelineCompanies = document.querySelector("#pipelineCompanies");
+  els.pipelineFilings = document.querySelector("#pipelineFilings");
+  els.pipelineCalls = document.querySelector("#pipelineCalls");
+  els.pipelineChunks = document.querySelector("#pipelineChunks");
+  els.pipelineQueries = document.querySelector("#pipelineQueries");
+  els.pipelineBackend = document.querySelector("#pipelineBackend");
+  els.pipelineVectorStore = document.querySelector("#pipelineVectorStore");
+  els.pipelineMarketApi = document.querySelector("#pipelineMarketApi");
+  els.usePilotScale = document.querySelector("#usePilotScale");
+  els.useMvpScale = document.querySelector("#useMvpScale");
+  els.exportPipelineBrief = document.querySelector("#exportPipelineBrief");
+  els.pipelineMetricGrid = document.querySelector("#pipelineMetricGrid");
+  els.pipelineIntegrationScore = document.querySelector("#pipelineIntegrationScore");
+  els.pipelineIntegrationMap = document.querySelector("#pipelineIntegrationMap");
+  els.pipelineEnvScore = document.querySelector("#pipelineEnvScore");
+  els.pipelineEnvChecklist = document.querySelector("#pipelineEnvChecklist");
+  els.pipelineOpsCount = document.querySelector("#pipelineOpsCount");
+  els.pipelineOpsQueue = document.querySelector("#pipelineOpsQueue");
+  els.evalForm = document.querySelector("#evalForm");
+  els.evalCaseCount = document.querySelector("#evalCaseCount");
+  els.evalPassThreshold = document.querySelector("#evalPassThreshold");
+  els.evalMinCitations = document.querySelector("#evalMinCitations");
+  els.evalReviewSample = document.querySelector("#evalReviewSample");
+  els.evalFocus = document.querySelector("#evalFocus");
+  els.evalRegressionMode = document.querySelector("#evalRegressionMode");
+  els.useCurrentAnswerEval = document.querySelector("#useCurrentAnswerEval");
+  els.resetEvalSuite = document.querySelector("#resetEvalSuite");
+  els.exportEvalBrief = document.querySelector("#exportEvalBrief");
+  els.evalMetricGrid = document.querySelector("#evalMetricGrid");
+  els.evalCaseSummary = document.querySelector("#evalCaseSummary");
+  els.evalCaseList = document.querySelector("#evalCaseList");
+  els.evalGateScore = document.querySelector("#evalGateScore");
+  els.evalGateList = document.querySelector("#evalGateList");
+  els.evalReviewCount = document.querySelector("#evalReviewCount");
+  els.evalReviewQueue = document.querySelector("#evalReviewQueue");
+  els.complianceForm = document.querySelector("#complianceForm");
+  els.compliancePosture = document.querySelector("#compliancePosture");
+  els.complianceDisclosure = document.querySelector("#complianceDisclosure");
+  els.complianceRequiredCitations = document.querySelector("#complianceRequiredCitations");
+  els.complianceRetention = document.querySelector("#complianceRetention");
+  els.complianceOwner = document.querySelector("#complianceOwner");
+  els.complianceEscalation = document.querySelector("#complianceEscalation");
+  els.useCurrentAnswerCompliance = document.querySelector("#useCurrentAnswerCompliance");
+  els.resetCompliance = document.querySelector("#resetCompliance");
+  els.exportComplianceBrief = document.querySelector("#exportComplianceBrief");
+  els.complianceMetricGrid = document.querySelector("#complianceMetricGrid");
+  els.compliancePolicyScore = document.querySelector("#compliancePolicyScore");
+  els.compliancePolicyList = document.querySelector("#compliancePolicyList");
+  els.complianceAuditCount = document.querySelector("#complianceAuditCount");
+  els.complianceAuditTrail = document.querySelector("#complianceAuditTrail");
+  els.complianceDisclosureStatus = document.querySelector("#complianceDisclosureStatus");
+  els.complianceDisclosurePack = document.querySelector("#complianceDisclosurePack");
+  els.traceForm = document.querySelector("#traceForm");
+  els.traceClaimLimit = document.querySelector("#traceClaimLimit");
+  els.traceSupportThreshold = document.querySelector("#traceSupportThreshold");
+  els.traceMinOverlap = document.querySelector("#traceMinOverlap");
+  els.traceMode = document.querySelector("#traceMode");
+  els.traceTensionFocus = document.querySelector("#traceTensionFocus");
+  els.useCurrentAnswerTrace = document.querySelector("#useCurrentAnswerTrace");
+  els.resetTrace = document.querySelector("#resetTrace");
+  els.exportTracePack = document.querySelector("#exportTracePack");
+  els.traceMetricGrid = document.querySelector("#traceMetricGrid");
+  els.traceClaimCount = document.querySelector("#traceClaimCount");
+  els.traceClaimMap = document.querySelector("#traceClaimMap");
+  els.traceWeakCount = document.querySelector("#traceWeakCount");
+  els.traceWeakClaims = document.querySelector("#traceWeakClaims");
+  els.traceLineageCount = document.querySelector("#traceLineageCount");
+  els.traceSourceLineage = document.querySelector("#traceSourceLineage");
+  els.peerForm = document.querySelector("#peerForm");
+  els.peerTarget = document.querySelector("#peerTarget");
+  els.peerBasket = document.querySelector("#peerBasket");
+  els.peerFactor = document.querySelector("#peerFactor");
+  els.peerRiskPenalty = document.querySelector("#peerRiskPenalty");
+  els.peerValuationWeight = document.querySelector("#peerValuationWeight");
+  els.peerEvidenceMode = document.querySelector("#peerEvidenceMode");
+  els.useCurrentPeerSet = document.querySelector("#useCurrentPeerSet");
+  els.resetPeerScreen = document.querySelector("#resetPeerScreen");
+  els.exportPeerBrief = document.querySelector("#exportPeerBrief");
+  els.peerMetricGrid = document.querySelector("#peerMetricGrid");
+  els.peerRankingCount = document.querySelector("#peerRankingCount");
+  els.peerRankingList = document.querySelector("#peerRankingList");
+  els.peerGapCount = document.querySelector("#peerGapCount");
+  els.peerGapList = document.querySelector("#peerGapList");
+  els.peerQuestionCount = document.querySelector("#peerQuestionCount");
+  els.peerQuestionQueue = document.querySelector("#peerQuestionQueue");
+  els.stressForm = document.querySelector("#stressForm");
+  els.stressPreset = document.querySelector("#stressPreset");
+  els.stressTickers = document.querySelector("#stressTickers");
+  els.stressRateShock = document.querySelector("#stressRateShock");
+  els.stressDemandShock = document.querySelector("#stressDemandShock");
+  els.stressMarginShock = document.querySelector("#stressMarginShock");
+  els.stressInflationDrag = document.querySelector("#stressInflationDrag");
+  els.stressWeightMode = document.querySelector("#stressWeightMode");
+  els.usePortfolioStress = document.querySelector("#usePortfolioStress");
+  els.resetStress = document.querySelector("#resetStress");
+  els.exportStressBrief = document.querySelector("#exportStressBrief");
+  els.stressMetricGrid = document.querySelector("#stressMetricGrid");
+  els.stressRankingCount = document.querySelector("#stressRankingCount");
+  els.stressRankingList = document.querySelector("#stressRankingList");
+  els.stressPortfolioImpact = document.querySelector("#stressPortfolioImpact");
+  els.stressPortfolioBoard = document.querySelector("#stressPortfolioBoard");
+  els.stressActionCount = document.querySelector("#stressActionCount");
+  els.stressActionQueue = document.querySelector("#stressActionQueue");
 }
 
 function bindEvents() {
@@ -635,6 +948,10 @@ function bindEvents() {
   });
 
   els.queryInput.addEventListener("input", () => {
+    state.lastQuestionSecurity = assessTextSecurity(els.queryInput.value, "Question");
+    renderQuestionSecurityStrip();
+    renderSecurityPosture();
+    renderMarketStatusRail();
     syncTickerFocus(els.queryInput.value);
   });
 
@@ -661,6 +978,8 @@ function bindEvents() {
     state.activeTickers = new Set(getCompanies().map((company) => company.ticker));
     renderCoverage();
     renderContextBand();
+    renderMarketStatusRail();
+    renderLaunchOps();
     drawSignalMap();
   });
 
@@ -697,6 +1016,24 @@ function bindEvents() {
     await connectSecFilingBridge();
   });
 
+  els.liveDataForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await connectMarketBridge();
+  });
+
+  els.marketProvider.addEventListener("change", () => {
+    state.marketSettings.provider = els.marketProvider.value;
+    state.marketSettings.ticker = normalizeTicker(els.marketTicker.value || state.marketSettings.ticker || "NVDA");
+    saveMarketSettings();
+    renderLiveDataControl();
+    renderMarketStatusRail();
+  });
+
+  els.marketTicker.addEventListener("input", () => {
+    state.marketSettings.ticker = normalizeTicker(els.marketTicker.value || "NVDA");
+    saveMarketSettings();
+  });
+
   els.pasteForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = els.pasteText.value.trim();
@@ -721,21 +1058,28 @@ function bindEvents() {
     state.enabledDocIds = new Set(state.documents.map((doc) => doc.id));
     state.activeTickers = new Set(SAMPLE_COMPANIES.map((company) => company.ticker));
     state.lastImportAudit = null;
+    state.lastQuestionSecurity = null;
     saveJson(STORAGE_KEYS.uploads, []);
-    renderCoverage();
-    renderLibrary();
-    renderSourceQuality();
-    renderContextBand();
-    renderValuationOptions();
-    updateValuationFromCompany();
-    updateValuation();
-    drawSignalMap();
-  });
+  renderCoverage();
+  renderLibrary();
+  renderSourceQuality();
+  renderSecurityPosture();
+  renderQuestionSecurityStrip();
+  renderContextBand();
+  renderMarketStatusRail();
+  renderValuationOptions();
+  updateValuationFromCompany();
+  updateValuation();
+  renderMarketQuoteCard();
+  renderLaunchOps();
+  drawSignalMap();
+});
 
   els.valuationTicker.addEventListener("change", () => {
     state.selectedTicker = els.valuationTicker.value;
     updateValuationFromCompany();
     updateValuation();
+    renderMarketQuoteCard();
     drawSignalMap();
   });
 
@@ -751,12 +1095,396 @@ function bindEvents() {
     state.notes = [];
     saveJson(STORAGE_KEYS.notes, state.notes);
     renderNotebook();
+    renderLaunchOps();
   });
 
   els.waitlistForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await submitWaitlistLead();
   });
+
+  if (els.exportFounderBrief) {
+    els.exportFounderBrief.addEventListener("click", exportFounderBrief);
+  }
+
+  if (els.applyPortfolio) {
+    els.applyPortfolio.addEventListener("click", () => {
+      state.portfolioPositions = parsePortfolioInput(els.portfolioInput.value);
+      savePortfolioPositions();
+      renderPortfolioLens();
+      flashButtonLabel(els.applyPortfolio, "Updated");
+    });
+  }
+
+  if (els.useActiveTickers) {
+    els.useActiveTickers.addEventListener("click", () => {
+      state.portfolioPositions = buildActiveTickerPortfolio();
+      savePortfolioPositions();
+      syncPortfolioInput();
+      renderPortfolioLens();
+      flashButtonLabel(els.useActiveTickers, "Loaded");
+    });
+  }
+
+  if (els.exportPortfolioBrief) {
+    els.exportPortfolioBrief.addEventListener("click", exportPortfolioBrief);
+  }
+
+  if (els.decisionForm) {
+    els.decisionForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      renderDecisionRoom();
+      flashButtonLabel(els.decisionForm.querySelector("button[type='submit']"), "Scored");
+    });
+  }
+
+  if (els.saveDecision) {
+    els.saveDecision.addEventListener("click", saveDecisionMemo);
+  }
+
+  if (els.useCurrentResearch) {
+    els.useCurrentResearch.addEventListener("click", hydrateDecisionFromCurrentResearch);
+  }
+
+  if (els.exportDecisionMemo) {
+    els.exportDecisionMemo.addEventListener("click", exportDecisionMemo);
+  }
+
+  if (els.alertForm) {
+    els.alertForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      createAlertFromForm();
+    });
+    if (!els.alertDueDate.value) els.alertDueDate.value = dateAfterDays(7);
+  }
+
+  if (els.buildAlertsFromPortfolio) {
+    els.buildAlertsFromPortfolio.addEventListener("click", buildAlertsFromPortfolio);
+  }
+
+  if (els.clearAlerts) {
+    els.clearAlerts.addEventListener("click", () => {
+      state.alertRules = [];
+      saveAlertRules();
+      renderAlertCenter();
+      renderLaunchOps();
+      flashButtonLabel(els.clearAlerts, "Cleared");
+    });
+  }
+
+  if (els.exportAlertBrief) {
+    els.exportAlertBrief.addEventListener("click", exportAlertBrief);
+  }
+
+  if (els.alertActionQueue) {
+    els.alertActionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-alert-question]");
+      if (!button) return;
+      const question = button.dataset.alertQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.revenueForm) {
+    els.revenueForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.revenueModel = readRevenueModel();
+      saveRevenueModel();
+      renderRevenueConsole();
+      flashButtonLabel(els.revenueForm.querySelector("button[type='submit']"), "Updated");
+    });
+  }
+
+  if (els.useWaitlistRevenue) {
+    els.useWaitlistRevenue.addEventListener("click", () => {
+      state.revenueModel = buildRevenueModelFromWaitlist();
+      saveRevenueModel();
+      syncRevenueInputs();
+      renderRevenueConsole();
+      flashButtonLabel(els.useWaitlistRevenue, "Loaded");
+    });
+  }
+
+  if (els.resetRevenueModel) {
+    els.resetRevenueModel.addEventListener("click", () => {
+      state.revenueModel = getDefaultRevenueModel();
+      saveRevenueModel();
+      syncRevenueInputs();
+      renderRevenueConsole();
+      flashButtonLabel(els.resetRevenueModel, "Reset");
+    });
+  }
+
+  if (els.exportRevenueBrief) {
+    els.exportRevenueBrief.addEventListener("click", exportRevenueBrief);
+  }
+
+  if (els.pipelineForm) {
+    els.pipelineForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.pipelineModel = readPipelineModel();
+      savePipelineModel();
+      renderPipelineConsole();
+      flashButtonLabel(els.pipelineForm.querySelector("button[type='submit']"), "Updated");
+    });
+  }
+
+  if (els.usePilotScale) {
+    els.usePilotScale.addEventListener("click", () => {
+      state.pipelineModel = getPipelinePreset("pilot");
+      savePipelineModel();
+      syncPipelineInputs();
+      renderPipelineConsole();
+      flashButtonLabel(els.usePilotScale, "Loaded");
+    });
+  }
+
+  if (els.useMvpScale) {
+    els.useMvpScale.addEventListener("click", () => {
+      state.pipelineModel = getPipelinePreset("mvp");
+      savePipelineModel();
+      syncPipelineInputs();
+      renderPipelineConsole();
+      flashButtonLabel(els.useMvpScale, "Loaded");
+    });
+  }
+
+  if (els.exportPipelineBrief) {
+    els.exportPipelineBrief.addEventListener("click", exportPipelineBrief);
+  }
+
+  if (els.evalForm) {
+    els.evalForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.evalConfig = readEvalConfig();
+      saveEvalConfig();
+      renderEvalLab();
+      flashButtonLabel(els.evalForm.querySelector("button[type='submit']"), "Scored");
+    });
+  }
+
+  if (els.useCurrentAnswerEval) {
+    els.useCurrentAnswerEval.addEventListener("click", () => {
+      hydrateEvalFromCurrentAnswer();
+      saveEvalConfig();
+      syncEvalInputs();
+      renderEvalLab();
+      flashButtonLabel(els.useCurrentAnswerEval, "Loaded");
+    });
+  }
+
+  if (els.resetEvalSuite) {
+    els.resetEvalSuite.addEventListener("click", () => {
+      state.evalConfig = getDefaultEvalConfig();
+      saveEvalConfig();
+      syncEvalInputs();
+      renderEvalLab();
+      flashButtonLabel(els.resetEvalSuite, "Reset");
+    });
+  }
+
+  if (els.exportEvalBrief) {
+    els.exportEvalBrief.addEventListener("click", exportEvalBrief);
+  }
+
+  if (els.complianceForm) {
+    els.complianceForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.complianceModel = readComplianceModel();
+      saveComplianceModel();
+      recordComplianceEvent("Policy check", "Manual compliance check run against the current workspace.");
+      renderComplianceCenter();
+      flashButtonLabel(els.complianceForm.querySelector("button[type='submit']"), "Checked");
+    });
+  }
+
+  if (els.useCurrentAnswerCompliance) {
+    els.useCurrentAnswerCompliance.addEventListener("click", () => {
+      hydrateComplianceFromCurrentAnswer();
+      saveComplianceModel();
+      recordComplianceEvent("Answer review", "Current answer loaded into the compliance control set.");
+      syncComplianceInputs();
+      renderComplianceCenter();
+      flashButtonLabel(els.useCurrentAnswerCompliance, "Loaded");
+    });
+  }
+
+  if (els.resetCompliance) {
+    els.resetCompliance.addEventListener("click", () => {
+      state.complianceModel = getDefaultComplianceModel();
+      saveComplianceModel();
+      recordComplianceEvent("Policy reset", "Compliance settings reset to the default research-only posture.");
+      syncComplianceInputs();
+      renderComplianceCenter();
+      flashButtonLabel(els.resetCompliance, "Reset");
+    });
+  }
+
+  if (els.exportComplianceBrief) {
+    els.exportComplianceBrief.addEventListener("click", exportComplianceBrief);
+  }
+
+  if (els.traceForm) {
+    els.traceForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.traceConfig = readTraceConfig();
+      saveTraceConfig();
+      renderTraceInspector();
+      flashButtonLabel(els.traceForm.querySelector("button[type='submit']"), "Traced");
+    });
+  }
+
+  if (els.useCurrentAnswerTrace) {
+    els.useCurrentAnswerTrace.addEventListener("click", () => {
+      hydrateTraceFromCurrentAnswer();
+      saveTraceConfig();
+      syncTraceInputs();
+      renderTraceInspector();
+      flashButtonLabel(els.useCurrentAnswerTrace, "Loaded");
+    });
+  }
+
+  if (els.resetTrace) {
+    els.resetTrace.addEventListener("click", () => {
+      state.traceConfig = getDefaultTraceConfig();
+      saveTraceConfig();
+      syncTraceInputs();
+      renderTraceInspector();
+      flashButtonLabel(els.resetTrace, "Reset");
+    });
+  }
+
+  if (els.exportTracePack) {
+    els.exportTracePack.addEventListener("click", exportTracePack);
+  }
+
+  if (els.peerForm) {
+    els.peerForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.peerConfig = readPeerConfig();
+      savePeerConfig();
+      renderPeerScreener();
+      flashButtonLabel(els.peerForm.querySelector("button[type='submit']"), "Screened");
+    });
+  }
+
+  if (els.useCurrentPeerSet) {
+    els.useCurrentPeerSet.addEventListener("click", () => {
+      hydratePeerFromCurrentFocus();
+      savePeerConfig();
+      syncPeerInputs();
+      renderPeerScreener();
+      flashButtonLabel(els.useCurrentPeerSet, "Loaded");
+    });
+  }
+
+  if (els.resetPeerScreen) {
+    els.resetPeerScreen.addEventListener("click", () => {
+      state.peerConfig = getDefaultPeerConfig();
+      savePeerConfig();
+      syncPeerInputs();
+      renderPeerScreener();
+      flashButtonLabel(els.resetPeerScreen, "Reset");
+    });
+  }
+
+  if (els.exportPeerBrief) {
+    els.exportPeerBrief.addEventListener("click", exportPeerBrief);
+  }
+
+  if (els.stressForm) {
+    els.stressForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.stressConfig = readStressConfig();
+      saveStressConfig();
+      renderStressLab();
+      flashButtonLabel(els.stressForm.querySelector("button[type='submit']"), "Stressed");
+    });
+  }
+
+  if (els.stressPreset) {
+    els.stressPreset.addEventListener("change", () => {
+      state.stressConfig = getStressPreset(els.stressPreset.value, readStressConfig());
+      saveStressConfig();
+      syncStressInputs();
+      renderStressLab();
+    });
+  }
+
+  if (els.usePortfolioStress) {
+    els.usePortfolioStress.addEventListener("click", () => {
+      hydrateStressFromPortfolio();
+      saveStressConfig();
+      syncStressInputs();
+      renderStressLab();
+      flashButtonLabel(els.usePortfolioStress, "Loaded");
+    });
+  }
+
+  if (els.resetStress) {
+    els.resetStress.addEventListener("click", () => {
+      state.stressConfig = getDefaultStressConfig();
+      saveStressConfig();
+      syncStressInputs();
+      renderStressLab();
+      flashButtonLabel(els.resetStress, "Reset");
+    });
+  }
+
+  if (els.exportStressBrief) {
+    els.exportStressBrief.addEventListener("click", exportStressBrief);
+  }
+
+  if (els.stressActionQueue) {
+    els.stressActionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-stress-question]");
+      if (!button) return;
+      const question = button.dataset.stressQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.peerQuestionQueue) {
+    els.peerQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-peer-question]");
+      if (!button) return;
+      const question = button.dataset.peerQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.portfolioQuestionQueue) {
+    els.portfolioQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-portfolio-question]");
+      if (!button) return;
+      const question = button.dataset.portfolioQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
 }
 
 function submitCurrentQuestion() {
@@ -838,6 +1566,8 @@ function renderCoverage() {
         input.checked = true;
       }
       renderContextBand();
+      renderMarketStatusRail();
+      renderLaunchOps();
       drawSignalMap();
     });
   });
@@ -849,15 +1579,16 @@ function renderLibrary() {
   els.documentCount.textContent = trustedCount ? `${docs.length} docs | ${trustedCount} external` : `${docs.length} docs`;
   els.libraryList.innerHTML = docs.map((doc) => {
     const checked = state.enabledDocIds.has(doc.id) ? "checked" : "";
-    const trustClass = getSourceClass(doc);
-    const trustLabel = getDocSourceLabel(doc);
-    const quality = doc.sourceQuality ? `${doc.sourceQuality.quality}/100` : "Demo";
+  const trustClass = getSourceClass(doc);
+  const trustLabel = getDocSourceLabel(doc);
+  const quality = doc.sourceQuality ? `${doc.sourceQuality.quality}/100` : "Demo";
+    const security = doc.securityAudit ? `Security ${doc.securityAudit.score}` : "Security ok";
     return `
       <label class="source-toggle">
         <input type="checkbox" data-doc-id="${escapeAttr(doc.id)}" ${checked} />
         <span class="source-main">
           <strong>${escapeHtml(doc.ticker)} - ${escapeHtml(doc.period)}</strong>
-          <span>${escapeHtml(doc.company)} - ${escapeHtml(doc.date)} - ${escapeHtml(quality)}</span>
+          <span>${escapeHtml(doc.company)} - ${escapeHtml(doc.date)} - ${escapeHtml(quality)} - ${escapeHtml(security)}</span>
         </span>
         <span class="source-kind ${trustClass}">${escapeHtml(shortDocType(doc.type))} | ${escapeHtml(trustLabel)}</span>
       </label>
@@ -872,7 +1603,9 @@ function renderLibrary() {
         state.enabledDocIds.delete(input.dataset.docId);
       }
       renderSourceQuality();
+      renderSecurityPosture();
       renderContextBand();
+      renderMarketStatusRail();
     });
   });
 }
@@ -900,15 +1633,167 @@ function renderSourceQuality() {
       <div><dt>Type</dt><dd>${escapeHtml(audit.type)}</dd></div>
       <div><dt>Sections</dt><dd>${escapeHtml(String(audit.sections))}</dd></div>
       <div><dt>Citations</dt><dd>${escapeHtml(String(audit.passages))}</dd></div>
+      <div><dt>Security</dt><dd>${escapeHtml(String(audit.securityScore || 100))}/100</dd></div>
     </dl>
-    <p>${escapeHtml(audit.note)}</p>
+    <p>${escapeHtml(audit.note)} ${escapeHtml(audit.securityNote || "")}</p>
   `;
+}
+
+function renderSecurityPosture() {
+  if (!els.securityPosturePanel) return;
+  const posture = summarizeSecurityPosture();
+  const findingsText = posture.findings.length
+    ? posture.findings.slice(0, 3).map((finding) => finding.label).join(", ")
+    : "No risky patterns in enabled imports";
+  els.securityPosturePanel.innerHTML = `
+    <div class="security-posture-top">
+      <span>Security posture</span>
+      <strong>${escapeHtml(String(posture.score))}/100</strong>
+    </div>
+    <div class="security-meter" aria-hidden="true"><i style="width:${escapeAttr(String(posture.score))}%"></i></div>
+    <dl class="security-grid">
+      <div><dt>RAG guard</dt><dd>${escapeHtml(posture.ragGuard)}</dd></div>
+      <div><dt>Secrets</dt><dd>${escapeHtml(posture.secretPosture)}</dd></div>
+      <div><dt>Imports</dt><dd>${escapeHtml(posture.importPosture)}</dd></div>
+      <div><dt>Findings</dt><dd>${escapeHtml(String(posture.findings.length))}</dd></div>
+    </dl>
+    <p>${escapeHtml(findingsText)}</p>
+    <p>${escapeHtml(SECURITY_BASELINE.slice(0, 3).join(" | "))}</p>
+  `;
+}
+
+function renderQuestionSecurityStrip() {
+  if (!els.questionSecurityStrip) return;
+  const current = els.queryInput ? els.queryInput.value.trim() : "";
+  const audit = state.lastQuestionSecurity || assessTextSecurity(current, "Question");
+  if (!current) {
+    els.questionSecurityStrip.innerHTML = `
+      <div class="question-security is-idle">
+        <span>Question guard</span>
+        <strong>Ready</strong>
+        <em>Questions are scanned for prompt-injection and credential leakage before analysis.</em>
+      </div>
+    `;
+    return;
+  }
+  const className = audit.findings.length ? (audit.level === "high" ? "is-risky" : "is-warn") : "is-clean";
+  els.questionSecurityStrip.innerHTML = `
+    <div class="question-security ${className}">
+      <span>Question guard</span>
+      <strong>${escapeHtml(audit.summary)}</strong>
+      <em>${escapeHtml(audit.findings.length ? audit.findings.map((finding) => finding.label).join(", ") : "No risky question patterns detected.")}</em>
+    </div>
+  `;
+}
+
+function loadMarketSettings() {
+  const saved = loadJson(STORAGE_KEYS.marketSettings, {});
+  const provider = MARKET_PROVIDER_LABELS[saved.provider] ? saved.provider : "demo";
+  return {
+    provider,
+    ticker: normalizeTicker(saved.ticker || "NVDA"),
+    apiKey: ""
+  };
+}
+
+function saveMarketSettings() {
+  saveJson(STORAGE_KEYS.marketSettings, {
+    provider: state.marketSettings.provider,
+    ticker: normalizeTicker(state.marketSettings.ticker || "NVDA")
+  });
+}
+
+function renderLiveDataControl() {
+  if (!els.liveDataForm) return;
+  els.marketProvider.value = state.marketSettings.provider;
+  els.marketTicker.value = state.marketSettings.ticker || "NVDA";
+  const provider = state.marketSettings.provider;
+  els.marketApiKey.placeholder = provider === "demo" ? "Not needed for demo quote" : "Paste key for this browser session";
+  els.marketApiKey.disabled = provider === "demo";
+  if (provider === "demo") {
+    els.marketApiKey.value = "";
+  }
+  const message = state.marketStatus.message || "Demo quote ready.";
+  setLiveDataStatus(message, state.marketStatus.level || "idle");
+}
+
+function renderMarketStatusRail() {
+  if (!els.marketStatusRail) return;
+  const enabledDocs = getEnabledDocs();
+  const counts = countSourceKinds(enabledDocs);
+  const filingLabel = counts["sec-live"] ? "SEC live" : counts["sec-mock"] ? "SEC mock" : counts.uploaded ? "Your data" : "Sample";
+  const filingSub = counts["sec-live"]
+    ? `${counts["sec-live"]} live filing source${counts["sec-live"] === 1 ? "" : "s"}`
+    : counts["sec-mock"]
+      ? `${counts["sec-mock"]} labeled fallback source${counts["sec-mock"] === 1 ? "" : "s"}`
+      : counts.uploaded
+        ? `${counts.uploaded} imported source${counts.uploaded === 1 ? "" : "s"}`
+        : `${enabledDocs.length} sample docs`;
+  const quote = state.marketQuote;
+  const marketLabel = quote ? `${quote.ticker} ${formatQuotePrice(quote.price)}` : "Quote ready";
+  const marketSub = quote ? `${quote.providerLabel} ${formatQuoteMove(quote)}` : "Demo now, API when keyed";
+  const provider = state.marketSettings.provider;
+  const apiSub = provider === "demo" ? "No key needed" : "Key entered only for fetch request";
+  const securityPosture = summarizeSecurityPosture();
+  const tiles = [
+    { label: "Filing bridge", value: filingLabel, sub: filingSub, level: counts["sec-live"] || counts.uploaded ? "good" : counts["sec-mock"] ? "warn" : "idle" },
+    { label: "Market bridge", value: marketLabel, sub: marketSub, level: quote ? "good" : "idle" },
+    { label: "Security", value: `${securityPosture.score}/100`, sub: securityPosture.findings.length ? "Review source flags" : "Guardrails active", level: securityPosture.findings.length ? "warn" : "good" },
+    { label: "Provider", value: MARKET_PROVIDER_LABELS[provider] || "Demo quote", sub: apiSub, level: provider === "demo" ? "idle" : "warn" },
+    { label: "Exports", value: "PDF + MD", sub: state.lastBrief ? "Memo ready" : "Runs after first answer", level: state.lastBrief ? "good" : "idle" }
+  ];
+  els.marketStatusRail.innerHTML = tiles.map((tile) => `
+    <div class="status-rail-item is-${escapeAttr(tile.level)}">
+      <span>${escapeHtml(tile.label)}</span>
+      <strong>${escapeHtml(tile.value)}</strong>
+      <em>${escapeHtml(tile.sub)}</em>
+    </div>
+  `).join("");
+}
+
+function renderMarketQuoteCard() {
+  if (!els.marketQuoteCard) return;
+  const quote = state.marketQuote;
+  if (!quote) {
+    els.marketQuoteCard.innerHTML = `
+      <div class="quote-empty">
+        <span>Market bridge</span>
+        <strong>No quote connected</strong>
+        <em>Use demo quote or add an API key in the Import Center.</em>
+      </div>
+    `;
+    return;
+  }
+  const isSelected = quote.ticker === state.selectedTicker;
+  els.marketQuoteCard.innerHTML = `
+    <div class="quote-topline">
+      <div>
+        <span>${escapeHtml(quote.providerLabel)}</span>
+        <strong>${escapeHtml(quote.ticker)} ${formatQuotePrice(quote.price)}</strong>
+      </div>
+      <b class="${quote.changePercent >= 0 ? "is-positive" : "is-negative"}">${escapeHtml(formatQuoteMove(quote))}</b>
+    </div>
+    <dl class="quote-metrics">
+      <div><dt>Market cap</dt><dd>${escapeHtml(formatMarketCap(quote.marketCap))}</dd></div>
+      <div><dt>P/E</dt><dd>${escapeHtml(formatMetricValue(quote.pe, "x"))}</dd></div>
+      <div><dt>Dividend</dt><dd>${escapeHtml(formatMetricValue(quote.dividendYield, "%"))}</dd></div>
+    </dl>
+    <p>${escapeHtml(isSelected ? "Connected to the active valuation lens." : `Quote loaded for ${quote.ticker}; select it in the valuation lens to use the market company profile.`)}</p>
+  `;
+}
+
+function setLiveDataStatus(message, level = "idle") {
+  state.marketStatus = { level, message };
+  if (!els.liveDataStatus) return;
+  els.liveDataStatus.className = `live-data-status is-${level}`;
+  els.liveDataStatus.textContent = message;
 }
 
 function renderContextBand() {
   const enabledDocs = getEnabledDocs();
   const activeCompanies = getCompanies().filter((company) => state.activeTickers.has(company.ticker));
   const dataMode = summarizeDataMode(enabledDocs);
+  const quote = state.marketQuote;
   const averageMargin = activeCompanies.length
     ? activeCompanies.reduce((sum, company) => sum + company.opMargin, 0) / activeCompanies.length
     : 0;
@@ -927,6 +1812,7 @@ function renderContextBand() {
   const tiles = [
     focusTile,
     { label: "Data mode", value: dataMode.label, sub: dataMode.sub },
+    { label: "Market quote", value: quote ? formatQuotePrice(quote.price) : "Ready", sub: quote ? `${quote.ticker} ${formatQuoteMove(quote)}` : "Demo/API bridge" },
     { label: "Avg op margin", value: `${averageMargin.toFixed(1)}%`, sub: "Selected coverage" },
     { label: "Risk index", value: Math.round(averageRisk), sub: citationCount ? `${citationCount} current citations` : "Pre-query baseline" }
   ];
@@ -938,6 +1824,151 @@ function renderContextBand() {
       <em>${escapeHtml(tile.sub)}</em>
     </div>
   `).join("");
+}
+
+async function connectMarketBridge() {
+  const provider = els.marketProvider.value;
+  const ticker = normalizeTicker(els.marketTicker.value || state.marketSettings.ticker || "NVDA");
+  const apiKey = els.marketApiKey.value.trim();
+  state.marketSettings = { provider, ticker, apiKey: "" };
+  saveMarketSettings();
+  if (provider !== "demo" && !apiKey) {
+    setLiveDataStatus("Paste an API key for this provider, or switch to Demo quote.", "fallback");
+    renderMarketStatusRail();
+    renderLaunchOps();
+    return;
+  }
+
+  setLiveDataStatus(`Fetching ${ticker} from ${MARKET_PROVIDER_LABELS[provider] || "selected provider"}...`, "loading");
+  try {
+    const quote = await fetchMarketQuote(provider, ticker, apiKey);
+    state.marketQuote = quote;
+    state.selectedTicker = quote.ticker;
+    state.activeTickers.add(quote.ticker);
+    renderCoverage();
+    renderContextBand();
+    renderMarketStatusRail();
+    renderValuationOptions();
+    updateValuationFromCompany();
+    updateValuation();
+    renderMarketQuoteCard();
+    drawSignalMap();
+    setLiveDataStatus(`Connected ${quote.ticker} quote from ${quote.providerLabel}.`, quote.isDemo ? "fallback" : "success");
+    renderMarketStatusRail();
+    renderLaunchOps();
+  } catch (error) {
+    const fallback = makeDemoMarketQuote(ticker, error);
+    state.marketQuote = fallback;
+    state.selectedTicker = fallback.ticker;
+    state.activeTickers.add(fallback.ticker);
+    renderCoverage();
+    renderContextBand();
+    renderMarketStatusRail();
+    renderValuationOptions();
+    updateValuationFromCompany();
+    updateValuation();
+    renderMarketQuoteCard();
+    drawSignalMap();
+    setLiveDataStatus(`Provider fetch failed; loaded labeled demo quote for ${fallback.ticker}.`, "fallback");
+    renderMarketStatusRail();
+    renderLaunchOps();
+  }
+}
+
+async function fetchMarketQuote(provider, ticker, apiKey) {
+  if (provider === "demo") return makeDemoMarketQuote(ticker);
+  if (!window.fetch) throw new Error("Browser fetch is unavailable.");
+  if (provider === "alpha-vantage") {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(ticker)}&apikey=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Alpha Vantage returned ${response.status}.`);
+    return parseAlphaVantageQuote(await response.json(), ticker);
+  }
+  if (provider === "fmp") {
+    const url = `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(ticker)}?apikey=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Financial Modeling Prep returned ${response.status}.`);
+    return parseFmpQuote(await response.json(), ticker);
+  }
+  throw new Error("Unsupported quote provider.");
+}
+
+function makeDemoMarketQuote(ticker, error = null) {
+  const safeTicker = normalizeTicker(ticker || "NVDA");
+  const base = DEMO_MARKET_QUOTES[safeTicker] || {
+    name: `${safeTicker} demo quote`,
+    price: 100 + safeTicker.length * 11,
+    change: 1.4,
+    changePercent: 1.1,
+    marketCap: 25000000000,
+    pe: 22,
+    dividendYield: 0
+  };
+  return normalizeMarketQuote({
+    ...base,
+    ticker: safeTicker,
+    provider: "demo",
+    providerLabel: error ? "Demo fallback" : "Demo quote",
+    isDemo: true,
+    note: error ? String(error.message || error) : "Static demo quote"
+  });
+}
+
+function parseAlphaVantageQuote(payload, ticker) {
+  const quote = payload && payload["Global Quote"];
+  if (!quote || !Object.keys(quote).length) throw new Error("No Alpha Vantage quote payload.");
+  return normalizeMarketQuote({
+    ticker,
+    name: `${ticker} market quote`,
+    price: quote["05. price"],
+    change: quote["09. change"],
+    changePercent: String(quote["10. change percent"] || "").replace("%", ""),
+    marketCap: null,
+    pe: null,
+    dividendYield: null,
+    provider: "alpha-vantage",
+    providerLabel: "Alpha Vantage",
+    isDemo: false
+  });
+}
+
+function parseFmpQuote(payload, ticker) {
+  const quote = Array.isArray(payload) ? payload[0] : payload;
+  if (!quote || !quote.symbol) throw new Error("No Financial Modeling Prep quote payload.");
+  return normalizeMarketQuote({
+    ticker: quote.symbol || ticker,
+    name: quote.name || `${ticker} market quote`,
+    price: quote.price,
+    change: quote.change,
+    changePercent: quote.changesPercentage,
+    marketCap: quote.marketCap,
+    pe: quote.pe,
+    dividendYield: quote.lastDiv && quote.price ? (Number(quote.lastDiv) / Number(quote.price)) * 100 : quote.dividendYield,
+    provider: "fmp",
+    providerLabel: "Financial Modeling Prep",
+    isDemo: false
+  });
+}
+
+function normalizeMarketQuote(raw) {
+  const price = Number(raw.price) || 0;
+  const change = Number(raw.change) || 0;
+  const changePercent = Number(raw.changePercent) || 0;
+  return {
+    ticker: normalizeTicker(raw.ticker || "NVDA"),
+    name: String(raw.name || `${raw.ticker || "NVDA"} market quote`),
+    price,
+    change,
+    changePercent,
+    marketCap: raw.marketCap === null || raw.marketCap === undefined ? null : Number(raw.marketCap) || null,
+    pe: raw.pe === null || raw.pe === undefined ? null : Number(raw.pe) || null,
+    dividendYield: raw.dividendYield === null || raw.dividendYield === undefined ? null : Number(raw.dividendYield) || 0,
+    provider: raw.provider || "demo",
+    providerLabel: raw.providerLabel || MARKET_PROVIDER_LABELS[raw.provider] || "Market quote",
+    isDemo: Boolean(raw.isDemo),
+    note: raw.note || "",
+    fetchedAt: new Date().toISOString()
+  };
 }
 
 function renderValuationOptions() {
@@ -977,9 +2008,12 @@ function syncTickerFocus(question) {
   state.activeTickers.add(focus.ticker);
   renderCoverage();
   renderContextBand();
+  renderMarketStatusRail();
   renderValuationOptions();
   updateValuationFromCompany();
   updateValuation();
+  renderMarketQuoteCard();
+  renderLaunchOps();
   drawSignalMap();
   return focus;
 }
@@ -1026,9 +2060,17 @@ function runAnalysis(question) {
     els.queryInput.focus();
     return;
   }
+  state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+  renderQuestionSecurityStrip();
+  renderSecurityPosture();
 
   const tickerFocus = syncTickerFocus(question);
   const retrievalQuestion = addTickerContext(question, tickerFocus);
+  recordWorkflowEvent("analysis", {
+    question,
+    ticker: tickerFocus ? tickerFocus.rawTicker : state.selectedTicker,
+    depth: state.answerDepth
+  });
   const docs = getEnabledDocs();
   if (!docs.length) {
     renderNoDocs(question);
@@ -1055,6 +2097,8 @@ function runAnalysis(question) {
   renderAnswer(answerModel);
   renderEvidence(citations);
   renderContextBand();
+  renderMarketStatusRail();
+  renderLaunchOps();
   drawSignalMap(citations);
 }
 
@@ -1071,6 +2115,8 @@ function renderNoDocs(question) {
   `;
   renderEvidence([]);
   renderContextBand();
+  renderMarketStatusRail();
+  renderLaunchOps();
 }
 
 function renderNoHits(question) {
@@ -1086,6 +2132,8 @@ function renderNoHits(question) {
   `;
   renderEvidence([]);
   renderContextBand();
+  renderMarketStatusRail();
+  renderLaunchOps();
 }
 
 function buildAnswerModel(question, citations, intent, tickerFocus = null) {
@@ -1107,6 +2155,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const valuationRead = makeValuationRead(rankedCompanies[0], intent);
   const debate = makeDebate(citations, rankedCompanies);
   const table = makeCompanyTable(rankedCompanies);
+  const copilot = makeAnalystCopilot(question, citations, rankedCompanies, intent, sourceAudit, toneMeter);
 
   const sections = [
     `
@@ -1177,6 +2226,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
       ${focusNotice}
       ${toneMeter.html}
       ${sourceAudit.html}
+      ${copilot.html}
       ${sections.join("")}
     </div>
   `;
@@ -1187,6 +2237,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
     sourceTrust.plainText,
     sourceAudit.plainText,
+    copilot.plainText,
     stripHtml(headline),
     stripHtml(thesis),
     intent.id === "risk" ? "3 cited risk factors:" : "Evidence:"
@@ -1216,6 +2267,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     tonePercent: toneMeter.percent,
     sourceTrust,
     sourceAudit,
+    copilot,
     tickerFocus
   };
 }
@@ -1341,6 +2393,145 @@ function makeSourceAudit(citations, rankedCompanies) {
   };
 }
 
+function makeAnalystCopilot(question, citations, rankedCompanies, intent, sourceAudit, toneMeter) {
+  const leader = rankedCompanies[0] || getCompany(state.selectedTicker);
+  const companyLabel = leader ? leader.ticker : "the company";
+  const followUps = makeFollowUpQuestions(question, companyLabel, intent);
+  const scenarios = makeScenarioFrames(companyLabel, citations, rankedCompanies, intent);
+  const redFlags = makeRedFlags(citations);
+  const checklist = makeCommitteeChecklist(sourceAudit, toneMeter, citations, rankedCompanies, intent);
+  const activeFlags = redFlags.filter((flag) => flag.active).length;
+  const averageScore = Math.round(checklist.reduce((sum, item) => sum + item.score, 0) / Math.max(checklist.length, 1));
+
+  return {
+    followUps,
+    scenarios,
+    redFlags,
+    checklist,
+    averageScore,
+    plainText: [
+      `Analyst copilot: ${averageScore}/100 committee readiness.`,
+      `Red flags: ${activeFlags}/${redFlags.length} active.`,
+      `Follow-ups: ${followUps.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="copilot-panel" aria-label="Analyst copilot">
+        <div class="copilot-heading">
+          <div>
+            <span>Analyst Copilot</span>
+            <strong>${escapeHtml(companyLabel)} committee read-through</strong>
+          </div>
+          <em>${averageScore}/100 ready</em>
+        </div>
+        <div class="scenario-switch" role="group" aria-label="Scenario framing">
+          <button class="scenario-tab is-active" type="button" data-scenario="base">Base</button>
+          <button class="scenario-tab" type="button" data-scenario="bull">Bull</button>
+          <button class="scenario-tab" type="button" data-scenario="bear">Bear</button>
+        </div>
+        <p class="scenario-readout" data-scenario-readout>${escapeHtml(scenarios.base)}</p>
+        <div class="red-flag-grid" aria-label="Red flag detector">
+          ${redFlags.map((flag) => `
+            <span class="red-flag ${flag.active ? "is-active" : ""}">
+              <b>${escapeHtml(flag.label)}</b>
+              <em>${escapeHtml(flag.active ? flag.reason : "Not prominent")}</em>
+            </span>
+          `).join("")}
+        </div>
+        <div class="committee-checklist">
+          ${checklist.map((item) => `
+            <div>
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${item.score}</strong>
+              <i><b style="width: ${item.score}%"></b></i>
+            </div>
+          `).join("")}
+        </div>
+        <div class="follow-up-row" aria-label="Suggested follow-up questions">
+          ${followUps.map((item) => `<button class="copilot-question" type="button" data-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeFollowUpQuestions(question, ticker, intent) {
+  if (intent.id === "risk") {
+    return [
+      `What would disprove the ${ticker} risk thesis?`,
+      `Which ${ticker} risk should I model first?`,
+      `What would management need to clarify next quarter?`
+    ];
+  }
+  if (intent.id === "valuation") {
+    return [
+      `Which ${ticker} valuation assumption moves value most?`,
+      `What is the bear-case FCF margin for ${ticker}?`,
+      `What evidence would justify a higher multiple?`
+    ];
+  }
+  if (intent.id === "rates") {
+    return [
+      `How does ${ticker} perform if rates stay high?`,
+      `Which balance-sheet line is most rate-sensitive?`,
+      `What refinancing language should I watch?`
+    ];
+  }
+  if (/compare|which|better|rank/i.test(question)) {
+    return [
+      "What would change the ranking?",
+      "Which company has the cleaner bear case?",
+      "Which metric should I model before buying?"
+    ];
+  }
+  return [
+    `What is the strongest bear case for ${ticker}?`,
+    `What source would change the answer for ${ticker}?`,
+    `Which assumption should I flex first?`
+  ];
+}
+
+function makeScenarioFrames(ticker, citations, rankedCompanies, intent) {
+  const leader = rankedCompanies[0] || {};
+  const sourceAnchor = citations[0] ? `${citations[0].type} / ${citations[0].section}` : "source stack";
+  const metricText = leader.metrics || "the retrieved operating evidence";
+  return {
+    base: `${ticker} is underwritable if the highest-weighted ${sourceAnchor} remains consistent with ${metricText}. Keep the thesis tied to cited evidence rather than sector narrative.`,
+    bull: `${ticker} bull case improves if management tone stays constructive, margins hold, and the next filing confirms that current risks are execution items rather than demand deterioration.`,
+    bear: `${ticker} bear case activates if the source stack starts showing weaker demand, poorer cash conversion, refinancing pressure, or more cautious management language.`
+  };
+}
+
+function makeRedFlags(citations) {
+  const text = citations.map((citation) => `${citation.section} ${citation.text}`).join(" ").toLowerCase();
+  const definitions = [
+    { label: "Customer concentration", terms: ["customer concentration", "major customer", "top customers", "hyperscale"], reason: "Customer cadence can swing revenue." },
+    { label: "Margin pressure", terms: ["gross margin", "margin pressure", "price investment", "yield", "mix"], reason: "Margins depend on execution and mix." },
+    { label: "Debt/refinancing", terms: ["debt", "refinancing", "interest", "credit spread", "variable-rate"], reason: "Funding cost can change equity value." },
+    { label: "Capex/cash drag", terms: ["capex", "capital expenditure", "free cash flow", "working capital", "commitments"], reason: "Cash conversion may lag earnings." },
+    { label: "Guidance tone", terms: ["guidance", "expects", "acknowledged", "less confident", "procurement cadence"], reason: "Tone can lead estimate revisions." },
+    { label: "Regulatory/export", terms: ["regulatory", "export", "controls", "permitting", "tax credit"], reason: "External constraints can delay value." }
+  ];
+  return definitions.map((definition) => ({
+    ...definition,
+    active: definition.terms.some((term) => text.includes(term))
+  }));
+}
+
+function makeCommitteeChecklist(sourceAudit, toneMeter, citations, rankedCompanies, intent) {
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared|management/i.test(`${citation.type} ${citation.section}`)).length;
+  const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  const redFlagCount = makeRedFlags(citations).filter((flag) => flag.active).length;
+  const leader = rankedCompanies[0] || {};
+  return [
+    { label: "Evidence quality", score: Math.min(98, sourceAudit.quality || 50) },
+    { label: "Management tone", score: Math.max(30, Math.min(95, toneMeter.percent || 50)) },
+    { label: "Valuation sensitivity", score: Math.min(95, 50 + modelCount * 14 + (intent.id === "valuation" ? 12 : 0)) },
+    { label: "Balance sheet risk", score: Math.max(35, Math.min(92, 92 - redFlagCount * 6 + (leader.netDebt < 0 ? 8 : -4))) },
+    { label: "Catalyst visibility", score: Math.min(94, 46 + filingCount * 8 + callCount * 7) }
+  ];
+}
+
 function renderAnswer(answerModel) {
   els.answerPanel.innerHTML = answerModel.html;
   els.answerPanel.querySelectorAll(".citation-link").forEach((link) => {
@@ -1352,6 +2543,26 @@ function renderAnswer(answerModel) {
         document.querySelectorAll(".evidence-card").forEach((card) => card.classList.remove("is-active"));
         target.classList.add("is-active");
       }
+    });
+  });
+  bindCopilotControls(answerModel);
+}
+
+function bindCopilotControls(answerModel) {
+  const panel = els.answerPanel.querySelector(".copilot-panel");
+  if (!panel || !answerModel.copilot) return;
+  const readout = panel.querySelector("[data-scenario-readout]");
+  panel.querySelectorAll(".scenario-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      panel.querySelectorAll(".scenario-tab").forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
+      const key = button.dataset.scenario || "base";
+      readout.textContent = answerModel.copilot.scenarios[key] || answerModel.copilot.scenarios.base;
+    });
+  });
+  panel.querySelectorAll(".copilot-question").forEach((button) => {
+    button.addEventListener("click", () => {
+      els.queryInput.value = button.dataset.question || button.textContent.trim();
+      els.queryInput.focus();
     });
   });
 }
@@ -1851,6 +3062,32 @@ function getCompanies() {
       });
     }
   }
+  if (state.marketQuote && state.marketQuote.ticker) {
+    const quote = state.marketQuote;
+    const marketCapBillions = quote.marketCap ? quote.marketCap / 1e9 : 0;
+    const shares = quote.marketCap && quote.price ? quote.marketCap / quote.price / 1e9 : 1;
+    const marketProfile = {
+      ticker: quote.ticker,
+      name: quote.name || `${quote.ticker} market quote`,
+      sector: quote.isDemo ? "Demo market bridge" : "Live market bridge",
+      revenue: marketCapBillions ? Math.max(1, marketCapBillions / Math.max(Number(quote.pe) || 20, 8)) : 12,
+      growth: quote.changePercent >= 0 ? 12 : 6,
+      grossMargin: 52,
+      opMargin: quote.changePercent >= 0 ? 24 : 16,
+      fcfMargin: quote.changePercent >= 0 ? 14 : 9,
+      netDebt: 0,
+      shares: Math.max(shares, 0.01),
+      multiple: Math.max(8, Math.min(35, Math.round(Number(quote.pe) || 18))),
+      risk: Math.max(25, Math.min(85, Math.round(52 - quote.changePercent * 2))),
+      sentiment: Math.max(25, Math.min(85, Math.round(52 + quote.changePercent * 3))),
+      thesis: `${quote.providerLabel} quote bridge profile. Fundamentals remain scenario inputs until normalized filings are imported.`,
+      marketQuote: quote
+    };
+    byTicker.set(quote.ticker, {
+      ...(byTicker.get(quote.ticker) || {}),
+      ...marketProfile
+    });
+  }
   return Array.from(byTicker.values());
 }
 
@@ -1895,7 +3132,10 @@ function updateValuation() {
   els.discountValue.textContent = `${Math.round(discountRate * 100)}%`;
   els.valuePerShare.textContent = `$${Math.max(perShare, 0).toFixed(0)}`;
   els.equityValue.textContent = `${formatMoney(Math.max(equityValue, 0))}`;
-  els.valuationFootnote.textContent = `${company.ticker} base model: ${formatMoney(company.revenue)} revenue, ${company.fcfMargin}% FCF margin, ${company.netDebt < 0 ? "net cash" : "net debt"} of ${formatMoney(Math.abs(company.netDebt))}. This is a scenario lens, not a price target.`;
+  const quoteNote = company.marketQuote
+    ? ` Market bridge: ${company.marketQuote.providerLabel} at ${formatQuotePrice(company.marketQuote.price)}.`
+    : "";
+  els.valuationFootnote.textContent = `${company.ticker} base model: ${formatMoney(company.revenue)} revenue, ${company.fcfMargin}% FCF margin, ${company.netDebt < 0 ? "net cash" : "net debt"} of ${formatMoney(Math.abs(company.netDebt))}.${quoteNote} This is a scenario lens, not a price target.`;
 }
 
 function drawSignalMap(citations = state.currentCitations) {
@@ -1974,6 +3214,3522 @@ function renderNotebook() {
   `).join("");
 }
 
+function renderLaunchOps() {
+  if (!els.opsMetricGrid) return;
+  const snapshot = buildOpsSnapshot();
+  els.opsMetricGrid.innerHTML = [
+    { label: "Pilot leads", value: snapshot.leadCount, sub: snapshot.leadCount ? `${snapshot.highIntentLeads} high-intent` : "Start with 10 serious testers" },
+    { label: "Questions run", value: snapshot.questionRuns, sub: snapshot.topTicker ? `${snapshot.topTicker} leads ticker demand` : "Ask the desk to build signal" },
+    { label: "Source library", value: snapshot.externalDocs, sub: `${state.uploadedDocs.length} imported | ${getEnabledDocs().length} active` },
+    { label: "Saved briefs", value: state.notes.length, sub: state.lastBrief ? "Latest memo ready" : "Run and save first memo" },
+    { label: "Security", value: `${snapshot.securityScore}/100`, sub: snapshot.securityFindings ? `${snapshot.securityFindings} finding${snapshot.securityFindings === 1 ? "" : "s"}` : "Guardrails clean" }
+  ].map((metric) => `
+    <div class="ops-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+
+  els.leadQualityScore.textContent = `${snapshot.leadScore}/100`;
+  els.leadQualityBoard.innerHTML = renderLeadQualityBoard(snapshot);
+  els.workflowScore.textContent = `${snapshot.questionRuns} runs`;
+  els.workflowHeatmap.innerHTML = renderWorkflowHeatmap(snapshot);
+  els.launchReadinessScore.textContent = `${snapshot.readiness.score}%`;
+  els.launchChecklist.innerHTML = renderLaunchChecklist(snapshot.readiness.items);
+  els.opsPriority.textContent = snapshot.priority.label;
+  els.opsSignalGrid.innerHTML = renderOpsSignals(snapshot);
+  renderPortfolioLens();
+}
+
+function buildOpsSnapshot() {
+  const leadScores = state.waitlistLeads.map(scoreLead);
+  const leadScore = leadScores.length
+    ? Math.round(leadScores.reduce((sum, lead) => sum + lead.score, 0) / leadScores.length)
+    : 0;
+  const workflowRows = buildWorkflowRows();
+  const tickerCounts = collectTickerCounts();
+  const topTicker = tickerCounts[0] ? tickerCounts[0].ticker : "";
+  const readiness = buildLaunchReadiness();
+  const security = summarizeSecurityPosture();
+  const priority = buildOpsPriority(readiness.items, leadScores);
+  return {
+    leadCount: state.waitlistLeads.length,
+    leadScores,
+    leadScore,
+    highIntentLeads: leadScores.filter((lead) => lead.score >= 75).length,
+    workflowRows,
+    tickerCounts,
+    topTicker,
+    questionRuns: state.workflowEvents.filter((event) => event.kind === "analysis").length,
+    externalDocs: state.uploadedDocs.length,
+    readiness,
+    securityScore: security.score,
+    securityFindings: security.findings.length,
+    priority
+  };
+}
+
+function renderLeadQualityBoard(snapshot) {
+  if (!snapshot.leadScores.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No pilot leads captured yet</strong>
+        <span>Submit the waitlist form or publish the page, then this board will rank early testers by plan, profile, tickers, and question quality.</span>
+      </div>
+    `;
+  }
+  return snapshot.leadScores.slice(0, 4).map((lead) => `
+    <div class="lead-score-row">
+      <div>
+        <strong>${escapeHtml(lead.email)}</strong>
+        <span>${escapeHtml(lead.profile)} | ${escapeHtml(lead.plan)}</span>
+      </div>
+      <b>${escapeHtml(String(lead.score))}</b>
+    </div>
+  `).join("");
+}
+
+function renderWorkflowHeatmap(snapshot) {
+  const maxCount = Math.max(1, ...snapshot.workflowRows.map((row) => row.count));
+  return snapshot.workflowRows.map((row) => `
+    <div class="workflow-row">
+      <span>${escapeHtml(row.label)}</span>
+      <i><b style="width:${escapeAttr(String(Math.max(8, Math.round((row.count / maxCount) * 100))))}%"></b></i>
+      <strong>${escapeHtml(String(row.count))}</strong>
+    </div>
+  `).join("");
+}
+
+function renderLaunchChecklist(items) {
+  return items.map((item) => `
+    <div class="launch-check ${escapeAttr(item.status)}">
+      <span>${escapeHtml(item.statusLabel)}</span>
+      <div>
+        <strong>${escapeHtml(item.label)}</strong>
+        <em>${escapeHtml(item.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderOpsSignals(snapshot) {
+  const topTicker = snapshot.topTicker || "NVDA";
+  const topFeature = modeValue(state.waitlistLeads.map((lead) => lead.need).filter(Boolean)) || "Cited SEC filing answers";
+  const rows = [
+    {
+      label: "Ticker demand",
+      value: topTicker,
+      note: snapshot.tickerCounts.length ? `${snapshot.tickerCounts[0].count} local signal${snapshot.tickerCounts[0].count === 1 ? "" : "s"}` : "Use waitlist and questions to validate ticker focus."
+    },
+    {
+      label: "Feature demand",
+      value: topFeature,
+      note: state.waitlistLeads.length ? "Lead forms are shaping the product queue." : "Default pilot wedge is cited filing answers."
+    },
+    {
+      label: "Founder move",
+      value: snapshot.priority.label,
+      note: snapshot.priority.note
+    },
+    {
+      label: "Next build",
+      value: "Backend vault",
+      note: "Move live APIs, auth, and refresh jobs behind a production service before paid launch."
+    }
+  ];
+  return rows.map((row) => `
+    <div class="ops-signal">
+      <span>${escapeHtml(row.label)}</span>
+      <strong>${escapeHtml(row.value)}</strong>
+      <em>${escapeHtml(row.note)}</em>
+    </div>
+  `).join("");
+}
+
+function scoreLead(lead) {
+  let score = 42;
+  if (/analyst/i.test(lead.plan)) score += 18;
+  else if (/pro/i.test(lead.plan)) score += 14;
+  else if (/starter/i.test(lead.plan)) score += 8;
+  if (/finance|professional|founder|operator/i.test(lead.profile)) score += 12;
+  else if (/active/i.test(lead.profile)) score += 9;
+  if (/SEC|earnings|comparison|valuation|watchlist/i.test(lead.need)) score += 10;
+  const tickerCount = extractTickers(`${lead.tickers} ${lead.question}`).length;
+  score += Math.min(12, tickerCount * 4);
+  if (String(lead.question || "").length > 35) score += 12;
+  if (String(lead.email || "").includes("@")) score += 4;
+  return {
+    ...lead,
+    score: Math.max(35, Math.min(100, score))
+  };
+}
+
+function buildWorkflowRows() {
+  const counts = state.workflowEvents.reduce((acc, event) => {
+    acc[event.kind] = (acc[event.kind] || 0) + 1;
+    return acc;
+  }, {});
+  return [
+    { key: "analysis", label: "Research questions", count: counts.analysis || 0 },
+    { key: "import", label: "Source imports", count: counts.import || state.uploadedDocs.length },
+    { key: "lead", label: "Waitlist leads", count: counts.lead || state.waitlistLeads.length },
+    { key: "save", label: "Saved briefs", count: counts.save || state.notes.length }
+  ];
+}
+
+function buildLaunchReadiness() {
+  const security = summarizeSecurityPosture();
+  const items = [
+    { label: "Research desk", status: "done", statusLabel: "Done", note: "Cited answers, evidence stack, valuation lens, copilot, and exports are functional." },
+    { label: "Source workflow", status: state.uploadedDocs.length ? "done" : "next", statusLabel: state.uploadedDocs.length ? "Done" : "Next", note: state.uploadedDocs.length ? "Imports and SEC bridge sources are active." : "Load more real filings before pilot calls." },
+    { label: "Security posture", status: security.score >= 90 ? "done" : "next", statusLabel: security.score >= 90 ? "Done" : "Review", note: `${security.score}/100 with ${security.findings.length} finding${security.findings.length === 1 ? "" : "s"}.` },
+    { label: "Market data", status: state.marketQuote ? "done" : "next", statusLabel: state.marketQuote ? "Done" : "Next", note: state.marketQuote ? `${state.marketQuote.providerLabel} quote loaded.` : "Demo bridge ready; production provider still needs backend handling." },
+    { label: "Pilot demand", status: state.waitlistLeads.length ? "done" : "next", statusLabel: state.waitlistLeads.length ? "Done" : "Next", note: state.waitlistLeads.length ? `${state.waitlistLeads.length} lead${state.waitlistLeads.length === 1 ? "" : "s"} captured locally.` : "Need first 10 serious testers." },
+    { label: "Billing", status: "blocked", statusLabel: "Pending", note: "Stripe/paywall flow is planned but not wired." },
+    { label: "Accounts", status: "blocked", statusLabel: "Pending", note: "User auth, API vault, and saved coverage need a backend." }
+  ];
+  const score = Math.round(items.reduce((sum, item) => sum + (item.status === "done" ? 100 : item.status === "next" ? 55 : 18), 0) / items.length);
+  return { score, items };
+}
+
+function buildOpsPriority(items, leadScores) {
+  const blocked = items.find((item) => item.status === "blocked");
+  if (!state.waitlistLeads.length) return { label: "Recruit leads", note: "Share the waitlist and collect 10 real research questions." };
+  if (leadScores.some((lead) => lead.score >= 80) && !state.uploadedDocs.length) return { label: "Load filings", note: "High-intent demand exists; validate with real filings and transcripts." };
+  if (blocked) return { label: blocked.label, note: blocked.note };
+  return { label: "Pilot calls", note: "Run 5 live user sessions and measure repeat usage." };
+}
+
+function collectTickerCounts() {
+  const counts = new Map();
+  const addTicker = (ticker) => {
+    const clean = normalizeTicker(ticker);
+    if (!clean || clean === "CUSTOM") return;
+    counts.set(clean, (counts.get(clean) || 0) + 1);
+  };
+  state.waitlistLeads.forEach((lead) => extractTickers(`${lead.tickers} ${lead.question}`).forEach(addTicker));
+  state.workflowEvents.forEach((event) => extractTickers(`${event.ticker || ""} ${event.question || ""}`).forEach(addTicker));
+  state.uploadedDocs.forEach((doc) => addTicker(doc.ticker));
+  state.currentCitations.forEach((citation) => addTicker(citation.ticker));
+  if (!counts.size) state.activeTickers.forEach(addTicker);
+  return Array.from(counts.entries())
+    .map(([ticker, count]) => ({ ticker, count }))
+    .sort((a, b) => b.count - a.count || a.ticker.localeCompare(b.ticker));
+}
+
+function extractTickers(text) {
+  const value = String(text || "").toUpperCase();
+  const dollarTickers = Array.from(value.matchAll(/\$([A-Z][A-Z0-9.]{1,7})\b/g)).map((match) => match[1]);
+  const plainTickers = Array.from(value.matchAll(/\b[A-Z]{2,5}\b/g))
+    .map((match) => match[0])
+    .filter((ticker) => !["WHAT", "THE", "AND", "FOR", "WITH", "SEC", "API", "PDF"].includes(ticker));
+  return Array.from(new Set([...dollarTickers, ...plainTickers])).slice(0, 8);
+}
+
+function inferTickerFromQuestion(question) {
+  return extractTickers(question)[0] || "";
+}
+
+function modeValue(values) {
+  const counts = values.reduce((acc, value) => {
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+function recordWorkflowEvent(kind, details = {}) {
+  const event = {
+    id: `event-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    kind,
+    date: new Date().toISOString(),
+    ...details
+  };
+  state.workflowEvents = [event, ...state.workflowEvents].slice(0, 120);
+  saveJson(STORAGE_KEYS.workflowEvents, state.workflowEvents);
+}
+
+function renderPortfolioLens() {
+  if (!els.portfolioMetricGrid) return;
+  if (els.portfolioInput && !els.portfolioInput.dataset.ready) {
+    syncPortfolioInput();
+    els.portfolioInput.dataset.ready = "true";
+  }
+  const snapshot = buildPortfolioSnapshot();
+  els.portfolioPositionCount.textContent = `${snapshot.positions.length} name${snapshot.positions.length === 1 ? "" : "s"}`;
+  els.portfolioRiskScore.textContent = `${snapshot.weightedRisk}/100`;
+  els.portfolioScenarioLabel.textContent = snapshot.scenarioLabel;
+  els.portfolioQueueCount.textContent = `${snapshot.questionQueue.length} ask${snapshot.questionQueue.length === 1 ? "" : "s"}`;
+  els.portfolioMetricGrid.innerHTML = [
+    { label: "Gross exposure", value: `${Math.round(snapshot.totalWeight)}%`, sub: snapshot.cashWeight ? `${Math.round(snapshot.cashWeight)}% cash buffer` : "Fully invested lens" },
+    { label: "Top position", value: snapshot.topPosition ? snapshot.topPosition.ticker : "n/a", sub: snapshot.topPosition ? `${snapshot.topPosition.weight.toFixed(1)}% portfolio weight` : "Add holdings" },
+    { label: "Weighted risk", value: `${snapshot.weightedRisk}/100`, sub: snapshot.weightedRisk >= 65 ? "Needs downside work" : "Within pilot range" },
+    { label: "Source coverage", value: `${snapshot.coverageScore}%`, sub: `${snapshot.coveredNames}/${snapshot.positions.length} names with source support` }
+  ].map((metric) => `
+    <div class="portfolio-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.portfolioPriorityList.innerHTML = renderPortfolioPriorityList(snapshot);
+  els.portfolioScenarioBoard.innerHTML = renderPortfolioScenarioBoard(snapshot);
+  els.portfolioQuestionQueue.innerHTML = renderPortfolioQuestionQueue(snapshot);
+  renderDecisionRoom();
+}
+
+function buildPortfolioSnapshot() {
+  const positions = normalizePortfolioWeights(state.portfolioPositions.length ? state.portfolioPositions : DEFAULT_PORTFOLIO_POSITIONS);
+  const rows = positions.map(enrichPortfolioPosition);
+  const investedRows = rows.filter((row) => !row.isCash);
+  const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  const cashWeight = rows.filter((row) => row.isCash).reduce((sum, row) => sum + row.weight, 0);
+  const topPosition = investedRows.slice().sort((a, b) => b.weight - a.weight)[0] || rows[0] || null;
+  const weightedRisk = Math.round(rows.reduce((sum, row) => sum + row.risk * (row.weight / Math.max(totalWeight, 1)), 0));
+  const weightedGrowth = Math.round(investedRows.reduce((sum, row) => sum + row.growth * row.weight, 0) / Math.max(investedRows.reduce((sum, row) => sum + row.weight, 0), 1));
+  const weightedMargin = Math.round(investedRows.reduce((sum, row) => sum + row.margin * row.weight, 0) / Math.max(investedRows.reduce((sum, row) => sum + row.weight, 0), 1));
+  const coveredNames = rows.filter((row) => row.isCash || row.sourceCount > 0).length;
+  const coverageScore = Math.round((coveredNames / Math.max(rows.length, 1)) * 100);
+  const priorityRows = investedRows.slice().sort((a, b) => b.priority - a.priority || b.weight - a.weight);
+  const questionQueue = priorityRows.slice(0, 4).map((row) => ({
+    ticker: row.ticker,
+    question: makePortfolioQuestion(row),
+    reason: row.reason
+  }));
+  const scenarioLabel = weightedRisk >= 68 ? "Risk-off" : weightedGrowth >= 15 && weightedMargin >= 12 ? "Growth" : "Base";
+  return {
+    positions: rows,
+    totalWeight,
+    cashWeight,
+    topPosition,
+    weightedRisk,
+    weightedGrowth,
+    weightedMargin,
+    coveredNames,
+    coverageScore,
+    priorityRows,
+    questionQueue,
+    scenarioLabel
+  };
+}
+
+function renderPortfolioPriorityList(snapshot) {
+  if (!snapshot.priorityRows.length) {
+    return `<div class="ops-empty"><strong>No holdings to rank</strong><span>Add tickers and weights to build a research priority list.</span></div>`;
+  }
+  return snapshot.priorityRows.slice(0, 5).map((row) => `
+    <div class="portfolio-priority-row ${escapeAttr(row.riskClass)}">
+      <div>
+        <strong>${escapeHtml(row.ticker)} - ${escapeHtml(row.name)}</strong>
+        <span>${escapeHtml(row.reason)}</span>
+      </div>
+      <b>${escapeHtml(String(row.priority))}</b>
+    </div>
+  `).join("");
+}
+
+function renderPortfolioScenarioBoard(snapshot) {
+  const sourceGap = Math.max(0, snapshot.positions.length - snapshot.coveredNames);
+  const rows = [
+    { label: "Base read", value: `${snapshot.weightedGrowth}% growth / ${snapshot.weightedMargin}% FCF`, note: "Weighted from current portfolio lens inputs." },
+    { label: "Downside check", value: `${snapshot.weightedRisk}/100 risk`, note: snapshot.weightedRisk >= 65 ? "Prioritize risk-factor and liquidity questions." : "Risk is acceptable for pilot testing." },
+    { label: "Source gap", value: `${sourceGap} names`, note: sourceGap ? "Import filings or transcripts for uncovered holdings." : "All holdings have source support." },
+    { label: "Next session", value: snapshot.questionQueue[0]?.ticker || "NVDA", note: snapshot.questionQueue[0]?.question || "Run a fresh research question from the queue." }
+  ];
+  return rows.map((row) => `
+    <div class="portfolio-scenario-row">
+      <span>${escapeHtml(row.label)}</span>
+      <strong>${escapeHtml(row.value)}</strong>
+      <em>${escapeHtml(row.note)}</em>
+    </div>
+  `).join("");
+}
+
+function renderPortfolioQuestionQueue(snapshot) {
+  if (!snapshot.questionQueue.length) {
+    return `<div class="ops-empty"><strong>No questions queued</strong><span>Add holdings, then CiteAlpha will suggest what to ask next.</span></div>`;
+  }
+  return snapshot.questionQueue.map((item) => `
+    <div class="portfolio-question-row">
+      <div>
+        <strong>${escapeHtml(item.ticker)}</strong>
+        <span>${escapeHtml(item.question)}</span>
+        <em>${escapeHtml(item.reason)}</em>
+      </div>
+      <button class="secondary-button small" type="button" data-portfolio-question="${escapeAttr(item.question)}">Ask</button>
+    </div>
+  `).join("");
+}
+
+function enrichPortfolioPosition(position) {
+  const ticker = normalizeTicker(position.ticker);
+  const isCash = ticker === "CASH";
+  const resolved = resolvePortfolioCompany(ticker);
+  const sourceCount = isCash ? 1 : countPortfolioSources(ticker, resolved.proxyTicker);
+  const marketMove = getPortfolioMarketMove(ticker);
+  const concentrationBoost = position.weight >= 30 ? 12 : position.weight >= 20 ? 7 : 0;
+  const sourceGap = sourceCount ? 0 : 13;
+  const marketRisk = marketMove < -1 ? 8 : marketMove > 2 ? 4 : 0;
+  const risk = isCash ? 8 : Math.max(20, Math.min(92, Math.round(resolved.risk + concentrationBoost + sourceGap + marketRisk)));
+  const priority = isCash ? 0 : Math.max(25, Math.min(99, Math.round(risk * 0.62 + position.weight * 0.8 + sourceGap)));
+  const riskClass = risk >= 70 ? "is-high" : risk >= 52 ? "is-medium" : "is-low";
+  return {
+    ...position,
+    ticker,
+    isCash,
+    name: isCash ? "Cash reserve" : resolved.name,
+    company: resolved,
+    proxyTicker: resolved.proxyTicker || ticker,
+    sourceCount,
+    marketMove,
+    risk,
+    priority,
+    riskClass,
+    growth: isCash ? 0 : Number(resolved.growth) || 0,
+    margin: isCash ? 0 : Number(resolved.fcfMargin) || 0,
+    reason: makePortfolioReason({ ticker, weight: position.weight, risk, sourceCount, marketMove, resolved, isCash })
+  };
+}
+
+function makePortfolioReason(row) {
+  if (row.isCash) return "Cash lowers portfolio risk and keeps dry powder for new research ideas.";
+  const parts = [`${row.weight.toFixed(1)}% weight`, `${row.risk}/100 risk`];
+  parts.push(row.sourceCount ? `${row.sourceCount} source${row.sourceCount === 1 ? "" : "s"}` : "source gap");
+  if (Number.isFinite(row.marketMove)) parts.push(`${row.marketMove >= 0 ? "+" : ""}${row.marketMove.toFixed(1)}% quote move`);
+  return parts.join(" | ");
+}
+
+function makePortfolioQuestion(row) {
+  if (!row.sourceCount) return `What filings or earnings call sections should I import before underwriting $${row.ticker}?`;
+  if (row.weight >= 30) return `Is my $${row.ticker} position too concentrated given filing risks, valuation, and market signal?`;
+  if (row.risk >= 68) return `What are the three most material downside risks for $${row.ticker}?`;
+  if (row.margin < 10) return `Is $${row.ticker} free cash flow quality improving or deteriorating?`;
+  return `What changed in $${row.ticker} filings or calls that could move the thesis?`;
+}
+
+function resolvePortfolioCompany(ticker) {
+  const companies = getCompanies();
+  const direct = companies.find((company) => company.ticker === ticker);
+  const alias = PUBLIC_TICKER_ALIASES[ticker];
+  const proxyTicker = alias ? alias.ticker : ticker;
+  const proxy = companies.find((company) => company.ticker === proxyTicker);
+  const quote = DEMO_MARKET_QUOTES[ticker];
+  if (direct && direct.ticker === ticker) return { ...direct, proxyTicker };
+  if (quote) {
+    return {
+      ticker,
+      proxyTicker,
+      name: quote.name,
+      sector: "Portfolio quote lens",
+      growth: quote.changePercent >= 0 ? 13 : 6,
+      fcfMargin: quote.changePercent >= 0 ? 14 : 9,
+      risk: Math.max(34, Math.min(78, Math.round(54 - quote.changePercent * 1.8))),
+      thesis: proxy ? `${ticker} market lens with ${proxyTicker} source proxy.` : `${ticker} market lens awaiting source import.`
+    };
+  }
+  if (proxy) {
+    return {
+      ...proxy,
+      ticker,
+      proxyTicker,
+      name: `${ticker} proxy - ${proxy.name}`,
+      thesis: `${ticker} maps to ${proxyTicker} until direct filings are imported.`
+    };
+  }
+  return {
+    ticker,
+    proxyTicker,
+    name: `${ticker} watchlist name`,
+    sector: "Watchlist",
+    growth: 8,
+    fcfMargin: 8,
+    risk: 58,
+    thesis: "Watchlist holding awaiting filing and market normalization."
+  };
+}
+
+function countPortfolioSources(ticker, proxyTicker) {
+  const keys = new Set([ticker, proxyTicker].filter(Boolean).map(normalizeTicker));
+  return state.documents.filter((doc) => state.enabledDocIds.has(doc.id) && keys.has(doc.ticker)).length;
+}
+
+function getPortfolioMarketMove(ticker) {
+  if (state.marketQuote && state.marketQuote.ticker === ticker) return Number(state.marketQuote.changePercent) || 0;
+  if (DEMO_MARKET_QUOTES[ticker]) return Number(DEMO_MARKET_QUOTES[ticker].changePercent) || 0;
+  return NaN;
+}
+
+function parsePortfolioInput(text) {
+  const rows = String(text || "").split(/\r?\n|;/).map((line) => line.trim()).filter(Boolean);
+  const parsed = rows.map((line) => {
+    const match = line.match(/\$?([A-Z][A-Z0-9.]{0,7})\s*(?::|-|,)?\s*(\d+(?:\.\d+)?)?/i);
+    if (!match) return null;
+    return {
+      ticker: normalizeTicker(match[1]),
+      weight: Math.max(0, Math.min(100, Number(match[2]) || 0))
+    };
+  }).filter(Boolean);
+  return normalizePortfolioWeights(parsed.length ? parsed : DEFAULT_PORTFOLIO_POSITIONS);
+}
+
+function normalizePortfolioWeights(positions) {
+  const cleaned = positions
+    .map((position) => ({
+      ticker: normalizeTicker(position.ticker),
+      weight: Math.max(0, Number(position.weight) || 0)
+    }))
+    .filter((position) => position.ticker)
+    .slice(0, 10);
+  if (!cleaned.length) return DEFAULT_PORTFOLIO_POSITIONS.map((position) => ({ ...position }));
+  const total = cleaned.reduce((sum, position) => sum + position.weight, 0);
+  if (total <= 0) {
+    const equalWeight = 100 / cleaned.length;
+    return cleaned.map((position) => ({ ...position, weight: equalWeight }));
+  }
+  return cleaned.map((position) => ({
+    ...position,
+    weight: (position.weight / total) * 100
+  }));
+}
+
+function buildActiveTickerPortfolio() {
+  const tickers = Array.from(state.activeTickers).filter((ticker) => ticker !== "CUSTOM").slice(0, 8);
+  if (!tickers.length) return DEFAULT_PORTFOLIO_POSITIONS.map((position) => ({ ...position }));
+  const equalWeight = 100 / tickers.length;
+  return tickers.map((ticker) => ({ ticker, weight: equalWeight }));
+}
+
+function syncPortfolioInput() {
+  if (!els.portfolioInput) return;
+  els.portfolioInput.value = normalizePortfolioWeights(state.portfolioPositions).map((position) => `${position.ticker} ${position.weight.toFixed(1)}`).join("\n");
+}
+
+function loadPortfolioPositions() {
+  const saved = loadJson(STORAGE_KEYS.portfolio, null);
+  if (Array.isArray(saved) && saved.length) return normalizePortfolioWeights(saved);
+  return DEFAULT_PORTFOLIO_POSITIONS.map((position) => ({ ...position }));
+}
+
+function savePortfolioPositions() {
+  saveJson(STORAGE_KEYS.portfolio, normalizePortfolioWeights(state.portfolioPositions));
+}
+
+function exportPortfolioBrief() {
+  const snapshot = buildPortfolioSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Portfolio Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Portfolio Snapshot",
+    "",
+    `- Gross exposure: ${Math.round(snapshot.totalWeight)}%`,
+    `- Cash buffer: ${Math.round(snapshot.cashWeight)}%`,
+    `- Weighted risk: ${snapshot.weightedRisk}/100`,
+    `- Source coverage: ${snapshot.coverageScore}%`,
+    `- Scenario label: ${snapshot.scenarioLabel}`,
+    "",
+    "## Priority Holdings",
+    "",
+    ...snapshot.priorityRows.slice(0, 6).map((row) => `- ${row.ticker}: ${row.weight.toFixed(1)}% weight, ${row.risk}/100 risk, ${row.sourceCount} source${row.sourceCount === 1 ? "" : "s"} - ${row.reason}`),
+    "",
+    "## Research Queue",
+    "",
+    ...(snapshot.questionQueue.length ? snapshot.questionQueue.map((item) => `- ${item.question}`) : ["- No research questions queued."]),
+    "",
+    "## Operating Note",
+    "",
+    "This portfolio lens is a client-side prioritization layer. Before paid launch, connect holdings, quotes, filings, alerts, and user accounts through authenticated backend services."
+  ].join("\n");
+  downloadTextFile(`citealpha-portfolio-brief-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportPortfolioBrief, "Exported");
+}
+
+function renderDecisionRoom() {
+  if (!els.decisionMetricGrid) return;
+  const model = buildDecisionModel(readDecisionDraft());
+  state.currentDecision = model;
+  els.decisionMetricGrid.innerHTML = [
+    { label: "Conviction", value: `${model.conviction}/100`, sub: model.convictionLabel },
+    { label: "Risk Gate", value: `${model.riskGate}/100`, sub: model.riskGate >= 70 ? "Within guardrails" : "Needs review" },
+    { label: "Evidence", value: `${model.evidenceScore}/100`, sub: `${model.sourceCount} sources | ${model.citationCount} citations` },
+    { label: "Size Fit", value: `${model.sizeFit}/100`, sub: `${model.weight}% target vs ${model.maxWeight}% guide` }
+  ].map((metric) => `
+    <div class="decision-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.decisionPreview.innerHTML = renderDecisionPreview(model);
+  els.decisionGateScore.textContent = `${model.passedGates}/${model.gates.length}`;
+  els.decisionGateList.innerHTML = renderDecisionGates(model.gates);
+  els.decisionHistoryCount.textContent = String(state.decisions.length);
+  els.decisionHistory.innerHTML = renderDecisionHistory();
+  renderAlertCenter();
+}
+
+function readDecisionDraft() {
+  const ticker = normalizeTicker(els.decisionTicker?.value || state.tickerFocus?.rawTicker || state.selectedTicker || "NVDA");
+  return {
+    ticker,
+    action: String(els.decisionAction?.value || "Hold"),
+    weight: Math.max(0, Math.min(100, Number(els.decisionWeight?.value) || 0)),
+    horizon: String(els.decisionHorizon?.value || "12 months"),
+    thesis: String(els.decisionThesis?.value || "").trim(),
+    bear: String(els.decisionBear?.value || "").trim(),
+    catalyst: String(els.decisionCatalyst?.value || "").trim(),
+    kill: String(els.decisionKill?.value || "").trim()
+  };
+}
+
+function buildDecisionModel(draft) {
+  const company = resolvePortfolioCompany(draft.ticker);
+  const proxyTicker = company.proxyTicker || draft.ticker;
+  const sourceCount = countPortfolioSources(draft.ticker, proxyTicker);
+  const citationCount = state.currentCitations.filter((citation) => citation.ticker === draft.ticker || citation.ticker === proxyTicker).length;
+  const portfolio = buildPortfolioSnapshot();
+  const position = portfolio.positions.find((item) => item.ticker === draft.ticker || item.proxyTicker === proxyTicker);
+  const currentWeight = position ? position.weight : 0;
+  const marketMove = getPortfolioMarketMove(draft.ticker);
+  const security = summarizeSecurityPosture();
+  const baseRisk = Number(company.risk) || 58;
+  const actionRisk = /buy|add/i.test(draft.action) ? 6 : /trim|avoid/i.test(draft.action) ? -6 : 0;
+  const adjustedRisk = Math.max(15, Math.min(95, Math.round(baseRisk + actionRisk + (draft.weight > 12 ? 8 : 0))));
+  const maxWeight = recommendedMaxWeight(adjustedRisk, sourceCount, security.score);
+  const evidenceScore = Math.max(20, Math.min(100, Math.round(sourceCount * 13 + citationCount * 9 + (state.lastBrief ? 12 : 0) + (security.score >= 90 ? 12 : 0))));
+  const riskGate = Math.max(12, Math.min(100, Math.round(108 - adjustedRisk - Math.max(0, draft.weight - maxWeight) * 3)));
+  const sizeFit = Math.max(10, Math.min(100, Math.round(100 - Math.max(0, draft.weight - maxWeight) * 10 - Math.max(0, draft.weight - Math.max(currentWeight, 0) - 8) * 2)));
+  const textQuality = [draft.thesis, draft.bear, draft.catalyst, draft.kill].filter((value) => value.length >= 25).length * 8;
+  const moveBoost = Number.isFinite(marketMove) ? Math.max(-8, Math.min(8, marketMove * 1.4)) : 0;
+  const conviction = Math.max(15, Math.min(99, Math.round(evidenceScore * 0.34 + riskGate * 0.28 + sizeFit * 0.22 + textQuality + moveBoost)));
+  const gates = [
+    { label: "Source-backed evidence", passed: sourceCount >= 2 || citationCount >= 2, note: sourceCount >= 2 || citationCount >= 2 ? "Enough sources for a pilot memo." : "Run analysis or import sources before acting." },
+    { label: "Bear case written", passed: draft.bear.length >= 30, note: draft.bear.length >= 30 ? "Downside is explicit." : "Write the failure mode in plain English." },
+    { label: "Kill criteria defined", passed: draft.kill.length >= 30, note: draft.kill.length >= 30 ? "Exit rule is documented." : "Add a condition that would change your mind." },
+    { label: "Sizing discipline", passed: draft.weight <= maxWeight, note: draft.weight <= maxWeight ? "Target weight fits the risk guide." : `Target is above ${maxWeight}% risk guide.` },
+    { label: "Security clean", passed: security.score >= 85, note: `${security.score}/100 security posture.` },
+    { label: "Catalyst identified", passed: draft.catalyst.length >= 25, note: draft.catalyst.length >= 25 ? "Review trigger is clear." : "Add the event that will refresh the thesis." }
+  ];
+  const passedGates = gates.filter((gate) => gate.passed).length;
+  const convictionLabel = conviction >= 78 ? "Committee-ready" : conviction >= 62 ? "Watchlist-ready" : "Needs more work";
+  return {
+    ...draft,
+    company,
+    proxyTicker,
+    sourceCount,
+    citationCount,
+    currentWeight: Math.round(currentWeight * 10) / 10,
+    marketMove,
+    adjustedRisk,
+    maxWeight,
+    evidenceScore,
+    riskGate,
+    sizeFit,
+    conviction,
+    convictionLabel,
+    gates,
+    passedGates,
+    date: new Date().toISOString()
+  };
+}
+
+function renderDecisionPreview(model) {
+  const moveText = Number.isFinite(model.marketMove) ? `${model.marketMove >= 0 ? "+" : ""}${model.marketMove.toFixed(2)}% quote move` : "No quote signal";
+  return `
+    <div class="decision-preview-card">
+      <span>${escapeHtml(model.action)} | ${escapeHtml(model.horizon)}</span>
+      <h3>${escapeHtml(model.ticker)} decision: ${escapeHtml(model.convictionLabel.toLowerCase())}</h3>
+      <p>${escapeHtml(model.thesis || "Add a thesis to make this decision auditable.")}</p>
+      <dl>
+        <div><dt>Company</dt><dd>${escapeHtml(model.company.name)}</dd></div>
+        <div><dt>Target</dt><dd>${escapeHtml(String(model.weight))}%</dd></div>
+        <div><dt>Current</dt><dd>${escapeHtml(String(model.currentWeight))}%</dd></div>
+        <div><dt>Market</dt><dd>${escapeHtml(moveText)}</dd></div>
+      </dl>
+    </div>
+  `;
+}
+
+function renderDecisionGates(gates) {
+  return gates.map((gate) => `
+    <div class="decision-gate ${gate.passed ? "is-passed" : "is-open"}">
+      <span>${gate.passed ? "Pass" : "Open"}</span>
+      <div>
+        <strong>${escapeHtml(gate.label)}</strong>
+        <em>${escapeHtml(gate.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDecisionHistory() {
+  if (!state.decisions.length) {
+    return `<div class="ops-empty"><strong>No saved decisions yet</strong><span>Score and save the first memo to create an audit trail.</span></div>`;
+  }
+  return state.decisions.slice(0, 5).map((decision) => `
+    <div class="decision-history-row">
+      <div>
+        <strong>${escapeHtml(decision.ticker)} | ${escapeHtml(decision.action)} | ${escapeHtml(String(decision.conviction))}/100</strong>
+        <span>${escapeHtml(new Date(decision.date).toLocaleString())}</span>
+      </div>
+      <em>${escapeHtml(decision.convictionLabel)}</em>
+    </div>
+  `).join("");
+}
+
+function recommendedMaxWeight(risk, sourceCount, securityScore) {
+  let maxWeight = risk >= 75 ? 4 : risk >= 62 ? 7 : risk >= 48 ? 10 : 14;
+  if (sourceCount < 2) maxWeight -= 2;
+  if (securityScore < 85) maxWeight -= 2;
+  return Math.max(2, maxWeight);
+}
+
+function saveDecisionMemo() {
+  const model = buildDecisionModel(readDecisionDraft());
+  state.currentDecision = model;
+  state.decisions = [model, ...state.decisions].slice(0, 30);
+  saveJson(STORAGE_KEYS.decisions, state.decisions);
+  recordWorkflowEvent("decision", {
+    ticker: model.ticker,
+    action: model.action,
+    conviction: model.conviction
+  });
+  renderDecisionRoom();
+  renderLaunchOps();
+  flashButtonLabel(els.saveDecision, "Saved");
+}
+
+function hydrateDecisionFromCurrentResearch() {
+  const focus = state.tickerFocus || resolveTickerFocus(els.queryInput?.value || "") || { rawTicker: state.selectedTicker };
+  const ticker = normalizeTicker(focus.rawTicker || focus.ticker || state.selectedTicker || "NVDA");
+  const model = state.lastAnswerModel;
+  const bottomLine = model?.thesis || model?.headline || state.lastBrief || "";
+  els.decisionTicker.value = ticker;
+  els.decisionThesis.value = snippet(stripMarkdown(bottomLine), 260) || els.decisionThesis.value;
+  if (state.lastBrief && !els.decisionBear.value.trim()) {
+    els.decisionBear.value = "Re-check source evidence for revenue durability, margin pressure, liquidity, and management tone before increasing exposure.";
+  }
+  renderDecisionRoom();
+  flashButtonLabel(els.useCurrentResearch, "Loaded");
+}
+
+function exportDecisionMemo() {
+  const model = state.currentDecision || buildDecisionModel(readDecisionDraft());
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Investment Committee Memo",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Decision",
+    "",
+    `- Ticker: ${model.ticker}`,
+    `- Company: ${model.company.name}`,
+    `- Action: ${model.action}`,
+    `- Target weight: ${model.weight}%`,
+    `- Horizon: ${model.horizon}`,
+    `- Conviction: ${model.conviction}/100 (${model.convictionLabel})`,
+    `- Gates passed: ${model.passedGates}/${model.gates.length}`,
+    "",
+    "## Thesis",
+    "",
+    model.thesis || "No thesis entered.",
+    "",
+    "## Bear Case",
+    "",
+    model.bear || "No bear case entered.",
+    "",
+    "## Catalyst",
+    "",
+    model.catalyst || "No catalyst entered.",
+    "",
+    "## Kill Criteria",
+    "",
+    model.kill || "No kill criteria entered.",
+    "",
+    "## Gates",
+    "",
+    ...model.gates.map((gate) => `- ${gate.passed ? "Pass" : "Open"}: ${gate.label} - ${gate.note}`),
+    "",
+    "## Evidence Context",
+    "",
+    `- Sources: ${model.sourceCount}`,
+    `- Current citations: ${model.citationCount}`,
+    `- Risk gate: ${model.riskGate}/100`,
+    `- Position size fit: ${model.sizeFit}/100`
+  ].join("\n");
+  downloadTextFile(`citealpha-ic-memo-${model.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportDecisionMemo, "Exported");
+}
+
+function renderAlertCenter() {
+  if (!els.alertMetricGrid) return;
+  if (els.alertDueDate && !els.alertDueDate.value) els.alertDueDate.value = dateAfterDays(7);
+  const snapshot = buildAlertSnapshot();
+  els.alertCount.textContent = String(snapshot.activeAlerts.length);
+  els.catalystCount.textContent = String(snapshot.calendarRows.length);
+  els.alertActionCount.textContent = String(snapshot.actionRows.length);
+  els.alertMetricGrid.innerHTML = [
+    { label: "Open alerts", value: snapshot.activeAlerts.length, sub: snapshot.highPriority ? `${snapshot.highPriority} high priority` : "No urgent flags" },
+    { label: "Due 7d", value: snapshot.dueSoon, sub: snapshot.dueSoon ? "Review this week" : "No near-term due dates" },
+    { label: "Top ticker", value: snapshot.topTicker || "n/a", sub: snapshot.topTicker ? "Highest alert density" : "Build from portfolio" },
+    { label: "Alert health", value: `${snapshot.health}/100`, sub: snapshot.health >= 75 ? "Operating rhythm ready" : "Needs trigger coverage" }
+  ].map((metric) => `
+    <div class="alert-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.alertList.innerHTML = renderAlertList(snapshot);
+  els.catalystCalendar.innerHTML = renderCatalystCalendar(snapshot);
+  els.alertActionQueue.innerHTML = renderAlertActionQueue(snapshot);
+  renderRevenueConsole();
+}
+
+function buildAlertSnapshot() {
+  const activeAlerts = state.alertRules.map(normalizeAlertRule).filter((rule) => rule.status !== "done");
+  const scored = activeAlerts.map(scoreAlertRule).sort((a, b) => b.score - a.score || daysUntil(a.dueDate) - daysUntil(b.dueDate));
+  const dueSoon = scored.filter((rule) => daysUntil(rule.dueDate) <= 7).length;
+  const highPriority = scored.filter((rule) => rule.priority === "High").length;
+  const tickerCounts = scored.reduce((map, rule) => {
+    map.set(rule.ticker, (map.get(rule.ticker) || 0) + 1);
+    return map;
+  }, new Map());
+  const topTicker = Array.from(tickerCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  const calendarRows = buildCatalystRows(scored);
+  const actionRows = scored.slice(0, 5).map((rule) => ({
+    rule,
+    question: makeAlertQuestion(rule),
+    action: makeAlertAction(rule)
+  }));
+  const coverage = Math.min(100, scored.length * 14 + dueSoon * 7 + highPriority * 8);
+  const health = Math.max(20, Math.min(100, Math.round(coverage - Math.max(0, scored.length - 12) * 4)));
+  return { activeAlerts: scored, dueSoon, highPriority, topTicker, calendarRows, actionRows, health };
+}
+
+function renderAlertList(snapshot) {
+  if (!snapshot.activeAlerts.length) {
+    return `<div class="ops-empty"><strong>No active alerts</strong><span>Create a thesis trigger or build alerts from the portfolio workspace.</span></div>`;
+  }
+  return snapshot.activeAlerts.slice(0, 6).map((rule) => `
+    <div class="alert-row ${escapeAttr(rule.urgencyClass)}">
+      <div>
+        <strong>${escapeHtml(rule.ticker)} | ${escapeHtml(rule.trigger)}</strong>
+        <span>${escapeHtml(rule.condition)}</span>
+        <em>${escapeHtml(formatDue(rule.dueDate))} | ${escapeHtml(rule.priority)} priority</em>
+      </div>
+      <b>${escapeHtml(String(rule.score))}</b>
+    </div>
+  `).join("");
+}
+
+function renderCatalystCalendar(snapshot) {
+  if (!snapshot.calendarRows.length) {
+    return `<div class="ops-empty"><strong>No catalysts scheduled</strong><span>Add due dates to create an operating calendar.</span></div>`;
+  }
+  return snapshot.calendarRows.slice(0, 7).map((row) => `
+    <div class="catalyst-row">
+      <span>${escapeHtml(row.dateLabel)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderAlertActionQueue(snapshot) {
+  if (!snapshot.actionRows.length) {
+    return `<div class="ops-empty"><strong>No action queue</strong><span>Alert-driven research questions will appear here.</span></div>`;
+  }
+  return snapshot.actionRows.map((item) => `
+    <div class="alert-action-row">
+      <div>
+        <strong>${escapeHtml(item.action)}</strong>
+        <span>${escapeHtml(item.question)}</span>
+      </div>
+      <button class="secondary-button small" type="button" data-alert-question="${escapeAttr(item.question)}">Ask</button>
+    </div>
+  `).join("");
+}
+
+function createAlertFromForm() {
+  const rule = normalizeAlertRule({
+    ticker: els.alertTicker.value,
+    trigger: els.alertTrigger.value,
+    priority: els.alertPriority.value,
+    condition: els.alertCondition.value,
+    dueDate: els.alertDueDate.value || dateAfterDays(7),
+    source: "manual"
+  });
+  state.alertRules = [rule, ...state.alertRules].slice(0, 40);
+  saveAlertRules();
+  recordWorkflowEvent("alert", { ticker: rule.ticker, trigger: rule.trigger, priority: rule.priority });
+  renderAlertCenter();
+  renderLaunchOps();
+  flashButtonLabel(els.alertForm.querySelector("button[type='submit']"), "Created");
+}
+
+function buildAlertsFromPortfolio() {
+  const portfolio = buildPortfolioSnapshot();
+  const generated = portfolio.priorityRows.slice(0, 5).map((row, index) => normalizeAlertRule({
+    ticker: row.ticker,
+    trigger: index === 0 ? "Risk phrase" : row.sourceCount ? "Earnings call" : "SEC filing",
+    priority: row.priority >= 75 ? "High" : row.priority >= 58 ? "Medium" : "Low",
+    dueDate: dateAfterDays(3 + index * 4),
+    condition: row.sourceCount
+      ? `Refresh thesis if ${row.ticker} source language changes around ${row.reason}.`
+      : `Import filings or transcript before increasing ${row.ticker} exposure.`,
+    source: "portfolio"
+  }));
+  state.alertRules = [...generated, ...state.alertRules].slice(0, 40);
+  saveAlertRules();
+  recordWorkflowEvent("alert", { ticker: generated.map((rule) => rule.ticker).join(", "), trigger: "portfolio build", priority: "Mixed" });
+  renderAlertCenter();
+  renderLaunchOps();
+  flashButtonLabel(els.buildAlertsFromPortfolio, "Built");
+}
+
+function buildCatalystRows(alerts) {
+  return alerts
+    .filter((rule) => rule.dueDate)
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
+    .map((rule) => ({
+      dateLabel: formatDue(rule.dueDate),
+      title: `${rule.ticker} ${rule.trigger}`,
+      note: rule.condition
+    }));
+}
+
+function scoreAlertRule(rule) {
+  const due = daysUntil(rule.dueDate);
+  const priorityBoost = rule.priority === "High" ? 34 : rule.priority === "Medium" ? 20 : 10;
+  const triggerBoost = /earnings|SEC/i.test(rule.trigger) ? 16 : /risk|price/i.test(rule.trigger) ? 13 : 9;
+  const dueBoost = due <= 0 ? 28 : due <= 3 ? 22 : due <= 7 ? 14 : due <= 14 ? 7 : 0;
+  const sourceBoost = rule.source === "portfolio" ? 5 : 0;
+  const score = Math.max(10, Math.min(99, priorityBoost + triggerBoost + dueBoost + sourceBoost));
+  const urgencyClass = score >= 78 ? "is-hot" : score >= 55 ? "is-watch" : "is-calm";
+  return { ...rule, score, urgencyClass };
+}
+
+function normalizeAlertRule(rule) {
+  return {
+    id: rule.id || `alert-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    ticker: normalizeTicker(rule.ticker || "NVDA"),
+    trigger: normalizeAlertTrigger(rule.trigger),
+    priority: normalizeAlertPriority(rule.priority),
+    condition: String(rule.condition || "Review source evidence and thesis drift.").trim(),
+    dueDate: normalizeDateInput(rule.dueDate || dateAfterDays(7)),
+    status: rule.status || "open",
+    source: rule.source || "manual",
+    createdAt: rule.createdAt || new Date().toISOString()
+  };
+}
+
+function normalizeAlertTrigger(value) {
+  const trigger = String(value || "Risk phrase");
+  return ["Risk phrase", "Earnings call", "SEC filing", "Price move", "Valuation threshold"].includes(trigger) ? trigger : "Risk phrase";
+}
+
+function normalizeAlertPriority(value) {
+  const priority = String(value || "Medium");
+  return ["High", "Medium", "Low"].includes(priority) ? priority : "Medium";
+}
+
+function makeAlertQuestion(rule) {
+  if (/earnings/i.test(rule.trigger)) return `What changed in the latest earnings call tone for $${rule.ticker}, and does it affect my thesis?`;
+  if (/SEC/i.test(rule.trigger)) return `Scan the latest SEC filing for $${rule.ticker}: what risks or MD&A changes matter most?`;
+  if (/price/i.test(rule.trigger)) return `Does the price move in $${rule.ticker} reflect fundamentals, sentiment, or valuation stretch?`;
+  if (/valuation/i.test(rule.trigger)) return `Which valuation assumptions should I flex first for $${rule.ticker}?`;
+  return `Which source passages confirm or contradict this $${rule.ticker} alert: ${rule.condition}`;
+}
+
+function makeAlertAction(rule) {
+  const due = daysUntil(rule.dueDate);
+  if (due <= 0) return `${rule.ticker}: review now`;
+  if (due <= 3) return `${rule.ticker}: prepare catalyst note`;
+  if (rule.priority === "High") return `${rule.ticker}: pre-wire research`;
+  return `${rule.ticker}: monitor trigger`;
+}
+
+function loadAlertRules() {
+  const saved = loadJson(STORAGE_KEYS.alerts, null);
+  if (Array.isArray(saved) && saved.length) return saved.map(normalizeAlertRule);
+  return buildDefaultAlertRules();
+}
+
+function buildDefaultAlertRules() {
+  return [
+    { ticker: "NVDA", trigger: "Risk phrase", priority: "High", dueDate: dateAfterDays(3), condition: "Flag customer concentration, supply commitments, export controls, or margin-protection language.", source: "default" },
+    { ticker: "AAPL", trigger: "Earnings call", priority: "Medium", dueDate: dateAfterDays(8), condition: "Watch for hardware demand caution, services regulation, or regional price pressure.", source: "default" },
+    { ticker: "TSLA", trigger: "SEC filing", priority: "Medium", dueDate: dateAfterDays(12), condition: "Review capex, free cash flow, rate sensitivity, and platform-transition timing.", source: "default" }
+  ].map(normalizeAlertRule);
+}
+
+function saveAlertRules() {
+  saveJson(STORAGE_KEYS.alerts, state.alertRules.map(normalizeAlertRule));
+}
+
+function exportAlertBrief() {
+  const snapshot = buildAlertSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Alert Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Alert Snapshot",
+    "",
+    `- Open alerts: ${snapshot.activeAlerts.length}`,
+    `- Due in 7 days: ${snapshot.dueSoon}`,
+    `- High priority: ${snapshot.highPriority}`,
+    `- Top ticker: ${snapshot.topTicker || "n/a"}`,
+    `- Alert health: ${snapshot.health}/100`,
+    "",
+    "## Active Alerts",
+    "",
+    ...(snapshot.activeAlerts.length ? snapshot.activeAlerts.map((rule) => `- ${rule.ticker} | ${rule.trigger} | ${rule.priority} | ${formatDue(rule.dueDate)} - ${rule.condition}`) : ["- No active alerts."]),
+    "",
+    "## Action Queue",
+    "",
+    ...(snapshot.actionRows.length ? snapshot.actionRows.map((item) => `- ${item.action}: ${item.question}`) : ["- No action queue."]),
+    "",
+    "## Operating Note",
+    "",
+    "This client-side alert center is a prototype. Production alerts should run on a backend scheduler with authenticated accounts, durable event storage, provider rate limits, and audit logs."
+  ].join("\n");
+  downloadTextFile(`citealpha-alert-brief-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportAlertBrief, "Exported");
+}
+
+function dateAfterDays(days) {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+
+function normalizeDateInput(value) {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateAfterDays(7);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function daysUntil(value) {
+  const due = new Date(`${normalizeDateInput(value)}T00:00:00`).getTime();
+  const today = new Date(new Date().toISOString().slice(0, 10)).getTime();
+  return Math.ceil((due - today) / 86400000);
+}
+
+function formatDue(value) {
+  const days = daysUntil(value);
+  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `${days}d`;
+}
+
+function renderRevenueConsole() {
+  if (!els.revenueMetricGrid) return;
+  if (!state.revenueModel) state.revenueModel = loadRevenueModel();
+  syncRevenueInputs();
+  const snapshot = buildRevenueSnapshot();
+  els.revenueMetricGrid.innerHTML = [
+    { label: "Paid users", value: snapshot.paidUsers, sub: `${snapshot.leads} leads at ${snapshot.model.conversion}% conversion` },
+    { label: "MRR", value: formatCurrency(snapshot.mrr), sub: `${formatCurrency(snapshot.arr)} ARR run-rate` },
+    { label: "Month 6 MRR", value: formatCurrency(snapshot.monthSixMrr), sub: `${snapshot.model.growth}% growth / ${snapshot.model.churn}% churn` },
+    { label: "ARPU", value: formatCurrency(snapshot.arpu), sub: `${snapshot.trialDays} day trial` }
+  ].map((metric) => `
+    <div class="revenue-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.revenuePlanCount.textContent = `${snapshot.planRows.length} plans`;
+  els.revenuePlanMix.innerHTML = renderRevenuePlanMix(snapshot);
+  els.revenueEntitlementScore.textContent = `${snapshot.entitlementScore}%`;
+  els.revenueEntitlements.innerHTML = renderRevenueEntitlements(snapshot);
+  els.checkoutReadinessScore.textContent = `${snapshot.checkout.score}%`;
+  els.checkoutReadiness.innerHTML = renderCheckoutReadiness(snapshot.checkout.items);
+  renderPipelineConsole();
+}
+
+function buildRevenueSnapshot() {
+  const model = normalizeRevenueModel(state.revenueModel || getDefaultRevenueModel());
+  const actualLeads = state.waitlistLeads.length;
+  const leads = Math.max(actualLeads, model.leadTarget);
+  const paidUsers = Math.max(1, Math.round(leads * model.conversion / 100));
+  const planRows = buildRevenuePlanRows(model, paidUsers);
+  const mrr = planRows.reduce((sum, row) => sum + row.users * row.price, 0);
+  const arpu = mrr / Math.max(1, paidUsers);
+  const monthlyNetGrowth = Math.max(-0.8, (model.growth - model.churn) / 100);
+  const monthSixMrr = Math.round(mrr * Math.pow(1 + monthlyNetGrowth, 5));
+  const entitlementRows = buildEntitlementRows();
+  const entitlementScore = Math.round(entitlementRows.reduce((sum, row) => sum + (row.status === "Ready" ? 100 : row.status === "Partial" ? 65 : 25), 0) / entitlementRows.length);
+  const checkout = buildCheckoutReadiness(model, actualLeads, mrr);
+  return {
+    model,
+    actualLeads,
+    leads,
+    paidUsers,
+    planRows,
+    mrr,
+    arr: mrr * 12,
+    arpu,
+    monthSixMrr,
+    trialDays: model.trialDays,
+    entitlementRows,
+    entitlementScore,
+    checkout
+  };
+}
+
+function renderRevenuePlanMix(snapshot) {
+  const maxMrr = Math.max(1, ...snapshot.planRows.map((row) => row.mrr));
+  return snapshot.planRows.map((row) => `
+    <div class="revenue-plan-row">
+      <div>
+        <strong>${escapeHtml(row.name)} | ${escapeHtml(formatCurrency(row.price))}/mo</strong>
+        <span>${escapeHtml(String(row.users))} users | ${escapeHtml(row.mix)}% mix | ${escapeHtml(formatCurrency(row.mrr))} MRR</span>
+      </div>
+      <i><b style="width:${escapeAttr(String(Math.max(8, Math.round((row.mrr / maxMrr) * 100))))}%"></b></i>
+    </div>
+  `).join("");
+}
+
+function renderRevenueEntitlements(snapshot) {
+  return snapshot.entitlementRows.map((row) => `
+    <div class="entitlement-row ${row.status === "Ready" ? "is-ready" : row.status === "Partial" ? "is-partial" : "is-blocked"}">
+      <span>${escapeHtml(row.plan)}</span>
+      <div>
+        <strong>${escapeHtml(row.feature)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderCheckoutReadiness(items) {
+  return items.map((item) => `
+    <div class="checkout-row ${item.status}">
+      <span>${escapeHtml(item.label)}</span>
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <em>${escapeHtml(item.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function buildRevenuePlanRows(model, paidUsers) {
+  const mix = normalizePlanMix(model);
+  const rawRows = [
+    { key: "starter", name: "Starter", price: 10, mix: mix.starter },
+    { key: "pro", name: "Pro", price: 29, mix: mix.pro },
+    { key: "analyst", name: "Analyst", price: 49, mix: mix.analyst }
+  ].map((row) => ({
+    ...row,
+    users: Math.max(0, Math.round(paidUsers * row.mix / 100))
+  }));
+  const userDelta = paidUsers - rawRows.reduce((sum, row) => sum + row.users, 0);
+  rawRows[1].users += userDelta;
+  return rawRows.map((row) => ({ ...row, mrr: row.users * row.price }));
+}
+
+function buildEntitlementRows() {
+  const hasImports = state.uploadedDocs.length > 0;
+  const hasDecisions = state.decisions.length > 0;
+  const hasAlerts = state.alertRules.length > 0;
+  return [
+    { plan: "Free", feature: "Sample research desk", status: "Ready", note: "Static corpus, templates, and limited exports are available." },
+    { plan: "Starter", feature: "Saved briefs and PDF/MD export", status: state.notes.length ? "Ready" : "Partial", note: state.notes.length ? "Saved brief workflow is proven." : "Run and save a brief to validate this entitlement." },
+    { plan: "Pro", feature: "Imports, portfolio, alerts", status: hasImports && hasAlerts ? "Ready" : "Partial", note: hasImports && hasAlerts ? "Data workflow and alert layer are active." : "Import sources and build alerts before locking this tier." },
+    { plan: "Analyst", feature: "IC decisions and priority workflow", status: hasDecisions ? "Ready" : "Partial", note: hasDecisions ? "Decision history exists for analyst workflows." : "Save an IC decision to prove repeatable analyst value." },
+    { plan: "Paid", feature: "Stripe checkout and account limits", status: "Blocked", note: "Needs backend auth, billing, plan limits, and durable storage." }
+  ];
+}
+
+function buildCheckoutReadiness(model, actualLeads, mrr) {
+  const security = summarizeSecurityPosture();
+  const items = [
+    { label: "Ready", title: "Public pricing", note: "Starter, Pro, and Analyst pricing are visible." },
+    { label: actualLeads ? "Ready" : "Next", title: "Demand capture", note: actualLeads ? `${actualLeads} waitlist lead${actualLeads === 1 ? "" : "s"} stored locally.` : "Capture early waitlist leads before checkout." },
+    { label: mrr >= 250 ? "Ready" : "Next", title: "Revenue target", note: `${formatCurrency(mrr)} first-month MRR model.` },
+    { label: security.score >= 90 ? "Ready" : "Next", title: "Security posture", note: `${security.score}/100 security score before payment data.` },
+    { label: "Blocked", title: "Stripe integration", note: "Payment links, webhooks, plan limits, and customer portal are not wired yet." },
+    { label: "Blocked", title: "Account backend", note: "Auth, team workspace, API vault, and server-side storage are required for paid launch." }
+  ];
+  const score = Math.round(items.reduce((sum, item) => sum + (item.label === "Ready" ? 100 : item.label === "Next" ? 55 : 20), 0) / items.length);
+  return { score, items };
+}
+
+function readRevenueModel() {
+  return normalizeRevenueModel({
+    leadTarget: Number(els.revenueLeadTarget.value),
+    conversion: Number(els.revenueConversion.value),
+    churn: Number(els.revenueChurn.value),
+    growth: Number(els.revenueGrowth.value),
+    starterMix: Number(els.revenueStarterMix.value),
+    proMix: Number(els.revenueProMix.value),
+    analystMix: Number(els.revenueAnalystMix.value),
+    trialDays: Number(els.revenueTrialDays.value)
+  });
+}
+
+function syncRevenueInputs() {
+  if (!els.revenueLeadTarget) return;
+  const model = normalizeRevenueModel(state.revenueModel || getDefaultRevenueModel());
+  els.revenueLeadTarget.value = String(model.leadTarget);
+  els.revenueConversion.value = String(model.conversion);
+  els.revenueChurn.value = String(model.churn);
+  els.revenueGrowth.value = String(model.growth);
+  els.revenueStarterMix.value = String(model.starterMix);
+  els.revenueProMix.value = String(model.proMix);
+  els.revenueAnalystMix.value = String(model.analystMix);
+  els.revenueTrialDays.value = String(model.trialDays);
+}
+
+function buildRevenueModelFromWaitlist() {
+  const plans = state.waitlistLeads.map((lead) => String(lead.plan || ""));
+  const leadTarget = Math.max(25, state.waitlistLeads.length || getDefaultRevenueModel().leadTarget);
+  const planCounts = {
+    starter: plans.filter((plan) => /starter/i.test(plan)).length,
+    pro: plans.filter((plan) => /pro/i.test(plan)).length,
+    analyst: plans.filter((plan) => /analyst/i.test(plan)).length
+  };
+  const totalPlans = Math.max(1, planCounts.starter + planCounts.pro + planCounts.analyst);
+  return normalizeRevenueModel({
+    ...getDefaultRevenueModel(),
+    leadTarget,
+    conversion: state.waitlistLeads.length >= 10 ? 15 : 12,
+    starterMix: Math.round((planCounts.starter / totalPlans) * 100) || 30,
+    proMix: Math.round((planCounts.pro / totalPlans) * 100) || 50,
+    analystMix: Math.round((planCounts.analyst / totalPlans) * 100) || 20
+  });
+}
+
+function normalizeRevenueModel(model) {
+  const defaults = getDefaultRevenueModel();
+  const clean = {
+    leadTarget: clampNumber(model.leadTarget, 1, 10000, defaults.leadTarget),
+    conversion: clampNumber(model.conversion, 1, 100, defaults.conversion),
+    churn: clampNumber(model.churn, 0, 50, defaults.churn),
+    growth: clampNumber(model.growth, 0, 200, defaults.growth),
+    starterMix: clampNumber(model.starterMix, 0, 100, defaults.starterMix),
+    proMix: clampNumber(model.proMix, 0, 100, defaults.proMix),
+    analystMix: clampNumber(model.analystMix, 0, 100, defaults.analystMix),
+    trialDays: clampNumber(model.trialDays, 0, 60, defaults.trialDays)
+  };
+  const mix = normalizePlanMix(clean);
+  return { ...clean, starterMix: mix.starter, proMix: mix.pro, analystMix: mix.analyst };
+}
+
+function normalizePlanMix(model) {
+  const total = Math.max(1, Number(model.starterMix) + Number(model.proMix) + Number(model.analystMix));
+  const starter = Math.round((Number(model.starterMix) / total) * 100);
+  const analyst = Math.round((Number(model.analystMix) / total) * 100);
+  const pro = Math.max(0, 100 - starter - analyst);
+  return { starter, pro, analyst };
+}
+
+function getDefaultRevenueModel() {
+  return {
+    leadTarget: 100,
+    conversion: 12,
+    churn: 4,
+    growth: 18,
+    starterMix: 30,
+    proMix: 50,
+    analystMix: 20,
+    trialDays: 7
+  };
+}
+
+function loadRevenueModel() {
+  return normalizeRevenueModel(loadJson(STORAGE_KEYS.revenue, getDefaultRevenueModel()));
+}
+
+function saveRevenueModel() {
+  saveJson(STORAGE_KEYS.revenue, normalizeRevenueModel(state.revenueModel || getDefaultRevenueModel()));
+}
+
+function exportRevenueBrief() {
+  const snapshot = buildRevenueSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Revenue Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Revenue Snapshot",
+    "",
+    `- Leads modeled: ${snapshot.leads}`,
+    `- Paid users: ${snapshot.paidUsers}`,
+    `- First-month MRR: ${formatCurrency(snapshot.mrr)}`,
+    `- ARR run-rate: ${formatCurrency(snapshot.arr)}`,
+    `- Month-six MRR: ${formatCurrency(snapshot.monthSixMrr)}`,
+    `- ARPU: ${formatCurrency(snapshot.arpu)}`,
+    `- Checkout readiness: ${snapshot.checkout.score}%`,
+    "",
+    "## Plan Mix",
+    "",
+    ...snapshot.planRows.map((row) => `- ${row.name}: ${row.users} users, ${row.mix}% mix, ${formatCurrency(row.mrr)} MRR`),
+    "",
+    "## Entitlements",
+    "",
+    ...snapshot.entitlementRows.map((row) => `- ${row.plan}: ${row.feature} (${row.status}) - ${row.note}`),
+    "",
+    "## Checkout Readiness",
+    "",
+    ...snapshot.checkout.items.map((item) => `- ${item.label}: ${item.title} - ${item.note}`),
+    "",
+    "## Operating Note",
+    "",
+    "This client-side revenue console models monetization only. Production subscription launch needs Stripe checkout, customer portal, authenticated accounts, server-side plan enforcement, tax handling, and webhook-backed entitlement sync."
+  ].join("\n");
+  downloadTextFile(`citealpha-revenue-brief-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportRevenueBrief, "Exported");
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(number)));
+}
+
+function formatCurrency(value) {
+  const number = Math.round(Number(value) || 0);
+  if (number >= 1000000) return `$${(number / 1000000).toFixed(1)}M`;
+  if (number >= 1000) return `$${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  return `$${number}`;
+}
+
+function renderPipelineConsole() {
+  if (!els.pipelineMetricGrid) return;
+  if (!state.pipelineModel) state.pipelineModel = loadPipelineModel();
+  syncPipelineInputs();
+  const snapshot = buildPipelineSnapshot();
+  els.pipelineMetricGrid.innerHTML = [
+    { label: "Monthly docs", value: formatCompact(snapshot.monthlyDocs), sub: `${snapshot.model.companies} names | ${snapshot.model.filingsPerCompany} filings/name` },
+    { label: "Vector chunks", value: formatCompact(snapshot.vectorChunks), sub: `${snapshot.model.chunksPerDoc} chunks/doc` },
+    { label: "Est. infra", value: formatCurrency(snapshot.monthlyCost), sub: `${snapshot.model.backend} + ${snapshot.model.vectorStore}` },
+    { label: "Readiness", value: `${snapshot.readiness}%`, sub: snapshot.readiness >= 75 ? "Backend plan is credible" : "Need production wiring" }
+  ].map((metric) => `
+    <div class="pipeline-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.pipelineIntegrationScore.textContent = `${snapshot.integrationScore}%`;
+  els.pipelineIntegrationMap.innerHTML = renderPipelineIntegrationMap(snapshot.integrationRows);
+  els.pipelineEnvScore.textContent = `${snapshot.envScore}%`;
+  els.pipelineEnvChecklist.innerHTML = renderPipelineEnvChecklist(snapshot.envRows);
+  els.pipelineOpsCount.textContent = `${snapshot.opsRows.length} jobs`;
+  els.pipelineOpsQueue.innerHTML = renderPipelineOpsQueue(snapshot.opsRows);
+  renderEvalLab();
+}
+
+function buildPipelineSnapshot() {
+  const model = normalizePipelineModel(state.pipelineModel || getDefaultPipelineModel());
+  const monthlyDocs = model.companies * model.filingsPerCompany + model.callsPerMonth;
+  const vectorChunks = monthlyDocs * model.chunksPerDoc;
+  const embeddingCost = vectorChunks * 0.000018;
+  const queryCost = model.queriesPerMonth * 0.0035;
+  const storageCost = vectorChunks * 0.00042;
+  const backendCost = model.companies > 250 || model.queriesPerMonth > 50000 ? 79 : model.companies > 75 ? 39 : 19;
+  const providerCost = model.marketApi === "Demo only" ? 0 : model.marketApi === "Alpha Vantage" ? 25 : model.marketApi === "Polygon" ? 99 : 39;
+  const monthlyCost = Math.round(backendCost + providerCost + embeddingCost + queryCost + storageCost);
+  const integrationRows = buildPipelineIntegrationRows(model);
+  const envRows = buildPipelineEnvRows(model);
+  const opsRows = buildPipelineOpsRows(model, monthlyDocs, vectorChunks);
+  const integrationScore = scoreRows(integrationRows);
+  const envScore = scoreRows(envRows);
+  const readiness = Math.round(integrationScore * 0.45 + envScore * 0.35 + Math.min(100, monthlyDocs / 8) * 0.2);
+  return {
+    model,
+    monthlyDocs,
+    vectorChunks,
+    monthlyCost,
+    integrationRows,
+    envRows,
+    opsRows,
+    integrationScore,
+    envScore,
+    readiness
+  };
+}
+
+function renderPipelineIntegrationMap(rows) {
+  return rows.map((row) => `
+    <div class="pipeline-row ${row.status}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderPipelineEnvChecklist(rows) {
+  return rows.map((row) => `
+    <div class="pipeline-row ${row.status}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.key)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderPipelineOpsQueue(rows) {
+  return rows.map((row) => `
+    <div class="pipeline-job-row">
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <span>${escapeHtml(row.note)}</span>
+      </div>
+      <b>${escapeHtml(row.cadence)}</b>
+    </div>
+  `).join("");
+}
+
+function buildPipelineIntegrationRows(model) {
+  return [
+    { label: "Ready", status: "ready", title: "Client research desk", note: "Static proof of concept is functional with source-backed answers and exports." },
+    { label: "Next", status: "next", title: "SEC ingestion worker", note: `${model.backend} job should fetch submissions, normalize sections, and preserve source metadata.` },
+    { label: model.marketApi === "Demo only" ? "Next" : "Ready", status: model.marketApi === "Demo only" ? "next" : "ready", title: "Market data bridge", note: `${model.marketApi} selected for quote and metric refresh.` },
+    { label: "Next", status: "next", title: "Transcript loader", note: `${model.callsPerMonth} calls/month need transcript source, chunking, and citation metadata.` },
+    { label: "Next", status: "next", title: "Embedding + vector search", note: `${model.vectorStore} should index ${formatCompact(model.chunksPerDoc)} chunks per source document.` },
+    { label: "Blocked", status: "blocked", title: "Authenticated API vault", note: "Provider keys, user accounts, rate limits, and audit logs must move server-side." }
+  ];
+}
+
+function buildPipelineEnvRows(model) {
+  return [
+    { label: "Ready", status: "ready", key: "APP_BASE_URL", note: "Public GitHub Pages URL is known." },
+    { label: "Next", status: "next", key: "SEC_USER_AGENT", note: "Required before live SEC polling." },
+    { label: model.marketApi === "Demo only" ? "Next" : "Ready", status: model.marketApi === "Demo only" ? "next" : "ready", key: "MARKET_DATA_API_KEY", note: `${model.marketApi} credential stays off the client.` },
+    { label: "Next", status: "next", key: "OPENAI_API_KEY", note: "Needed for production extraction, embeddings, and answer generation." },
+    { label: "Next", status: "next", key: "VECTOR_DATABASE_URL", note: `${model.vectorStore} connection string with scoped permissions.` },
+    { label: "Blocked", status: "blocked", key: "STRIPE_WEBHOOK_SECRET", note: "Needed when paywall entitlements become real." }
+  ];
+}
+
+function buildPipelineOpsRows(model, monthlyDocs, vectorChunks) {
+  return [
+    { title: "SEC refresh", cadence: "Daily", note: `Poll ${model.companies} coverage names for new 10-K, 10-Q, and 8-K filings.` },
+    { title: "Transcript sweep", cadence: "Weekly", note: `Queue roughly ${model.callsPerMonth} earnings calls per month.` },
+    { title: "Embedding batch", cadence: "Hourly", note: `Prepare ${formatCompact(vectorChunks)} vector chunks per month with retries.` },
+    { title: "Citation QA", cadence: "Daily", note: `Sample retrieved passages for source metadata, relevance, and stale-link drift.` },
+    { title: "Usage and cost monitor", cadence: "Daily", note: `Watch ${formatCompact(model.queriesPerMonth)} monthly queries, provider limits, and margin by plan.` }
+  ];
+}
+
+function readPipelineModel() {
+  return normalizePipelineModel({
+    companies: Number(els.pipelineCompanies.value),
+    filingsPerCompany: Number(els.pipelineFilings.value),
+    callsPerMonth: Number(els.pipelineCalls.value),
+    chunksPerDoc: Number(els.pipelineChunks.value),
+    queriesPerMonth: Number(els.pipelineQueries.value),
+    backend: els.pipelineBackend.value,
+    vectorStore: els.pipelineVectorStore.value,
+    marketApi: els.pipelineMarketApi.value
+  });
+}
+
+function syncPipelineInputs() {
+  if (!els.pipelineCompanies) return;
+  const model = normalizePipelineModel(state.pipelineModel || getDefaultPipelineModel());
+  els.pipelineCompanies.value = String(model.companies);
+  els.pipelineFilings.value = String(model.filingsPerCompany);
+  els.pipelineCalls.value = String(model.callsPerMonth);
+  els.pipelineChunks.value = String(model.chunksPerDoc);
+  els.pipelineQueries.value = String(model.queriesPerMonth);
+  els.pipelineBackend.value = model.backend;
+  els.pipelineVectorStore.value = model.vectorStore;
+  els.pipelineMarketApi.value = model.marketApi;
+}
+
+function normalizePipelineModel(model) {
+  const defaults = getDefaultPipelineModel();
+  return {
+    companies: clampNumber(model.companies, 1, 5000, defaults.companies),
+    filingsPerCompany: clampNumber(model.filingsPerCompany, 1, 40, defaults.filingsPerCompany),
+    callsPerMonth: clampNumber(model.callsPerMonth, 0, 2000, defaults.callsPerMonth),
+    chunksPerDoc: clampNumber(model.chunksPerDoc, 20, 5000, defaults.chunksPerDoc),
+    queriesPerMonth: clampNumber(model.queriesPerMonth, 100, 1000000, defaults.queriesPerMonth),
+    backend: normalizeChoice(model.backend, ["Supabase Edge", "Vercel Functions", "AWS Lambda", "Render Worker"], defaults.backend),
+    vectorStore: normalizeChoice(model.vectorStore, ["pgvector", "Pinecone", "Qdrant", "Weaviate"], defaults.vectorStore),
+    marketApi: normalizeChoice(model.marketApi, ["Financial Modeling Prep", "Alpha Vantage", "Polygon", "Demo only"], defaults.marketApi)
+  };
+}
+
+function getDefaultPipelineModel() {
+  return {
+    companies: 50,
+    filingsPerCompany: 6,
+    callsPerMonth: 25,
+    chunksPerDoc: 180,
+    queriesPerMonth: 12000,
+    backend: "Supabase Edge",
+    vectorStore: "pgvector",
+    marketApi: "Financial Modeling Prep"
+  };
+}
+
+function getPipelinePreset(name) {
+  if (name === "mvp") {
+    return normalizePipelineModel({
+      companies: 250,
+      filingsPerCompany: 8,
+      callsPerMonth: 120,
+      chunksPerDoc: 220,
+      queriesPerMonth: 60000,
+      backend: "AWS Lambda",
+      vectorStore: "Pinecone",
+      marketApi: "Financial Modeling Prep"
+    });
+  }
+  return normalizePipelineModel({
+    companies: 25,
+    filingsPerCompany: 5,
+    callsPerMonth: 10,
+    chunksPerDoc: 150,
+    queriesPerMonth: 5000,
+    backend: "Supabase Edge",
+    vectorStore: "pgvector",
+    marketApi: "Alpha Vantage"
+  });
+}
+
+function loadPipelineModel() {
+  return normalizePipelineModel(loadJson(STORAGE_KEYS.pipeline, getDefaultPipelineModel()));
+}
+
+function savePipelineModel() {
+  saveJson(STORAGE_KEYS.pipeline, normalizePipelineModel(state.pipelineModel || getDefaultPipelineModel()));
+}
+
+function exportPipelineBrief() {
+  const snapshot = buildPipelineSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Production Pipeline Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Workload",
+    "",
+    `- Coverage names: ${snapshot.model.companies}`,
+    `- Monthly documents: ${snapshot.monthlyDocs}`,
+    `- Vector chunks: ${snapshot.vectorChunks}`,
+    `- Queries per month: ${snapshot.model.queriesPerMonth}`,
+    `- Estimated monthly infrastructure: ${formatCurrency(snapshot.monthlyCost)}`,
+    `- Readiness: ${snapshot.readiness}%`,
+    "",
+    "## Integration Map",
+    "",
+    ...snapshot.integrationRows.map((row) => `- ${row.label}: ${row.title} - ${row.note}`),
+    "",
+    "## Environment Checklist",
+    "",
+    ...snapshot.envRows.map((row) => `- ${row.label}: ${row.key} - ${row.note}`),
+    "",
+    "## Data Ops Queue",
+    "",
+    ...snapshot.opsRows.map((row) => `- ${row.cadence}: ${row.title} - ${row.note}`),
+    "",
+    "## Production Note",
+    "",
+    "This console is a launch-planning model. Production should enforce authentication, server-side secret storage, provider rate limits, durable job queues, retry/dead-letter handling, citation audit logs, and monitoring before live investment workflows."
+  ].join("\n");
+  downloadTextFile(`citealpha-production-pipeline-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportPipelineBrief, "Exported");
+}
+
+function scoreRows(rows) {
+  return Math.round(rows.reduce((sum, row) => sum + (row.status === "ready" ? 100 : row.status === "next" ? 55 : 20), 0) / Math.max(1, rows.length));
+}
+
+function normalizeChoice(value, choices, fallback) {
+  return choices.includes(value) ? value : fallback;
+}
+
+function formatCompact(value) {
+  const number = Number(value) || 0;
+  if (number >= 1000000) return `${(number / 1000000).toFixed(1)}M`;
+  if (number >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  return String(Math.round(number));
+}
+
+function renderEvalLab() {
+  if (!els.evalMetricGrid) return;
+  if (!state.evalConfig) state.evalConfig = loadEvalConfig();
+  syncEvalInputs();
+  const snapshot = buildEvalSnapshot();
+  state.currentEval = snapshot;
+  els.evalMetricGrid.innerHTML = [
+    { label: "Pass rate", value: `${snapshot.passRate}%`, sub: `${snapshot.passedCases}/${snapshot.caseRows.length} regression cases` },
+    { label: "Faithfulness", value: `${snapshot.faithfulness}%`, sub: `${snapshot.citationCount} citations checked` },
+    { label: "Hallucination risk", value: `${snapshot.hallucinationRisk}/100`, sub: snapshot.hallucinationRisk <= 22 ? "Low risk answer" : "Needs reviewer eyes" },
+    { label: "Review load", value: `${snapshot.reviewRows.length}`, sub: `${snapshot.config.reviewSample}% human sample` }
+  ].map((metric) => `
+    <div class="eval-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.evalCaseSummary.textContent = `${snapshot.caseRows.length} cases`;
+  els.evalCaseList.innerHTML = renderEvalCaseList(snapshot.caseRows);
+  els.evalGateScore.textContent = `${snapshot.gateScore}%`;
+  els.evalGateList.innerHTML = renderEvalGateList(snapshot.gateRows);
+  els.evalReviewCount.textContent = String(snapshot.reviewRows.length);
+  els.evalReviewQueue.innerHTML = renderEvalReviewQueue(snapshot.reviewRows);
+  renderComplianceCenter();
+}
+
+function buildEvalSnapshot() {
+  const config = normalizeEvalConfig(state.evalConfig || getDefaultEvalConfig());
+  const docs = getEnabledDocs();
+  const citations = state.currentCitations || [];
+  const answer = state.lastAnswerModel || null;
+  const sourceAudit = answer && answer.sourceAudit ? answer.sourceAudit : makeLightSourceAudit(citations);
+  const security = summarizeSecurityPosture();
+  const cases = buildEvalCases(config);
+  const context = { docs, citations, answer, sourceAudit, security };
+  const caseRows = cases.map((test, index) => scoreEvalCase(test, index, config, context));
+  const passedCases = caseRows.filter((row) => row.status === "pass").length;
+  const passRate = Math.round((passedCases / Math.max(1, caseRows.length)) * 100);
+  const faithfulness = scoreEvalFaithfulness(config, context);
+  const hallucinationRisk = Math.max(0, Math.min(100, Math.round(100 - faithfulness + security.findings.length * 7 + (answer ? 0 : 12))));
+  const gateRows = buildEvalGateRows(config, {
+    ...context,
+    caseRows,
+    passRate,
+    faithfulness,
+    hallucinationRisk
+  });
+  const gateScore = scoreRows(gateRows);
+  const reviewRows = buildEvalReviewRows(config, {
+    ...context,
+    caseRows,
+    passRate,
+    faithfulness,
+    hallucinationRisk,
+    gateRows
+  });
+  return {
+    config,
+    docs,
+    citationCount: citations.length,
+    caseRows,
+    passedCases,
+    passRate,
+    faithfulness,
+    hallucinationRisk,
+    gateRows,
+    gateScore,
+    reviewRows
+  };
+}
+
+function buildEvalCases(config) {
+  const base = {
+    Balanced: [
+      "Which company has the better margin durability if rates stay high?",
+      "What are the risks for $NVDA?",
+      "Where does management sound less confident than the filing?",
+      "What valuation assumptions should I flex first before buying?",
+      "Compare Northstar Chips and Aurora Retail on pricing power.",
+      "What would change the answer if rates stayed higher for longer?"
+    ],
+    "Risk factors": [
+      "What are the risks for $NVDA?",
+      "What are the three most material risks hidden behind revenue growth?",
+      "Which risk factors have source support instead of generic language?",
+      "Which risks should go into an investment committee memo?",
+      "Is the risk evidence more filing-led or call-led?"
+    ],
+    Valuation: [
+      "What valuation assumptions should I flex first before buying?",
+      "Which model input changes the implied value most?",
+      "How much of the answer depends on FCF margin versus revenue growth?",
+      "What valuation read-through is source-backed?"
+    ],
+    "Earnings tone": [
+      "Where does management sound less confident than the filing?",
+      "What did management emphasize on margin, demand, and guidance?",
+      "Does the call tone confirm or weaken the filing thesis?",
+      "Which transcript passages need follow-up?"
+    ],
+    "Portfolio workflow": [
+      "Which holding needs a research refresh first?",
+      "Which portfolio risk is most under-cited?",
+      "What catalyst should I monitor next?",
+      "Which decision memo should be updated after this answer?"
+    ]
+  };
+  const selected = base[config.focus] || base.Balanced;
+  const currentQuestion = els.queryInput && els.queryInput.value.trim() ? els.queryInput.value.trim() : "";
+  const generated = [
+    currentQuestion,
+    ...selected,
+    ...QUESTION_TEMPLATES,
+    ...buildPortfolioEvalQuestions()
+  ].filter(Boolean);
+  return Array.from(new Set(generated)).slice(0, config.caseCount).map((question) => ({
+    question,
+    target: inferEvalTarget(question),
+    requirement: inferEvalRequirement(question)
+  }));
+}
+
+function buildPortfolioEvalQuestions() {
+  return state.portfolioPositions.slice(0, 4).map((position) => `What is the top cited risk for $${position.ticker} at ${position.weight}% portfolio weight?`);
+}
+
+function inferEvalTarget(question) {
+  const text = String(question || "").toLowerCase();
+  if (/risk|downside|red flag/.test(text)) return "Risk";
+  if (/valuation|model|value|fcf|multiple/.test(text)) return "Valuation";
+  if (/management|call|tone|confident|transcript/.test(text)) return "Tone";
+  if (/portfolio|holding|weight|catalyst/.test(text)) return "Portfolio";
+  return "General";
+}
+
+function inferEvalRequirement(question) {
+  const target = inferEvalTarget(question);
+  if (target === "Risk") return "Three specific source-backed risks with citations.";
+  if (target === "Valuation") return "Scenario assumptions tied to source evidence.";
+  if (target === "Tone") return "Call language reconciled with filing disclosure.";
+  if (target === "Portfolio") return "Actionable next question, exposure, and trigger.";
+  return "Plain-English answer with cited evidence and a bottom line.";
+}
+
+function scoreEvalCase(test, index, config, context) {
+  const question = test.question.toLowerCase();
+  const answerText = `${context.answer ? context.answer.plainText : ""} ${state.lastBrief || ""}`.toLowerCase();
+  const citations = context.citations || [];
+  const docs = context.docs || [];
+  let score = 38;
+  score += Math.min(24, citations.length * 4);
+  score += Math.min(14, new Set(citations.map((citation) => citation.docId)).size * 4);
+  score += Math.min(10, docs.length);
+  score += Math.round(((context.sourceAudit && context.sourceAudit.quality) || 50) * 0.18);
+  if (context.answer) score += 8;
+  if (test.target === "Risk" && /risk|customer|supply|financing|capex|concentration/.test(answerText)) score += 7;
+  if (test.target === "Valuation" && /valuation|fcf|margin|multiple|discount|value/.test(answerText)) score += 7;
+  if (test.target === "Tone" && /management|tone|call|confident|guidance/.test(answerText)) score += 7;
+  if (test.target === "Portfolio" && state.portfolioPositions.length) score += 7;
+  if (question.includes("$") && context.answer && context.answer.tickerFocus) score += 5;
+  if (config.regressionMode === "Strict" && citations.length < config.minCitations) score -= 14;
+  if (context.security.findings.length) score -= Math.min(18, context.security.findings.length * 6);
+  const finalScore = Math.max(20, Math.min(99, Math.round(score)));
+  const status = finalScore >= config.passThreshold ? "pass" : finalScore >= config.passThreshold - 12 ? "review" : "fail";
+  return {
+    id: `E${index + 1}`,
+    question: test.question,
+    target: test.target,
+    requirement: test.requirement,
+    score: finalScore,
+    status,
+    note: makeEvalCaseNote(status, test, citations.length)
+  };
+}
+
+function makeEvalCaseNote(status, test, citationCount) {
+  if (status === "pass") return `${test.target} case has enough evidence shape for a pilot answer.`;
+  if (status === "review") return `${test.target} case is close; sample it for phrasing and citation fit.`;
+  return `${test.target} case needs stronger retrieval before it should reach a user. ${citationCount} citation${citationCount === 1 ? "" : "s"} available.`;
+}
+
+function scoreEvalFaithfulness(config, context) {
+  const citations = context.citations || [];
+  const sourceAudit = context.sourceAudit || {};
+  const security = context.security || { score: 100 };
+  const trusted = citations.filter(isPriorityCitation).length;
+  const docDiversity = new Set(citations.map((citation) => citation.docId)).size;
+  const citationCoverage = Math.min(100, Math.round((citations.length / Math.max(1, config.minCitations)) * 100));
+  const trustScore = citations.length ? Math.round((trusted / citations.length) * 100) : 45;
+  const diversityScore = Math.min(100, docDiversity * 24);
+  return Math.max(25, Math.min(99, Math.round(
+    citationCoverage * 0.24 +
+    (sourceAudit.quality || 55) * 0.34 +
+    trustScore * 0.16 +
+    diversityScore * 0.12 +
+    security.score * 0.14
+  )));
+}
+
+function buildEvalGateRows(config, context) {
+  const riskCaseCount = context.caseRows.filter((row) => row.target === "Risk").length;
+  const callCount = context.citations.filter((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
+  const filingCount = context.citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const modelCount = context.citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  return [
+    {
+      label: context.citations.length >= config.minCitations ? "Ready" : "Blocked",
+      status: context.citations.length >= config.minCitations ? "ready" : "blocked",
+      title: "Citation minimum",
+      note: `${context.citations.length}/${config.minCitations} citations available for the current answer.`
+    },
+    {
+      label: context.faithfulness >= config.passThreshold ? "Ready" : "Next",
+      status: context.faithfulness >= config.passThreshold ? "ready" : "next",
+      title: "Faithfulness score",
+      note: `${context.faithfulness}% against a ${config.passThreshold}% threshold.`
+    },
+    {
+      label: context.security.score >= 90 ? "Ready" : "Next",
+      status: context.security.score >= 90 ? "ready" : "next",
+      title: "Security scan",
+      note: `${context.security.score}/100 posture with ${context.security.findings.length} finding${context.security.findings.length === 1 ? "" : "s"}.`
+    },
+    {
+      label: filingCount && (callCount || modelCount) ? "Ready" : "Next",
+      status: filingCount && (callCount || modelCount) ? "ready" : "next",
+      title: "Source mix",
+      note: `${filingCount} filing / ${callCount} call / ${modelCount} model citation${context.citations.length === 1 ? "" : "s"}.`
+    },
+    {
+      label: context.passRate >= config.passThreshold ? "Ready" : "Next",
+      status: context.passRate >= config.passThreshold ? "ready" : "next",
+      title: "Regression suite",
+      note: `${context.passRate}% pass rate across ${context.caseRows.length} ${config.focus.toLowerCase()} cases.`
+    },
+    {
+      label: riskCaseCount ? "Ready" : "Next",
+      status: riskCaseCount ? "ready" : "next",
+      title: "Risk disclosure",
+      note: riskCaseCount ? `${riskCaseCount} risk case${riskCaseCount === 1 ? "" : "s"} included.` : "Add explicit risk-factor regressions before launch."
+    }
+  ];
+}
+
+function buildEvalReviewRows(config, context) {
+  const rows = [];
+  context.caseRows
+    .filter((row) => row.status !== "pass")
+    .slice(0, 5)
+    .forEach((row) => rows.push({
+      title: `${row.id} ${row.target} review`,
+      note: row.question,
+      priority: row.status === "fail" ? "High" : "Medium"
+    }));
+  if (!context.answer) {
+    rows.unshift({ title: "Run one live analysis", note: "Quality lab has no current answer to audit yet.", priority: "High" });
+  }
+  if (context.hallucinationRisk > 28) {
+    rows.push({ title: "Hallucination-risk sample", note: `${context.hallucinationRisk}/100 risk. Check unsupported claims against the evidence stack.`, priority: "High" });
+  }
+  if (context.security.findings.length) {
+    rows.push({ title: "Security finding review", note: context.security.findings.slice(0, 2).map((finding) => finding.label).join(", "), priority: "High" });
+  }
+  const targetSample = Math.max(1, Math.round((config.caseCount * config.reviewSample) / 100));
+  while (rows.length < targetSample && context.caseRows[rows.length]) {
+    const row = context.caseRows[rows.length];
+    rows.push({ title: `${row.id} random sample`, note: row.question, priority: "Low" });
+  }
+  return rows.slice(0, 8);
+}
+
+function renderEvalCaseList(rows) {
+  return rows.map((row) => `
+    <div class="eval-case-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.id)}</span>
+      <div>
+        <strong>${escapeHtml(row.question)}</strong>
+        <em>${escapeHtml(row.requirement)}</em>
+      </div>
+      <b>${escapeHtml(String(row.score))}</b>
+    </div>
+  `).join("");
+}
+
+function renderEvalGateList(rows) {
+  return rows.map((row) => `
+    <div class="eval-gate-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderEvalReviewQueue(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No review items queued</strong>
+        <span>The current answer clears the configured evaluation gates.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="eval-review-row">
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <span>${escapeHtml(row.note)}</span>
+      </div>
+      <b>${escapeHtml(row.priority)}</b>
+    </div>
+  `).join("");
+}
+
+function readEvalConfig() {
+  return normalizeEvalConfig({
+    caseCount: Number(els.evalCaseCount.value),
+    passThreshold: Number(els.evalPassThreshold.value),
+    minCitations: Number(els.evalMinCitations.value),
+    reviewSample: Number(els.evalReviewSample.value),
+    focus: els.evalFocus.value,
+    regressionMode: els.evalRegressionMode.value
+  });
+}
+
+function syncEvalInputs() {
+  if (!els.evalCaseCount) return;
+  const config = normalizeEvalConfig(state.evalConfig || getDefaultEvalConfig());
+  els.evalCaseCount.value = String(config.caseCount);
+  els.evalPassThreshold.value = String(config.passThreshold);
+  els.evalMinCitations.value = String(config.minCitations);
+  els.evalReviewSample.value = String(config.reviewSample);
+  els.evalFocus.value = config.focus;
+  els.evalRegressionMode.value = config.regressionMode;
+}
+
+function normalizeEvalConfig(config) {
+  const defaults = getDefaultEvalConfig();
+  return {
+    caseCount: clampNumber(config.caseCount, 3, 100, defaults.caseCount),
+    passThreshold: clampNumber(config.passThreshold, 50, 99, defaults.passThreshold),
+    minCitations: clampNumber(config.minCitations, 1, 12, defaults.minCitations),
+    reviewSample: clampNumber(config.reviewSample, 5, 100, defaults.reviewSample),
+    focus: normalizeChoice(config.focus, ["Balanced", "Risk factors", "Valuation", "Earnings tone", "Portfolio workflow"], defaults.focus),
+    regressionMode: normalizeChoice(config.regressionMode, ["Strict", "Standard", "Exploratory"], defaults.regressionMode)
+  };
+}
+
+function getDefaultEvalConfig() {
+  return {
+    caseCount: 12,
+    passThreshold: 82,
+    minCitations: 3,
+    reviewSample: 25,
+    focus: "Balanced",
+    regressionMode: "Strict"
+  };
+}
+
+function loadEvalConfig() {
+  return normalizeEvalConfig(loadJson(STORAGE_KEYS.eval, getDefaultEvalConfig()));
+}
+
+function saveEvalConfig() {
+  saveJson(STORAGE_KEYS.eval, normalizeEvalConfig(state.evalConfig || getDefaultEvalConfig()));
+}
+
+function hydrateEvalFromCurrentAnswer() {
+  const answer = state.lastAnswerModel || {};
+  const focusByIntent = {
+    risk: "Risk factors",
+    valuation: "Valuation",
+    rates: "Valuation",
+    tone: "Earnings tone",
+    compare: "Balanced"
+  };
+  state.evalConfig = normalizeEvalConfig({
+    ...(state.evalConfig || getDefaultEvalConfig()),
+    caseCount: Math.max(8, Math.min(24, (state.currentCitations.length || 3) * 2)),
+    minCitations: Math.max(3, Math.min(6, state.currentCitations.length || 3)),
+    focus: focusByIntent[answer.intentId] || "Balanced",
+    regressionMode: "Strict"
+  });
+}
+
+function makeLightSourceAudit(citations) {
+  const docCount = new Set(citations.map((citation) => citation.docId)).size;
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`)).length;
+  const quality = Math.max(40, Math.min(92, 46 + docCount * 8 + filingCount * 4 + callCount * 3));
+  return {
+    quality,
+    coverageLabel: docCount >= 4 ? "Broad" : docCount >= 2 ? "Focused" : "Narrow",
+    balance: `${filingCount} filing / ${callCount} call`
+  };
+}
+
+function exportEvalBrief() {
+  const snapshot = state.currentEval || buildEvalSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Answer Quality Evaluation Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Configuration",
+    "",
+    `- Suite focus: ${snapshot.config.focus}`,
+    `- Regression mode: ${snapshot.config.regressionMode}`,
+    `- Cases: ${snapshot.config.caseCount}`,
+    `- Pass threshold: ${snapshot.config.passThreshold}%`,
+    `- Minimum citations: ${snapshot.config.minCitations}`,
+    `- Human review sample: ${snapshot.config.reviewSample}%`,
+    "",
+    "## Quality Snapshot",
+    "",
+    `- Pass rate: ${snapshot.passRate}%`,
+    `- Faithfulness: ${snapshot.faithfulness}%`,
+    `- Hallucination risk: ${snapshot.hallucinationRisk}/100`,
+    `- Gate score: ${snapshot.gateScore}%`,
+    `- Citations checked: ${snapshot.citationCount}`,
+    "",
+    "## Regression Cases",
+    "",
+    ...snapshot.caseRows.map((row) => `- ${row.id} [${row.status.toUpperCase()} ${row.score}] ${row.question} - ${row.note}`),
+    "",
+    "## Quality Gates",
+    "",
+    ...snapshot.gateRows.map((row) => `- ${row.label}: ${row.title} - ${row.note}`),
+    "",
+    "## Human Review Queue",
+    "",
+    ...(snapshot.reviewRows.length ? snapshot.reviewRows.map((row) => `- ${row.priority}: ${row.title} - ${row.note}`) : ["- No review items queued."]),
+    "",
+    "## Launch Note",
+    "",
+    "This is a client-side product evaluation harness for pilot workflow design. Production should run deterministic evals server-side, persist run history, sample model outputs, and block paid-user answers that fail citation, security, or regression thresholds."
+  ].join("\n");
+  downloadTextFile(`citealpha-answer-quality-eval-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportEvalBrief, "Exported");
+}
+
+function renderComplianceCenter() {
+  if (!els.complianceMetricGrid) return;
+  if (!state.complianceModel) state.complianceModel = loadComplianceModel();
+  syncComplianceInputs();
+  const snapshot = buildComplianceSnapshot();
+  els.complianceMetricGrid.innerHTML = [
+    { label: "Compliance score", value: `${snapshot.score}%`, sub: snapshot.score >= 82 ? "Publish gate looks credible" : "Needs review before launch" },
+    { label: "Advice risk", value: `${snapshot.adviceRisk}/100`, sub: snapshot.adviceRisk <= 25 ? "Research-only language" : "Review wording" },
+    { label: "Audit events", value: `${snapshot.auditRows.length}`, sub: `${snapshot.model.retention} policy` },
+    { label: "Disclosure", value: snapshot.disclosureReady ? "Ready" : "Draft", sub: snapshot.model.disclosureVersion }
+  ].map((metric) => `
+    <div class="compliance-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.compliancePolicyScore.textContent = `${snapshot.policyScore}%`;
+  els.compliancePolicyList.innerHTML = renderCompliancePolicyList(snapshot.policyRows);
+  els.complianceAuditCount.textContent = String(snapshot.auditRows.length);
+  els.complianceAuditTrail.innerHTML = renderComplianceAuditTrail(snapshot.auditRows);
+  els.complianceDisclosureStatus.textContent = snapshot.disclosureReady ? "Ready" : "Draft";
+  els.complianceDisclosurePack.innerHTML = renderComplianceDisclosurePack(snapshot.disclosureRows);
+  renderTraceInspector();
+}
+
+function buildComplianceSnapshot() {
+  const model = normalizeComplianceModel(state.complianceModel || getDefaultComplianceModel());
+  const citations = state.currentCitations || [];
+  const evalSnapshot = state.currentEval || (els.evalMetricGrid ? buildEvalSnapshot() : null);
+  const security = summarizeSecurityPosture();
+  const answerText = `${state.lastBrief || ""} ${state.lastAnswerModel ? state.lastAnswerModel.plainText : ""}`;
+  const adviceFlags = findAdviceRiskFlags(answerText);
+  const adviceRisk = scoreAdviceRisk(model, adviceFlags);
+  const policyRows = buildCompliancePolicyRows(model, citations, evalSnapshot, security, adviceRisk, adviceFlags);
+  const policyScore = scoreRows(policyRows);
+  const auditRows = buildComplianceAuditRows(model, evalSnapshot, security);
+  const disclosureRows = buildComplianceDisclosureRows(model, citations, security);
+  const disclosureReady = disclosureRows.every((row) => row.status !== "blocked");
+  const score = Math.round(policyScore * 0.5 + (100 - adviceRisk) * 0.25 + security.score * 0.15 + (disclosureReady ? 100 : 55) * 0.1);
+  return {
+    model,
+    citations,
+    evalSnapshot,
+    security,
+    adviceFlags,
+    adviceRisk,
+    policyRows,
+    policyScore,
+    auditRows,
+    disclosureRows,
+    disclosureReady,
+    score
+  };
+}
+
+function buildCompliancePolicyRows(model, citations, evalSnapshot, security, adviceRisk, adviceFlags) {
+  const citationCount = citations.length;
+  const evalScore = evalSnapshot ? evalSnapshot.gateScore : 0;
+  const requiredCitations = model.requiredCitations;
+  const hasDisclosure = Boolean(model.disclosureVersion && model.disclosureVersion.length >= 8);
+  return [
+    {
+      label: hasDisclosure ? "Ready" : "Blocked",
+      status: hasDisclosure ? "ready" : "blocked",
+      title: "Disclosure version",
+      note: hasDisclosure ? `${model.disclosureVersion} is attached to exports and audit packs.` : "Add a disclosure version before launch."
+    },
+    {
+      label: citationCount >= requiredCitations ? "Ready" : "Blocked",
+      status: citationCount >= requiredCitations ? "ready" : "blocked",
+      title: "Citation minimum",
+      note: `${citationCount}/${requiredCitations} citations available for the current answer.`
+    },
+    {
+      label: adviceRisk <= 25 ? "Ready" : adviceRisk <= 45 ? "Next" : "Blocked",
+      status: adviceRisk <= 25 ? "ready" : adviceRisk <= 45 ? "next" : "blocked",
+      title: "Investment-advice wording",
+      note: adviceFlags.length ? `Flagged: ${adviceFlags.slice(0, 3).join(", ")}.` : "No strong buy/sell/guarantee wording detected."
+    },
+    {
+      label: evalScore >= 80 ? "Ready" : evalScore ? "Next" : "Blocked",
+      status: evalScore >= 80 ? "ready" : evalScore ? "next" : "blocked",
+      title: "Quality gate",
+      note: evalSnapshot ? `Eval gate score is ${evalScore}%.` : "Run the answer quality suite before publish."
+    },
+    {
+      label: security.score >= 90 ? "Ready" : "Next",
+      status: security.score >= 90 ? "ready" : "next",
+      title: "Security posture",
+      note: `${security.score}/100 with ${security.findings.length} finding${security.findings.length === 1 ? "" : "s"}.`
+    },
+    {
+      label: model.posture === "Advisor review" ? "Next" : "Ready",
+      status: model.posture === "Advisor review" ? "next" : "ready",
+      title: "Research posture",
+      note: `${model.posture} selected. ${model.posture === "Research only" ? "Memo stays outside personalized advice." : "Add reviewer sign-off before publishing."}`
+    }
+  ];
+}
+
+function buildComplianceAuditRows(model, evalSnapshot, security) {
+  const rows = [
+    ...state.complianceEvents,
+    ...state.workflowEvents.slice(-5).map((event) => normalizeComplianceEvent({
+      kind: `Workflow: ${event.kind}`,
+      detail: event.question || event.ticker || "Workspace event",
+      timestamp: event.timestamp || new Date().toISOString()
+    }))
+  ];
+  if (state.lastAnswerModel) {
+    rows.push(normalizeComplianceEvent({
+      kind: "Current answer",
+      detail: `${state.lastAnswerModel.intentLabel || "Research"} answer with ${state.currentCitations.length} citation${state.currentCitations.length === 1 ? "" : "s"}.`,
+      timestamp: new Date().toISOString()
+    }));
+  }
+  if (evalSnapshot) {
+    rows.push(normalizeComplianceEvent({
+      kind: "Quality eval",
+      detail: `${evalSnapshot.passRate}% pass rate, ${evalSnapshot.faithfulness}% faithfulness, ${evalSnapshot.hallucinationRisk}/100 hallucination risk.`,
+      timestamp: new Date().toISOString()
+    }));
+  }
+  rows.push(normalizeComplianceEvent({
+    kind: "Security posture",
+    detail: `${security.score}/100 security posture under ${model.retention}.`,
+    timestamp: new Date().toISOString()
+  }));
+  return rows
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))
+    .slice(0, 9);
+}
+
+function buildComplianceDisclosureRows(model, citations, security) {
+  const dataModes = Array.from(new Set(citations.map((citation) => getSourceKind(citation)))).map((kind) => kind === "sample" ? "sample" : kind).join(" + ") || "sample";
+  return [
+    {
+      status: "ready",
+      title: "Research software disclaimer",
+      note: "CiteAlpha is research software, not investment advice."
+    },
+    {
+      status: model.posture === "Research only" ? "ready" : "next",
+      title: "No personalized recommendation",
+      note: model.posture === "Research only" ? "Output is framed as evidence-backed research." : `${model.posture} requires sign-off controls.`
+    },
+    {
+      status: citations.length ? "ready" : "blocked",
+      title: "Source provenance",
+      note: citations.length ? `${citations.length} cited passages from ${dataModes}.` : "No cited passages available."
+    },
+    {
+      status: security.findings.length ? "next" : "ready",
+      title: "Security disclosure",
+      note: security.findings.length ? "Security findings should be reviewed before external sharing." : "Security scan clear for current local data."
+    },
+    {
+      status: "ready",
+      title: "Retention statement",
+      note: model.retention === "Do not store" ? "Do not persist answer history after review." : `${model.retention}; browser-local prototype storage only.`
+    }
+  ];
+}
+
+function renderCompliancePolicyList(rows) {
+  return rows.map((row) => `
+    <div class="compliance-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderComplianceAuditTrail(rows) {
+  return rows.map((row) => `
+    <div class="compliance-audit-row">
+      <div>
+        <strong>${escapeHtml(row.kind)}</strong>
+        <span>${escapeHtml(row.detail)}</span>
+      </div>
+      <b>${escapeHtml(formatShortDate(row.timestamp))}</b>
+    </div>
+  `).join("");
+}
+
+function renderComplianceDisclosurePack(rows) {
+  return rows.map((row) => `
+    <div class="compliance-disclosure-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.status === "ready" ? "Ready" : row.status === "next" ? "Review" : "Block")}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function readComplianceModel() {
+  return normalizeComplianceModel({
+    posture: els.compliancePosture.value,
+    disclosureVersion: els.complianceDisclosure.value,
+    requiredCitations: Number(els.complianceRequiredCitations.value),
+    retention: els.complianceRetention.value,
+    owner: els.complianceOwner.value,
+    escalation: els.complianceEscalation.value
+  });
+}
+
+function syncComplianceInputs() {
+  if (!els.compliancePosture) return;
+  const model = normalizeComplianceModel(state.complianceModel || getDefaultComplianceModel());
+  els.compliancePosture.value = model.posture;
+  els.complianceDisclosure.value = model.disclosureVersion;
+  els.complianceRequiredCitations.value = String(model.requiredCitations);
+  els.complianceRetention.value = model.retention;
+  els.complianceOwner.value = model.owner;
+  els.complianceEscalation.value = model.escalation;
+}
+
+function normalizeComplianceModel(model) {
+  const defaults = getDefaultComplianceModel();
+  return {
+    posture: normalizeChoice(model.posture, ["Research only", "Advisor review", "Educational mode"], defaults.posture),
+    disclosureVersion: String(model.disclosureVersion || defaults.disclosureVersion).slice(0, 60),
+    requiredCitations: clampNumber(model.requiredCitations, 1, 12, defaults.requiredCitations),
+    retention: normalizeChoice(model.retention, ["Local browser only", "30-day audit log", "Do not store"], defaults.retention),
+    owner: String(model.owner || defaults.owner).slice(0, 80),
+    escalation: normalizeChoice(model.escalation, ["Standard", "Heightened", "Block publish"], defaults.escalation)
+  };
+}
+
+function getDefaultComplianceModel() {
+  return {
+    posture: "Research only",
+    disclosureVersion: "CA-RESEARCH-2026.05",
+    requiredCitations: 3,
+    retention: "Local browser only",
+    owner: "Founder review",
+    escalation: "Standard"
+  };
+}
+
+function loadComplianceModel() {
+  return normalizeComplianceModel(loadJson(STORAGE_KEYS.compliance, getDefaultComplianceModel()));
+}
+
+function saveComplianceModel() {
+  saveJson(STORAGE_KEYS.compliance, normalizeComplianceModel(state.complianceModel || getDefaultComplianceModel()));
+}
+
+function hydrateComplianceFromCurrentAnswer() {
+  const citations = state.currentCitations || [];
+  const evalSnapshot = state.currentEval || null;
+  state.complianceModel = normalizeComplianceModel({
+    ...(state.complianceModel || getDefaultComplianceModel()),
+    requiredCitations: Math.max(3, Math.min(6, citations.length || 3)),
+    escalation: evalSnapshot && evalSnapshot.hallucinationRisk > 28 ? "Heightened" : "Standard",
+    posture: "Research only"
+  });
+}
+
+function recordComplianceEvent(kind, detail) {
+  const event = normalizeComplianceEvent({ kind, detail, timestamp: new Date().toISOString() });
+  state.complianceEvents = [event, ...state.complianceEvents].slice(0, 24);
+  saveJson(STORAGE_KEYS.complianceEvents, state.complianceEvents);
+}
+
+function normalizeComplianceEvent(event) {
+  return {
+    kind: String((event && event.kind) || "Audit event").slice(0, 80),
+    detail: String((event && event.detail) || "Compliance activity recorded.").slice(0, 220),
+    timestamp: String((event && event.timestamp) || new Date().toISOString())
+  };
+}
+
+function findAdviceRiskFlags(text) {
+  const value = String(text || "");
+  const checks = [
+    { label: "direct buy/sell wording", pattern: /\b(buy|sell|short|go long|go short)\b/i },
+    { label: "guarantee language", pattern: /\b(guaranteed|certain|risk-free|cannot lose|sure thing)\b/i },
+    { label: "personalized advice", pattern: /\b(for your portfolio|you should|you must|your financial situation)\b/i },
+    { label: "price-target framing", pattern: /\b(price target|target price|will reach|must reach)\b/i }
+  ];
+  return checks.filter((check) => check.pattern.test(value)).map((check) => check.label);
+}
+
+function scoreAdviceRisk(model, flags) {
+  let score = flags.length * 18;
+  if (model.posture === "Advisor review") score += 12;
+  if (model.escalation === "Heightened") score += 10;
+  if (model.escalation === "Block publish") score += 28;
+  return Math.max(0, Math.min(100, score));
+}
+
+function formatShortDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Now";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function exportComplianceBrief() {
+  const snapshot = buildComplianceSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  recordComplianceEvent("Audit export", `Compliance audit pack exported with ${snapshot.score}% score.`);
+  const content = [
+    "# CiteAlpha Compliance Audit Pack",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Policy Configuration",
+    "",
+    `- Research posture: ${snapshot.model.posture}`,
+    `- Disclosure version: ${snapshot.model.disclosureVersion}`,
+    `- Required citations: ${snapshot.model.requiredCitations}`,
+    `- Retention policy: ${snapshot.model.retention}`,
+    `- Review owner: ${snapshot.model.owner}`,
+    `- Escalation level: ${snapshot.model.escalation}`,
+    "",
+    "## Current Scorecard",
+    "",
+    `- Compliance score: ${snapshot.score}%`,
+    `- Policy score: ${snapshot.policyScore}%`,
+    `- Advice risk: ${snapshot.adviceRisk}/100`,
+    `- Security posture: ${snapshot.security.score}/100`,
+    `- Citations checked: ${snapshot.citations.length}`,
+    "",
+    "## Policy Checks",
+    "",
+    ...snapshot.policyRows.map((row) => `- ${row.label}: ${row.title} - ${row.note}`),
+    "",
+    "## Disclosure Pack",
+    "",
+    ...snapshot.disclosureRows.map((row) => `- ${row.status.toUpperCase()}: ${row.title} - ${row.note}`),
+    "",
+    "## Audit Trail",
+    "",
+    ...snapshot.auditRows.map((row) => `- ${row.timestamp}: ${row.kind} - ${row.detail}`),
+    "",
+    "## Compliance Note",
+    "",
+    "This client-side prototype is for product design and workflow testing. Before a paid launch, compliance controls should move server-side with authenticated users, immutable audit logs, legal-approved disclosures, role-based review, and jurisdiction-specific policy review."
+  ].join("\n");
+  downloadTextFile(`citealpha-compliance-audit-pack-${date}.md`, content, "text/markdown;charset=utf-8");
+  renderComplianceCenter();
+  flashButtonLabel(els.exportComplianceBrief, "Exported");
+}
+
+function renderTraceInspector() {
+  if (!els.traceMetricGrid) return;
+  if (!state.traceConfig) state.traceConfig = loadTraceConfig();
+  syncTraceInputs();
+  const snapshot = buildTraceSnapshot();
+  state.currentTrace = snapshot;
+  els.traceMetricGrid.innerHTML = [
+    { label: "Trace score", value: `${snapshot.traceScore}%`, sub: snapshot.traceScore >= 82 ? "Claims are well anchored" : "Review support map" },
+    { label: "Supported claims", value: `${snapshot.supportedClaims}/${snapshot.claimRows.length}`, sub: `${snapshot.config.mode} mode` },
+    { label: "Weak claims", value: String(snapshot.weakRows.length), sub: `${snapshot.config.supportThreshold}% threshold` },
+    { label: "Tension flags", value: String(snapshot.tensionRows.length), sub: snapshot.config.tensionFocus }
+  ].map((metric) => `
+    <div class="trace-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.traceClaimCount.textContent = `${snapshot.claimRows.length} claims`;
+  els.traceClaimMap.innerHTML = renderTraceClaimMap(snapshot.claimRows);
+  els.traceWeakCount.textContent = String(snapshot.weakRows.length);
+  els.traceWeakClaims.innerHTML = renderTraceWeakClaims(snapshot.weakRows, snapshot.tensionRows);
+  els.traceLineageCount.textContent = String(snapshot.lineageRows.length);
+  els.traceSourceLineage.innerHTML = renderTraceSourceLineage(snapshot.lineageRows);
+  renderPeerScreener();
+}
+
+function buildTraceSnapshot() {
+  const config = normalizeTraceConfig(state.traceConfig || getDefaultTraceConfig());
+  const citations = state.currentCitations || [];
+  const answerText = getTraceAnswerText();
+  const claimRows = extractAnswerClaims(answerText, config.claimLimit).map((claim, index) => scoreTraceClaim(claim, index, citations, config));
+  const supportedClaims = claimRows.filter((row) => row.status === "supported").length;
+  const weakRows = claimRows.filter((row) => row.status !== "supported");
+  const tensionRows = buildTraceTensions(citations, config, claimRows);
+  const lineageRows = buildTraceLineageRows(citations, claimRows);
+  const avgSupport = claimRows.length
+    ? Math.round(claimRows.reduce((sum, row) => sum + row.support, 0) / claimRows.length)
+    : 0;
+  const traceScore = Math.max(0, Math.min(100, Math.round(
+    avgSupport * 0.55 +
+    (claimRows.length ? (supportedClaims / claimRows.length) * 100 : 0) * 0.25 +
+    Math.min(100, citations.length * 18) * 0.12 +
+    Math.max(0, 100 - tensionRows.length * 18) * 0.08
+  )));
+  return {
+    config,
+    answerText,
+    citations,
+    claimRows,
+    supportedClaims,
+    weakRows,
+    tensionRows,
+    lineageRows,
+    avgSupport,
+    traceScore
+  };
+}
+
+function getTraceAnswerText() {
+  const model = state.lastAnswerModel || {};
+  const text = model.plainText || state.lastBrief || "";
+  if (text.trim()) return stripMarkdown(text);
+  const question = els.queryInput && els.queryInput.value.trim() ? els.queryInput.value.trim() : "Run an analysis to create traceable answer claims.";
+  return `Pending answer for: ${question}`;
+}
+
+function extractAnswerClaims(text, limit) {
+  const raw = String(text || "")
+    .replace(/\bC\d+\b/g, "")
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(cleanTraceClaim)
+    .filter(Boolean);
+  const filtered = raw.filter((sentence) => {
+    if (sentence.length < 34) return false;
+    if (/^(generated|source audit|data source|analyst copilot|follow-ups|management tone|evidence stack|risk factors?\s*\|)/i.test(sentence)) return false;
+    return /risk|margin|growth|valuation|management|filing|call|source|cash|revenue|debt|customer|supply|confidence|answer|company|rate|pricing|capex|demand/i.test(sentence);
+  });
+  const claims = filtered.length ? filtered : raw;
+  return Array.from(new Set(claims)).slice(0, limit);
+}
+
+function cleanTraceClaim(value) {
+  return String(value || "")
+    .replace(/^\s*[-*\d.)]+/, "")
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreTraceClaim(claim, index, citations, config) {
+  const claimTokens = tokenizeTraceText(claim);
+  const scored = citations.map((citation, citationIndex) => {
+    const sourceTokens = tokenizeTraceText(`${citation.company} ${citation.type} ${citation.section} ${citation.text}`);
+    const overlap = claimTokens.filter((token) => sourceTokens.includes(token));
+    const overlapRatio = overlap.length / Math.max(1, Math.min(claimTokens.length, 16));
+    const typeBonus = scoreTraceTypeBonus(claim, citation);
+    const score = Math.max(0, Math.min(99, Math.round(
+      overlapRatio * 72 +
+      overlap.length * 4 +
+      Math.min(14, (Number(citation.score) || 0) * 0.45) +
+      typeBonus
+    )));
+    return {
+      citation,
+      citationIndex,
+      overlap: Array.from(new Set(overlap)).slice(0, 8),
+      score
+    };
+  }).sort((a, b) => b.score - a.score);
+  const best = scored[0] || null;
+  const support = best ? best.score : 0;
+  const overlapCount = best ? best.overlap.length : 0;
+  const status = support >= config.supportThreshold && overlapCount >= config.minOverlap
+    ? "supported"
+    : support >= config.supportThreshold - 18 && overlapCount >= Math.max(1, config.minOverlap - 1)
+      ? "review"
+      : "weak";
+  return {
+    id: `CL${index + 1}`,
+    claim,
+    type: classifyTraceClaim(claim),
+    support,
+    status,
+    overlap: best ? best.overlap : [],
+    citationId: best && best.citation ? (best.citation.citationId || `C${best.citationIndex + 1}`) : "None",
+    source: best && best.citation ? `${best.citation.company} ${best.citation.type}` : "No source",
+    section: best && best.citation ? best.citation.section : "No matching passage",
+    sourceText: best && best.citation ? best.citation.text : ""
+  };
+}
+
+function tokenizeTraceText(text) {
+  return Array.from(new Set(String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9$% ]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token))));
+}
+
+function scoreTraceTypeBonus(claim, citation) {
+  const claimType = classifyTraceClaim(claim);
+  const source = `${citation.type || ""} ${citation.section || ""}`.toLowerCase();
+  if (claimType === "Risk" && /risk|10-k|filing/.test(source)) return 12;
+  if (claimType === "Valuation" && /model|valuation|base case/.test(source)) return 12;
+  if (claimType === "Tone" && /call|q&a|prepared|management/.test(source)) return 12;
+  if (claimType === "Evidence" && /filing|call|model|note/.test(source)) return 8;
+  return 3;
+}
+
+function classifyTraceClaim(claim) {
+  const text = String(claim || "").toLowerCase();
+  if (/risk|concentration|supply|debt|financing|capex|pressure|delay/.test(text)) return "Risk";
+  if (/valuation|value|multiple|fcf|margin|discount|revenue|growth/.test(text)) return "Valuation";
+  if (/management|call|tone|guidance|confident|said/.test(text)) return "Tone";
+  if (/source|filing|evidence|citation|passage/.test(text)) return "Evidence";
+  return "Thesis";
+}
+
+function buildTraceTensions(citations, config, claimRows) {
+  const rows = [];
+  const filing = citations.find((citation) => /filing|10-k|10-q/i.test(citation.type));
+  const call = citations.find((citation) => /call|q&a|prepared/i.test(`${citation.type} ${citation.section}`));
+  const model = citations.find((citation) => /model|valuation/i.test(citation.type));
+  if (config.tensionFocus === "Filing vs call" && filing && call) {
+    const filingTone = scoreTracePolarity(filing.text);
+    const callTone = scoreTracePolarity(call.text);
+    if (Math.abs(filingTone - callTone) >= 2 || claimRows.some((row) => row.type === "Tone" && row.status !== "supported")) {
+      rows.push({
+        title: "Filing-call tone gap",
+        note: `Filing polarity ${filingTone}, call polarity ${callTone}. Review whether management tone fully confirms disclosure language.`,
+        severity: Math.abs(filingTone - callTone) >= 3 ? "High" : "Medium"
+      });
+    }
+  }
+  if (config.tensionFocus === "Risk vs valuation" && filing && model) {
+    const riskWords = tokenizeTraceText(filing.text).filter((token) => /risk|debt|financ|customer|supply|delay|cost|capex|pressure/.test(token)).length;
+    const valueWords = tokenizeTraceText(model.text).filter((token) => /growth|margin|multiple|value|cash|revenue|fcf/.test(token)).length;
+    if (riskWords && valueWords) {
+      rows.push({
+        title: "Risk-value reconciliation",
+        note: `Risk source has ${riskWords} pressure terms while model source has ${valueWords} value terms. IC memo should reconcile both.`,
+        severity: riskWords > valueWords ? "High" : "Medium"
+      });
+    }
+  }
+  if (config.tensionFocus === "Tone drift" && call) {
+    const weakToneClaims = claimRows.filter((row) => row.type === "Tone" && row.status !== "supported");
+    if (weakToneClaims.length || scoreTracePolarity(call.text) < 0) {
+      rows.push({
+        title: "Tone drift watch",
+        note: weakToneClaims.length ? `${weakToneClaims.length} tone claim${weakToneClaims.length === 1 ? "" : "s"} need stronger call support.` : "Call text leans cautious; check optimistic answer language.",
+        severity: weakToneClaims.length > 1 ? "High" : "Medium"
+      });
+    }
+  }
+  if (!rows.length && claimRows.some((row) => row.status === "weak")) {
+    rows.push({
+      title: "Unsupported-claim tension",
+      note: "At least one claim has weak source overlap; review wording before external export.",
+      severity: "Medium"
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function scoreTracePolarity(text) {
+  const value = String(text || "").toLowerCase();
+  const positive = (value.match(/\b(growth|expanded|strong|improved|resilient|protecting|net cash|pricing|demand|conversion)\b/g) || []).length;
+  const negative = (value.match(/\b(risk|decline|pressure|delay|debt|weak|volatile|concentration|financing|cost|shrink)\b/g) || []).length;
+  return Math.max(-5, Math.min(5, positive - negative));
+}
+
+function buildTraceLineageRows(citations, claimRows) {
+  return citations.slice(0, 8).map((citation, index) => {
+    const citationId = citation.citationId || `C${index + 1}`;
+    const linkedClaims = claimRows.filter((row) => row.citationId === citationId);
+    return {
+      id: citationId,
+      source: `${citation.company} ${citation.type}`,
+      section: citation.section,
+      score: Number(citation.score) || 0,
+      kind: getSourceKind(citation),
+      claimCount: linkedClaims.length,
+      text: citation.text
+    };
+  });
+}
+
+function renderTraceClaimMap(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No answer claims yet</strong>
+        <span>Run an analysis, then run trace to map claims back to source passages.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="trace-claim-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.id)}</span>
+      <div>
+        <strong>${escapeHtml(row.claim)}</strong>
+        <em>${escapeHtml(row.type)} | ${escapeHtml(row.source)} | ${escapeHtml(row.citationId)} | overlap: ${escapeHtml(row.overlap.join(", ") || "none")}</em>
+      </div>
+      <b>${escapeHtml(String(row.support))}</b>
+    </div>
+  `).join("");
+}
+
+function renderTraceWeakClaims(weakRows, tensionRows) {
+  const rows = [
+    ...weakRows.map((row) => ({
+      title: `${row.id} ${row.status === "weak" ? "weak support" : "review support"}`,
+      note: `${row.claim} Best source: ${row.citationId}.`,
+      severity: row.status === "weak" ? "High" : "Medium"
+    })),
+    ...tensionRows
+  ].slice(0, 8);
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No weak claims detected</strong>
+        <span>Current claim map clears the configured support threshold.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="trace-weak-row">
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <span>${escapeHtml(row.note)}</span>
+      </div>
+      <b>${escapeHtml(row.severity)}</b>
+    </div>
+  `).join("");
+}
+
+function renderTraceSourceLineage(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No source lineage yet</strong>
+        <span>Run a cited analysis to populate source-to-claim lineage.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="trace-lineage-row">
+      <span>${escapeHtml(row.id)}</span>
+      <div>
+        <strong>${escapeHtml(row.source)}</strong>
+        <em>${escapeHtml(row.section)} | ${escapeHtml(row.kind)} | ${row.claimCount} linked claim${row.claimCount === 1 ? "" : "s"} | score ${escapeHtml(String(row.score))}</em>
+        <small>${escapeHtml(snippet(row.text, 140))}</small>
+      </div>
+    </div>
+  `).join("");
+}
+
+function readTraceConfig() {
+  return normalizeTraceConfig({
+    claimLimit: Number(els.traceClaimLimit.value),
+    supportThreshold: Number(els.traceSupportThreshold.value),
+    minOverlap: Number(els.traceMinOverlap.value),
+    mode: els.traceMode.value,
+    tensionFocus: els.traceTensionFocus.value
+  });
+}
+
+function syncTraceInputs() {
+  if (!els.traceClaimLimit) return;
+  const config = normalizeTraceConfig(state.traceConfig || getDefaultTraceConfig());
+  els.traceClaimLimit.value = String(config.claimLimit);
+  els.traceSupportThreshold.value = String(config.supportThreshold);
+  els.traceMinOverlap.value = String(config.minOverlap);
+  els.traceMode.value = config.mode;
+  els.traceTensionFocus.value = config.tensionFocus;
+}
+
+function normalizeTraceConfig(config) {
+  const defaults = getDefaultTraceConfig();
+  return {
+    claimLimit: clampNumber(config.claimLimit, 3, 20, defaults.claimLimit),
+    supportThreshold: clampNumber(config.supportThreshold, 35, 95, defaults.supportThreshold),
+    minOverlap: clampNumber(config.minOverlap, 1, 8, defaults.minOverlap),
+    mode: normalizeChoice(config.mode, ["Strict", "Balanced", "Fast scan"], defaults.mode),
+    tensionFocus: normalizeChoice(config.tensionFocus, ["Filing vs call", "Risk vs valuation", "Tone drift"], defaults.tensionFocus)
+  };
+}
+
+function getDefaultTraceConfig() {
+  return {
+    claimLimit: 8,
+    supportThreshold: 62,
+    minOverlap: 2,
+    mode: "Strict",
+    tensionFocus: "Filing vs call"
+  };
+}
+
+function loadTraceConfig() {
+  return normalizeTraceConfig(loadJson(STORAGE_KEYS.trace, getDefaultTraceConfig()));
+}
+
+function saveTraceConfig() {
+  saveJson(STORAGE_KEYS.trace, normalizeTraceConfig(state.traceConfig || getDefaultTraceConfig()));
+}
+
+function hydrateTraceFromCurrentAnswer() {
+  const model = state.lastAnswerModel || {};
+  state.traceConfig = normalizeTraceConfig({
+    ...(state.traceConfig || getDefaultTraceConfig()),
+    claimLimit: Math.max(5, Math.min(12, extractAnswerClaims(getTraceAnswerText(), 20).length || 8)),
+    supportThreshold: model.intentId === "risk" ? 68 : 62,
+    minOverlap: state.currentCitations.length >= 4 ? 2 : 1,
+    mode: "Strict",
+    tensionFocus: model.intentId === "risk" ? "Risk vs valuation" : "Filing vs call"
+  });
+}
+
+function exportTracePack() {
+  const snapshot = state.currentTrace || buildTraceSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Evidence Trace Pack",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Trace Configuration",
+    "",
+    `- Claim limit: ${snapshot.config.claimLimit}`,
+    `- Support threshold: ${snapshot.config.supportThreshold}%`,
+    `- Minimum term overlap: ${snapshot.config.minOverlap}`,
+    `- Trace mode: ${snapshot.config.mode}`,
+    `- Tension focus: ${snapshot.config.tensionFocus}`,
+    "",
+    "## Trace Scorecard",
+    "",
+    `- Trace score: ${snapshot.traceScore}%`,
+    `- Average support: ${snapshot.avgSupport}%`,
+    `- Supported claims: ${snapshot.supportedClaims}/${snapshot.claimRows.length}`,
+    `- Weak claims: ${snapshot.weakRows.length}`,
+    `- Tension flags: ${snapshot.tensionRows.length}`,
+    "",
+    "## Claim Map",
+    "",
+    ...snapshot.claimRows.map((row) => `- ${row.id} [${row.status.toUpperCase()} ${row.support}] ${row.claim} | ${row.citationId} ${row.source} | overlap: ${row.overlap.join(", ") || "none"}`),
+    "",
+    "## Tension Flags",
+    "",
+    ...(snapshot.tensionRows.length ? snapshot.tensionRows.map((row) => `- ${row.severity}: ${row.title} - ${row.note}`) : ["- No source tension flags detected."]),
+    "",
+    "## Source Lineage",
+    "",
+    ...snapshot.lineageRows.map((row) => `- ${row.id}: ${row.source} | ${row.section} | ${row.claimCount} linked claim${row.claimCount === 1 ? "" : "s"} | score ${row.score}`),
+    "",
+    "## Product Note",
+    "",
+    "This trace pack is a product-side explainability aid. Production should persist immutable claim-to-source mappings, model prompts, retrieval parameters, document versions, and reviewer decisions for auditability."
+  ].join("\n");
+  downloadTextFile(`citealpha-evidence-trace-pack-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportTracePack, "Exported");
+}
+
+function renderPeerScreener() {
+  if (!els.peerMetricGrid) return;
+  if (!state.peerConfig) state.peerConfig = loadPeerConfig();
+  syncPeerInputs();
+  const snapshot = buildPeerSnapshot();
+  state.currentPeer = snapshot;
+  els.peerMetricGrid.innerHTML = [
+    { label: "Screen leader", value: snapshot.leader ? snapshot.leader.ticker : "None", sub: snapshot.leader ? `${snapshot.leader.score}/100 ${snapshot.config.factor}` : "Add peer names" },
+    { label: "Target rank", value: snapshot.targetRow ? `#${snapshot.targetRow.rank}` : "-", sub: `${snapshot.rows.length} names screened` },
+    { label: "Score gap", value: snapshot.targetRow && snapshot.leader ? `${Math.max(0, snapshot.leader.score - snapshot.targetRow.score)}` : "0", sub: "Leader minus target" },
+    { label: "Evidence hits", value: String(snapshot.totalEvidence), sub: `${snapshot.config.evidenceMode} mode` }
+  ].map((metric) => `
+    <div class="peer-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.peerRankingCount.textContent = `${snapshot.rows.length} names`;
+  els.peerRankingList.innerHTML = renderPeerRankingList(snapshot.rows, snapshot.config.target);
+  els.peerGapCount.textContent = String(snapshot.gapRows.length);
+  els.peerGapList.innerHTML = renderPeerGapList(snapshot.gapRows);
+  els.peerQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.peerQuestionQueue.innerHTML = renderPeerQuestionQueue(snapshot.questionRows);
+  renderStressLab();
+}
+
+function buildPeerSnapshot() {
+  const config = normalizePeerConfig(state.peerConfig || getDefaultPeerConfig());
+  const companies = resolvePeerCompanies(config);
+  const evidenceMap = buildPeerEvidenceMap(config);
+  const rows = companies.map((company) => scorePeerCompany(company, config, evidenceMap)).sort((a, b) => b.score - a.score);
+  rows.forEach((row, index) => {
+    row.rank = index + 1;
+  });
+  const targetRow = rows.find((row) => row.ticker === config.target) || rows[0] || null;
+  const leader = rows[0] || null;
+  const gapRows = buildPeerGapRows(targetRow, rows, config);
+  const questionRows = buildPeerQuestionRows(targetRow, leader, gapRows, config);
+  const totalEvidence = rows.reduce((sum, row) => sum + row.evidenceHits, 0);
+  return {
+    config,
+    companies,
+    rows,
+    targetRow,
+    leader,
+    gapRows,
+    questionRows,
+    totalEvidence
+  };
+}
+
+function resolvePeerCompanies(config) {
+  const tickers = Array.from(new Set([
+    config.target,
+    ...String(config.peerBasket || "").split(/[,;\s]+/).map(normalizeTicker).filter((ticker) => ticker && ticker !== "CUSTOM")
+  ]));
+  const companies = tickers.map(resolvePeerCompany).filter(Boolean);
+  return companies.length ? companies : SAMPLE_COMPANIES.map((company) => normalizePeerCompany(company));
+}
+
+function resolvePeerCompany(ticker) {
+  const normalized = normalizeTicker(ticker);
+  const existing = getCompanies().find((company) => company.ticker === normalized);
+  if (existing) return normalizePeerCompany(existing);
+  return normalizePeerCompany(resolvePortfolioCompany(normalized));
+}
+
+function normalizePeerCompany(company) {
+  const fallback = SAMPLE_COMPANIES[0];
+  const growth = clampNumber(company.growth, -30, 80, fallback.growth);
+  const grossMargin = clampNumber(company.grossMargin, 0, 90, company.fcfMargin ? company.fcfMargin * 2 : fallback.grossMargin);
+  const opMargin = clampNumber(company.opMargin, -20, 60, company.fcfMargin ? company.fcfMargin * 1.6 : fallback.opMargin);
+  const fcfMargin = clampNumber(company.fcfMargin, -20, 50, fallback.fcfMargin);
+  const risk = clampNumber(company.risk, 1, 99, fallback.risk);
+  const sentiment = clampNumber(company.sentiment, 1, 99, fallback.sentiment);
+  const multiple = clampNumber(company.multiple, 1, 80, fallback.multiple);
+  return {
+    ...company,
+    ticker: normalizeTicker(company.ticker),
+    name: company.name || `${normalizeTicker(company.ticker)} coverage name`,
+    sector: company.sector || "Coverage",
+    revenue: Number(company.revenue) || fallback.revenue,
+    growth,
+    grossMargin,
+    opMargin,
+    fcfMargin,
+    risk,
+    sentiment,
+    multiple,
+    thesis: company.thesis || "Peer profile awaiting normalized thesis."
+  };
+}
+
+function buildPeerEvidenceMap(config) {
+  const map = new Map();
+  const add = (ticker, count = 1) => {
+    const normalized = normalizeTicker(ticker);
+    map.set(normalized, (map.get(normalized) || 0) + count);
+  };
+  if (config.evidenceMode === "Cited answer") {
+    state.currentCitations.forEach((citation) => add(citation.ticker));
+  } else if (config.evidenceMode === "Enabled docs") {
+    getEnabledDocs().forEach((doc) => add(doc.ticker));
+  } else {
+    getCompanies().forEach((company) => {
+      const sourceCount = state.documents.filter((doc) => doc.ticker === company.ticker).length;
+      add(company.ticker, Math.max(1, sourceCount));
+    });
+  }
+  return map;
+}
+
+function scorePeerCompany(company, config, evidenceMap) {
+  const evidenceHits = evidenceMap.get(company.ticker) || 0;
+  const qualityGrowth = company.growth * 1.15 + company.opMargin * 0.75 + company.fcfMargin * 1.05 + company.sentiment * 0.22;
+  const marginDurability = company.grossMargin * 0.35 + company.opMargin * 1.05 + company.fcfMargin * 1.3 + company.sentiment * 0.18;
+  const riskAdjustedValue = company.growth * 0.85 + company.fcfMargin * 1.2 + company.sentiment * 0.24 - company.multiple * (config.valuationWeight / 18);
+  const toneScore = company.sentiment * 0.8 + company.opMargin * 0.35 + company.growth * 0.25;
+  const baseByFactor = {
+    "Quality growth": qualityGrowth,
+    "Margin durability": marginDurability,
+    "Risk-adjusted value": riskAdjustedValue,
+    "Management tone": toneScore
+  };
+  const base = baseByFactor[config.factor] || qualityGrowth;
+  const evidenceBonus = Math.min(8, evidenceHits * 1.7);
+  const riskPenalty = company.risk * (config.riskPenalty / 100);
+  const score = Math.max(8, Math.min(99, Math.round(base * 0.82 - riskPenalty + evidenceBonus)));
+  const valuationGap = Math.round((company.growth + company.fcfMargin) - company.multiple);
+  return {
+    ...company,
+    score,
+    evidenceHits,
+    valuationGap,
+    qualityGrowth: Math.round(qualityGrowth),
+    marginDurability: Math.round(marginDurability),
+    riskAdjustedValue: Math.round(riskAdjustedValue),
+    toneScore: Math.round(toneScore),
+    reason: makePeerReason(company, config, score, evidenceHits, valuationGap)
+  };
+}
+
+function makePeerReason(company, config, score, evidenceHits, valuationGap) {
+  if (config.factor === "Risk-adjusted value") {
+    return `${company.multiple}x multiple, ${company.fcfMargin}% FCF margin, ${company.risk}/100 risk, ${valuationGap >= 0 ? "positive" : "negative"} value spread.`;
+  }
+  if (config.factor === "Margin durability") {
+    return `${company.grossMargin}% gross margin, ${company.opMargin}% operating margin, ${company.fcfMargin}% FCF margin.`;
+  }
+  if (config.factor === "Management tone") {
+    return `${company.sentiment}/100 sentiment with ${evidenceHits} evidence hit${evidenceHits === 1 ? "" : "s"}.`;
+  }
+  return `${company.growth}% growth, ${company.opMargin}% operating margin, ${score}/100 factor score.`;
+}
+
+function buildPeerGapRows(targetRow, rows, config) {
+  if (!targetRow) return [];
+  const leader = rows[0] || targetRow;
+  const metrics = [
+    { label: "Growth", key: "growth", unit: "%", better: "higher" },
+    { label: "Operating margin", key: "opMargin", unit: "%", better: "higher" },
+    { label: "FCF margin", key: "fcfMargin", unit: "%", better: "higher" },
+    { label: "Risk index", key: "risk", unit: "", better: "lower" },
+    { label: "Sentiment", key: "sentiment", unit: "/100", better: "higher" },
+    { label: "Terminal multiple", key: "multiple", unit: "x", better: "lower" }
+  ];
+  return metrics.map((metric) => {
+    const targetValue = Number(targetRow[metric.key]) || 0;
+    const leaderValue = Number(leader[metric.key]) || 0;
+    const rawGap = leaderValue - targetValue;
+    const advantage = metric.better === "lower" ? -rawGap : rawGap;
+    return {
+      label: metric.label,
+      target: `${targetValue}${metric.unit}`,
+      benchmark: `${leaderValue}${metric.unit}`,
+      gap: Math.round(rawGap),
+      status: advantage > 4 ? "lag" : advantage < -4 ? "lead" : "even",
+      note: makePeerGapNote(metric, targetRow, leader, advantage, config)
+    };
+  }).sort((a, b) => {
+    const severity = { lag: 2, even: 1, lead: 0 };
+    return severity[b.status] - severity[a.status] || Math.abs(b.gap) - Math.abs(a.gap);
+  }).slice(0, 5);
+}
+
+function makePeerGapNote(metric, targetRow, leader, advantage, config) {
+  if (advantage > 4) return `${targetRow.ticker} trails ${leader.ticker} on ${metric.label.toLowerCase()} for the ${config.factor.toLowerCase()} screen.`;
+  if (advantage < -4) return `${targetRow.ticker} leads ${leader.ticker} on ${metric.label.toLowerCase()}.`;
+  return `${targetRow.ticker} is broadly in line with ${leader.ticker} on ${metric.label.toLowerCase()}.`;
+}
+
+function buildPeerQuestionRows(targetRow, leader, gapRows, config) {
+  if (!targetRow) return [];
+  const leadTicker = leader ? leader.ticker : targetRow.ticker;
+  const rows = [
+    {
+      topic: "Main gap",
+      question: gapRows[0]
+        ? `Why does $${targetRow.ticker} ${gapRows[0].status === "lag" ? "trail" : "lead"} $${leadTicker} on ${gapRows[0].label.toLowerCase()}?`
+        : `What is the strongest source-backed reason to prefer $${targetRow.ticker} over peers?`
+    },
+    {
+      topic: "Evidence test",
+      question: `Which filing or call passages best support $${targetRow.ticker}'s ${config.factor.toLowerCase()} thesis versus $${leadTicker}?`
+    },
+    {
+      topic: "Risk check",
+      question: `What risks could make $${targetRow.ticker}'s peer screen score deteriorate first?`
+    },
+    {
+      topic: "Valuation spread",
+      question: `Is $${targetRow.ticker}'s valuation spread justified by growth, margin quality, and risk versus $${leadTicker}?`
+    }
+  ];
+  if (targetRow.evidenceHits < 2) {
+    rows.unshift({
+      topic: "Source gap",
+      question: `What filings or earnings call sections should I import before trusting the $${targetRow.ticker} peer screen?`
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function renderPeerRankingList(rows, target) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No peer set available</strong>
+        <span>Add tickers to the peer basket, then run the screen.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="peer-rank-row ${row.ticker === target ? "is-target" : ""}">
+      <span>#${escapeHtml(String(row.rank))}</span>
+      <div>
+        <strong>${escapeHtml(row.ticker)} - ${escapeHtml(row.name)}</strong>
+        <em>${escapeHtml(row.reason)}</em>
+      </div>
+      <b>${escapeHtml(String(row.score))}</b>
+    </div>
+  `).join("");
+}
+
+function renderPeerGapList(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No factor gaps yet</strong>
+        <span>Run a peer screen to compare target metrics against the leader.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="peer-gap-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.status === "lag" ? "Gap" : row.status === "lead" ? "Lead" : "Even")}</span>
+      <div>
+        <strong>${escapeHtml(row.label)}: ${escapeHtml(row.target)} vs ${escapeHtml(row.benchmark)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderPeerQuestionQueue(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No diligence questions yet</strong>
+        <span>Run a peer screen to generate the next research queue.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <button class="peer-question-row" type="button" data-peer-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readPeerConfig() {
+  return normalizePeerConfig({
+    target: els.peerTarget.value,
+    peerBasket: els.peerBasket.value,
+    factor: els.peerFactor.value,
+    riskPenalty: Number(els.peerRiskPenalty.value),
+    valuationWeight: Number(els.peerValuationWeight.value),
+    evidenceMode: els.peerEvidenceMode.value
+  });
+}
+
+function syncPeerInputs() {
+  if (!els.peerTarget) return;
+  syncPeerTargetOptions();
+  const config = normalizePeerConfig(state.peerConfig || getDefaultPeerConfig());
+  els.peerTarget.value = config.target;
+  els.peerBasket.value = config.peerBasket;
+  els.peerFactor.value = config.factor;
+  els.peerRiskPenalty.value = String(config.riskPenalty);
+  els.peerValuationWeight.value = String(config.valuationWeight);
+  els.peerEvidenceMode.value = config.evidenceMode;
+}
+
+function syncPeerTargetOptions() {
+  if (!els.peerTarget) return;
+  const companies = getCompanies();
+  const selected = normalizeTicker((state.peerConfig && state.peerConfig.target) || "NSCP");
+  const options = companies.map((company) => company.ticker);
+  if (!options.includes(selected)) options.unshift(selected);
+  els.peerTarget.innerHTML = Array.from(new Set(options)).map((ticker) => {
+    const company = getCompany(ticker) || { name: ticker };
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name)}</option>`;
+  }).join("");
+}
+
+function normalizePeerConfig(config) {
+  const defaults = getDefaultPeerConfig();
+  return {
+    target: normalizeTicker(config.target || defaults.target),
+    peerBasket: String(config.peerBasket || defaults.peerBasket).slice(0, 120),
+    factor: normalizeChoice(config.factor, ["Quality growth", "Margin durability", "Risk-adjusted value", "Management tone"], defaults.factor),
+    riskPenalty: clampNumber(config.riskPenalty, 0, 60, defaults.riskPenalty),
+    valuationWeight: clampNumber(config.valuationWeight, 0, 60, defaults.valuationWeight),
+    evidenceMode: normalizeChoice(config.evidenceMode, ["Cited answer", "Enabled docs", "All coverage"], defaults.evidenceMode)
+  };
+}
+
+function getDefaultPeerConfig() {
+  return {
+    target: "NSCP",
+    peerBasket: "NSCP, AURR, HLGD",
+    factor: "Quality growth",
+    riskPenalty: 24,
+    valuationWeight: 18,
+    evidenceMode: "Cited answer"
+  };
+}
+
+function loadPeerConfig() {
+  return normalizePeerConfig(loadJson(STORAGE_KEYS.peer, getDefaultPeerConfig()));
+}
+
+function savePeerConfig() {
+  saveJson(STORAGE_KEYS.peer, normalizePeerConfig(state.peerConfig || getDefaultPeerConfig()));
+}
+
+function hydratePeerFromCurrentFocus() {
+  const focus = state.tickerFocus || resolveTickerFocus(els.queryInput?.value || "") || null;
+  const target = focus ? focus.ticker : (state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker);
+  const citedTickers = Array.from(new Set(state.currentCitations.map((citation) => citation.ticker)));
+  const basket = citedTickers.length >= 2 ? citedTickers : SAMPLE_COMPANIES.map((company) => company.ticker);
+  state.peerConfig = normalizePeerConfig({
+    ...(state.peerConfig || getDefaultPeerConfig()),
+    target,
+    peerBasket: Array.from(new Set([target, ...basket])).join(", "),
+    factor: state.lastAnswerModel && state.lastAnswerModel.intentId === "risk" ? "Risk-adjusted value" : "Quality growth",
+    evidenceMode: state.currentCitations.length ? "Cited answer" : "Enabled docs"
+  });
+}
+
+function exportPeerBrief() {
+  const snapshot = state.currentPeer || buildPeerSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Peer Benchmark Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Screen Configuration",
+    "",
+    `- Target ticker: ${snapshot.config.target}`,
+    `- Peer basket: ${snapshot.config.peerBasket}`,
+    `- Primary factor: ${snapshot.config.factor}`,
+    `- Risk penalty: ${snapshot.config.riskPenalty}%`,
+    `- Valuation weight: ${snapshot.config.valuationWeight}%`,
+    `- Evidence mode: ${snapshot.config.evidenceMode}`,
+    "",
+    "## Ranking",
+    "",
+    ...snapshot.rows.map((row) => `- #${row.rank} ${row.ticker}: ${row.score}/100 - ${row.reason}`),
+    "",
+    "## Factor Gaps",
+    "",
+    ...(snapshot.gapRows.length ? snapshot.gapRows.map((row) => `- ${row.status.toUpperCase()}: ${row.label} ${row.target} vs ${row.benchmark} - ${row.note}`) : ["- No factor gaps generated."]),
+    "",
+    "## Diligence Queue",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This peer screen is a static research workflow aid. Production should refresh fundamentals, market data, and filing-derived factors from audited data pipelines before relying on rankings for live investment workflows."
+  ].join("\n");
+  downloadTextFile(`citealpha-peer-benchmark-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportPeerBrief, "Exported");
+}
+
+function renderStressLab() {
+  if (!els.stressMetricGrid) return;
+  if (!state.stressConfig) state.stressConfig = loadStressConfig();
+  syncStressInputs();
+  const snapshot = buildStressSnapshot();
+  state.currentStress = snapshot;
+  els.stressMetricGrid.innerHTML = [
+    { label: "Most exposed", value: snapshot.mostExposed ? snapshot.mostExposed.ticker : "None", sub: snapshot.mostExposed ? `${snapshot.mostExposed.valueImpact}% value hit` : "Add coverage names" },
+    { label: "Portfolio hit", value: `${snapshot.portfolioImpact}%`, sub: `${snapshot.config.weightMode} basis` },
+    { label: "Avg resilience", value: `${snapshot.avgResilience}/100`, sub: snapshot.avgResilience >= 65 ? "Shock is absorbable" : "Pressure case" },
+    { label: "Break risks", value: String(snapshot.breakRows.length), sub: snapshot.config.preset }
+  ].map((metric) => `
+    <div class="stress-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.stressRankingCount.textContent = `${snapshot.rows.length} names`;
+  els.stressRankingList.innerHTML = renderStressRanking(snapshot.rows);
+  els.stressPortfolioImpact.textContent = `${snapshot.portfolioImpact}%`;
+  els.stressPortfolioBoard.innerHTML = renderStressPortfolioBoard(snapshot);
+  els.stressActionCount.textContent = String(snapshot.actionRows.length);
+  els.stressActionQueue.innerHTML = renderStressActionQueue(snapshot.actionRows);
+}
+
+function buildStressSnapshot() {
+  const config = normalizeStressConfig(state.stressConfig || getDefaultStressConfig());
+  const companies = resolveStressCompanies(config);
+  const weightMap = buildStressWeightMap(config, companies);
+  const rows = companies.map((company) => scoreStressCompany(company, config, weightMap)).sort((a, b) => b.valueImpact - a.valueImpact);
+  const mostExposed = rows[0] || null;
+  const breakRows = rows.filter((row) => row.status !== "resilient");
+  const portfolioImpact = Math.round(rows.reduce((sum, row) => sum + row.valueImpact * (row.weight / 100), 0));
+  const avgResilience = rows.length
+    ? Math.round(rows.reduce((sum, row) => sum + row.resilience, 0) / rows.length)
+    : 0;
+  const actionRows = buildStressActions(rows, config);
+  return {
+    config,
+    companies,
+    rows,
+    mostExposed,
+    breakRows,
+    portfolioImpact,
+    avgResilience,
+    actionRows
+  };
+}
+
+function resolveStressCompanies(config) {
+  const tickers = Array.from(new Set(String(config.tickers || "")
+    .split(/[,;\s]+/)
+    .map(normalizeTicker)
+    .filter((ticker) => ticker && ticker !== "CUSTOM")));
+  const resolved = tickers.map(resolvePeerCompany).filter(Boolean);
+  return resolved.length ? resolved : SAMPLE_COMPANIES.map((company) => normalizePeerCompany(company));
+}
+
+function buildStressWeightMap(config, companies) {
+  const map = new Map();
+  if (config.weightMode === "Target only") {
+    const first = companies[0];
+    if (first) map.set(first.ticker, 100);
+    companies.slice(1).forEach((company) => map.set(company.ticker, 0));
+    return map;
+  }
+  if (config.weightMode === "Portfolio weights" && state.portfolioPositions.length) {
+    const resolved = normalizePortfolioWeights(state.portfolioPositions);
+    resolved.forEach((position) => {
+      const company = resolvePortfolioCompany(position.ticker);
+      map.set(company.proxyTicker || company.ticker, (map.get(company.proxyTicker || company.ticker) || 0) + position.weight);
+      map.set(position.ticker, (map.get(position.ticker) || 0) + position.weight);
+    });
+    companies.forEach((company) => {
+      if (!map.has(company.ticker)) map.set(company.ticker, 0);
+    });
+    return map;
+  }
+  const equal = companies.length ? 100 / companies.length : 0;
+  companies.forEach((company) => map.set(company.ticker, equal));
+  return map;
+}
+
+function scoreStressCompany(company, config, weightMap) {
+  const netDebtRatio = Number(company.revenue) ? Math.max(0, Number(company.netDebt || 0) / Math.max(1, Number(company.revenue))) : 0;
+  const ratePressure = (config.rateShock / 100) * (0.06 * company.multiple + netDebtRatio * 8 + company.risk / 160);
+  const demandPressure = config.demandShock * (0.34 + company.risk / 230 + Math.max(0, company.growth) / 260);
+  const marginPressure = (config.marginShock / 100) * (0.9 + Math.max(0, 18 - company.fcfMargin) / 30);
+  const inflationPressure = config.inflationDrag * (0.5 + Math.max(0, 45 - company.grossMargin) / 70);
+  const cashBuffer = Math.max(0, -Number(company.netDebt || 0)) * 0.55 + Math.max(0, company.fcfMargin) * 0.25;
+  const valueImpact = Math.max(2, Math.min(75, Math.round(ratePressure + demandPressure + marginPressure + inflationPressure - cashBuffer)));
+  const cashFlowAfterShock = Math.round((company.fcfMargin || 0) - config.marginShock / 100 - config.inflationDrag * 0.35 - netDebtRatio * (config.rateShock / 120));
+  const resilience = Math.max(5, Math.min(99, Math.round(100 - valueImpact - company.risk * 0.18 + company.fcfMargin * 0.45 + (company.netDebt < 0 ? 6 : 0))));
+  const status = valueImpact >= 32 || cashFlowAfterShock < 0 ? "break" : valueImpact >= 18 ? "watch" : "resilient";
+  const weight = Math.max(0, Math.round((weightMap.get(company.ticker) || 0) * 10) / 10);
+  return {
+    ...company,
+    valueImpact,
+    cashFlowAfterShock,
+    resilience,
+    status,
+    weight,
+    ratePressure: Math.round(ratePressure),
+    demandPressure: Math.round(demandPressure),
+    marginPressure: Math.round(marginPressure),
+    inflationPressure: Math.round(inflationPressure),
+    reason: makeStressReason(company, valueImpact, cashFlowAfterShock, config)
+  };
+}
+
+function makeStressReason(company, valueImpact, cashFlowAfterShock, config) {
+  if (cashFlowAfterShock < 0) return `${company.ticker} turns FCF negative after ${config.marginShock} bps margin compression and ${config.inflationDrag}% inflation drag.`;
+  if (valueImpact >= 32) return `${company.ticker} absorbs a heavy ${valueImpact}% value hit under ${config.preset.toLowerCase()}.`;
+  if (valueImpact >= 18) return `${company.ticker} needs monitoring; value hit is ${valueImpact}% but FCF remains ${cashFlowAfterShock}%.`;
+  return `${company.ticker} holds up with ${cashFlowAfterShock}% stressed FCF margin and ${valueImpact}% value impact.`;
+}
+
+function buildStressActions(rows, config) {
+  const actions = rows.slice(0, 4).map((row) => ({
+    ticker: row.ticker,
+    priority: row.status === "break" ? "High" : row.status === "watch" ? "Medium" : "Low",
+    question: makeStressQuestion(row, config)
+  }));
+  if (!actions.some((row) => row.priority === "High") && rows[0]) {
+    actions.unshift({
+      ticker: rows[0].ticker,
+      priority: "Medium",
+      question: `What evidence would prove $${rows[0].ticker} is more resilient than the ${config.preset.toLowerCase()} stress model suggests?`
+    });
+  }
+  return actions.slice(0, 5);
+}
+
+function makeStressQuestion(row, config) {
+  if (row.cashFlowAfterShock < 0) return `Which filings show whether $${row.ticker} can protect cash flow if margins compress by ${config.marginShock} bps?`;
+  if (row.ratePressure >= row.demandPressure && row.ratePressure >= row.marginPressure) return `How exposed is $${row.ticker} to refinancing, discount-rate, or duration risk if rates rise ${config.rateShock} bps?`;
+  if (row.demandPressure >= row.marginPressure) return `What demand indicators would confirm or refute the ${config.demandShock}% revenue shock for $${row.ticker}?`;
+  return `Can $${row.ticker} offset ${config.marginShock} bps of margin pressure through pricing, mix, or cost cuts?`;
+}
+
+function renderStressRanking(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No stress set available</strong>
+        <span>Add tickers, then run the scenario stress test.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="stress-rank-row ${escapeAttr(row.status)}">
+      <span>${escapeHtml(row.status === "break" ? "Break" : row.status === "watch" ? "Watch" : "Hold")}</span>
+      <div>
+        <strong>${escapeHtml(row.ticker)} - ${escapeHtml(row.name)}</strong>
+        <em>${escapeHtml(row.reason)}</em>
+      </div>
+      <b>${escapeHtml(String(row.valueImpact))}%</b>
+    </div>
+  `).join("");
+}
+
+function renderStressPortfolioBoard(snapshot) {
+  if (!snapshot.rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No portfolio impact yet</strong>
+        <span>Run the stress test to see weighted exposure.</span>
+      </div>
+    `;
+  }
+  return snapshot.rows.map((row) => `
+    <div class="stress-impact-row">
+      <div>
+        <strong>${escapeHtml(row.ticker)} | ${escapeHtml(String(row.weight))}% weight</strong>
+        <span>Resilience ${escapeHtml(String(row.resilience))}/100 | stressed FCF ${escapeHtml(String(row.cashFlowAfterShock))}%</span>
+      </div>
+      <i><b style="width:${escapeAttr(String(Math.min(100, Math.max(6, row.valueImpact * 1.6))))}%"></b></i>
+    </div>
+  `).join("");
+}
+
+function renderStressActionQueue(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No stress actions yet</strong>
+        <span>Run a scenario to generate follow-up research questions.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <button class="stress-action-row" type="button" data-stress-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readStressConfig() {
+  return normalizeStressConfig({
+    preset: els.stressPreset.value,
+    tickers: els.stressTickers.value,
+    rateShock: Number(els.stressRateShock.value),
+    demandShock: Number(els.stressDemandShock.value),
+    marginShock: Number(els.stressMarginShock.value),
+    inflationDrag: Number(els.stressInflationDrag.value),
+    weightMode: els.stressWeightMode.value
+  });
+}
+
+function syncStressInputs() {
+  if (!els.stressPreset) return;
+  const config = normalizeStressConfig(state.stressConfig || getDefaultStressConfig());
+  els.stressPreset.value = config.preset;
+  els.stressTickers.value = config.tickers;
+  els.stressRateShock.value = String(config.rateShock);
+  els.stressDemandShock.value = String(config.demandShock);
+  els.stressMarginShock.value = String(config.marginShock);
+  els.stressInflationDrag.value = String(config.inflationDrag);
+  els.stressWeightMode.value = config.weightMode;
+}
+
+function normalizeStressConfig(config) {
+  const defaults = getDefaultStressConfig();
+  return {
+    preset: normalizeChoice(config.preset, ["Rates stay high", "Demand air pocket", "Margin squeeze", "Funding stress", "Base recession"], defaults.preset),
+    tickers: String(config.tickers || defaults.tickers).slice(0, 140),
+    rateShock: clampNumber(config.rateShock, 0, 800, defaults.rateShock),
+    demandShock: clampNumber(config.demandShock, 0, 60, defaults.demandShock),
+    marginShock: clampNumber(config.marginShock, 0, 1000, defaults.marginShock),
+    inflationDrag: clampNumber(config.inflationDrag, 0, 25, defaults.inflationDrag),
+    weightMode: normalizeChoice(config.weightMode, ["Equal weight", "Portfolio weights", "Target only"], defaults.weightMode)
+  };
+}
+
+function getDefaultStressConfig() {
+  return {
+    preset: "Rates stay high",
+    tickers: "NSCP, AURR, HLGD",
+    rateShock: 150,
+    demandShock: 12,
+    marginShock: 250,
+    inflationDrag: 3,
+    weightMode: "Equal weight"
+  };
+}
+
+function getStressPreset(name, current = getDefaultStressConfig()) {
+  const base = normalizeStressConfig(current);
+  const presets = {
+    "Rates stay high": { rateShock: 175, demandShock: 10, marginShock: 180, inflationDrag: 3 },
+    "Demand air pocket": { rateShock: 75, demandShock: 24, marginShock: 220, inflationDrag: 2 },
+    "Margin squeeze": { rateShock: 75, demandShock: 10, marginShock: 425, inflationDrag: 6 },
+    "Funding stress": { rateShock: 300, demandShock: 14, marginShock: 250, inflationDrag: 4 },
+    "Base recession": { rateShock: 125, demandShock: 30, marginShock: 350, inflationDrag: 5 }
+  };
+  return normalizeStressConfig({
+    ...base,
+    ...(presets[name] || presets["Rates stay high"]),
+    preset: name
+  });
+}
+
+function loadStressConfig() {
+  return normalizeStressConfig(loadJson(STORAGE_KEYS.stress, getDefaultStressConfig()));
+}
+
+function saveStressConfig() {
+  saveJson(STORAGE_KEYS.stress, normalizeStressConfig(state.stressConfig || getDefaultStressConfig()));
+}
+
+function hydrateStressFromPortfolio() {
+  const tickers = state.portfolioPositions.length
+    ? normalizePortfolioWeights(state.portfolioPositions).map((position) => position.ticker)
+    : SAMPLE_COMPANIES.map((company) => company.ticker);
+  state.stressConfig = normalizeStressConfig({
+    ...(state.stressConfig || getDefaultStressConfig()),
+    tickers: Array.from(new Set(tickers)).join(", "),
+    weightMode: state.portfolioPositions.length ? "Portfolio weights" : "Equal weight"
+  });
+}
+
+function exportStressBrief() {
+  const snapshot = state.currentStress || buildStressSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Scenario Stress Test Memo",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Scenario",
+    "",
+    `- Preset: ${snapshot.config.preset}`,
+    `- Coverage tickers: ${snapshot.config.tickers}`,
+    `- Rate shock: ${snapshot.config.rateShock} bps`,
+    `- Demand shock: ${snapshot.config.demandShock}%`,
+    `- Margin shock: ${snapshot.config.marginShock} bps`,
+    `- Inflation drag: ${snapshot.config.inflationDrag}%`,
+    `- Weight mode: ${snapshot.config.weightMode}`,
+    "",
+    "## Stress Scorecard",
+    "",
+    `- Most exposed: ${snapshot.mostExposed ? snapshot.mostExposed.ticker : "None"}`,
+    `- Portfolio impact: ${snapshot.portfolioImpact}%`,
+    `- Average resilience: ${snapshot.avgResilience}/100`,
+    `- Break/watch names: ${snapshot.breakRows.length}`,
+    "",
+    "## Company Stress Ranking",
+    "",
+    ...snapshot.rows.map((row) => `- ${row.status.toUpperCase()} ${row.ticker}: ${row.valueImpact}% value hit, ${row.resilience}/100 resilience, stressed FCF ${row.cashFlowAfterShock}% - ${row.reason}`),
+    "",
+    "## Action Queue",
+    "",
+    ...snapshot.actionRows.map((row) => `- ${row.priority}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This stress lab is a static scenario model for product workflow design. Production should connect normalized financial statements, debt schedules, segment exposures, and live market data before using scenario outputs for live research decisions."
+  ].join("\n");
+  downloadTextFile(`citealpha-scenario-stress-test-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportStressBrief, "Exported");
+}
+
+function exportFounderBrief() {
+  const snapshot = buildOpsSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Founder Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Operating Snapshot",
+    "",
+    `- Pilot leads: ${snapshot.leadCount}`,
+    `- Lead quality: ${snapshot.leadScore}/100`,
+    `- Research questions run: ${snapshot.questionRuns}`,
+    `- Imported sources: ${state.uploadedDocs.length}`,
+    `- Saved briefs: ${state.notes.length}`,
+    `- Security posture: ${snapshot.securityScore}/100`,
+    `- Launch readiness: ${snapshot.readiness.score}%`,
+    "",
+    "## Demand Signals",
+    "",
+    ...(snapshot.tickerCounts.length ? snapshot.tickerCounts.slice(0, 6).map((item) => `- ${item.ticker}: ${item.count} signal${item.count === 1 ? "" : "s"}`) : ["- No ticker demand captured yet."]),
+    "",
+    "## Launch Readiness",
+    "",
+    ...snapshot.readiness.items.map((item) => `- ${item.statusLabel}: ${item.label} - ${item.note}`),
+    "",
+    "## Next Move",
+    "",
+    `- ${snapshot.priority.label}: ${snapshot.priority.note}`,
+    "",
+    "## Product Note",
+    "",
+    "CiteAlpha is still a prototype. Before paid launch, move API fetching, key storage, user accounts, billing, and scheduled SEC refresh jobs behind a backend with authentication, rate limits, audit logs, and secret management."
+  ].join("\n");
+  downloadTextFile(`citealpha-founder-brief-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportFounderBrief, "Exported");
+}
+
 function copyCurrentBrief() {
   if (!state.lastBrief) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2007,7 +6763,12 @@ function saveCurrentBrief() {
   };
   state.notes = [note, ...state.notes].slice(0, 10);
   saveJson(STORAGE_KEYS.notes, state.notes);
+  recordWorkflowEvent("save", {
+    ticker: note.intent,
+    title: note.title
+  });
   renderNotebook();
+  renderLaunchOps();
 }
 
 function exportMarkdownBrief() {
@@ -2116,6 +6877,7 @@ function buildPdfMemoBlocks() {
       ]
     },
     { type: "audit", text: makePdfSourceAuditLine(model) },
+    { type: "audit", text: makePdfSecurityLine() },
     { type: "heading", text: "Bottom line" },
     { type: "callout", text: getMemoThesis(model) }
   ];
@@ -2146,8 +6908,13 @@ function buildPdfMemoBlocks() {
     });
   }
 
-  blocks.push({ type: "heading", text: "Committee cues" });
-  blocks.push({ type: "cueGrid", items: makeDecisionCues(model, company) });
+  if (model.copilot && model.copilot.checklist) {
+    blocks.push({ type: "heading", text: "Committee checklist" });
+    blocks.push({ type: "checklist", items: model.copilot.checklist, score: model.copilot.averageScore });
+  } else {
+    blocks.push({ type: "heading", text: "Committee cues" });
+    blocks.push({ type: "cueGrid", items: makeDecisionCues(model, company) });
+  }
 
   blocks.push({ type: "heading", text: "Valuation read-through" });
   blocks.push({ type: "callout", text: getMemoValuation() });
@@ -2176,6 +6943,14 @@ function makePdfSourceAuditLine(model) {
   const audit = model && model.sourceAudit;
   if (!audit) return "Source audit: Evidence quality pending.";
   return `Source audit: ${audit.quality}/100 quality | ${audit.coverageLabel} coverage | Data: ${audit.dataLabel || "Sample"} | Mix: ${audit.balance}`;
+}
+
+function makePdfSecurityLine() {
+  const posture = summarizeSecurityPosture();
+  const findingText = posture.findings.length
+    ? `${posture.findings.length} source/security finding${posture.findings.length === 1 ? "" : "s"} flagged`
+    : "no risky patterns detected";
+  return `Security posture: ${posture.score}/100 | ${posture.secretPosture} | ${posture.ragGuard} | ${findingText}`;
 }
 
 function createSimplePdf(blocks) {
@@ -2272,10 +7047,10 @@ function createSimplePdf(blocks) {
     const body = `${block.body} [${block.citation}]`;
     const severityColor = block.severity === "High" ? "0.70 0.15 0.12" : "0.67 0.39 0.00";
     const severityBg = block.severity === "High" ? "0.99 0.92 0.92" : "1 0.95 0.86";
-    const titleLines = wrapPdfText(block.title, Math.floor((maxWidth - 98) / (10.8 * 0.52))).slice(0, 2);
-    const lines = wrapPdfText(body, Math.floor((maxWidth - 36) / (9.8 * 0.52)));
-    const bodyStart = y - 50 - titleLines.length * 7;
-    const height = Math.max(96, 56 + titleLines.length * 8 + lines.length * 12.5);
+    const titleLines = wrapPdfText(block.title, Math.floor((maxWidth - 98) / (10.4 * 0.52))).slice(0, 2);
+    const lines = wrapPdfText(body, Math.floor((maxWidth - 36) / (9.1 * 0.52))).slice(0, 4);
+    const bodyStart = y - 44 - titleLines.length * 6;
+    const height = Math.max(78, 48 + titleLines.length * 7 + lines.length * 10.8);
     ensureSpace(height + 6);
     addFillRect(margin, y - height, maxWidth, height, "1 1 1");
     addStrokeRect(margin, y - height, maxWidth, height, block.severity === "High" ? "0.70 0.15 0.12" : "0.70 0.41 0.00", 0.7);
@@ -2283,8 +7058,8 @@ function createSimplePdf(blocks) {
     addTextLine(`R${block.number}`, margin + 16, y - 19, { size: 8, font: "F2", color: severityColor });
     addFillRect(margin + 10, y - 48, 56, 17, severityBg);
     addTextLine(block.severity.toUpperCase(), margin + 19, y - 42, { size: 7.2, font: "F2", color: severityColor });
-    addWrappedAt(block.title, margin + 76, y - 18, maxWidth - 96, { size: 10.8, font: "F2", leading: 13, maxLines: 2, color: "0.07 0.09 0.09" });
-    addWrappedAt(body, margin + 18, bodyStart, maxWidth - 36, { size: 9.8, leading: 12.5, justify: true, maxLines: 8 });
+    addWrappedAt(block.title, margin + 76, y - 18, maxWidth - 96, { size: 10.4, font: "F2", leading: 12, maxLines: 2, color: "0.07 0.09 0.09" });
+    addWrappedAt(body, margin + 18, bodyStart, maxWidth - 36, { size: 9.1, leading: 10.8, justify: true, maxLines: 4 });
     y -= height + 8;
   };
   const addCueGrid = (block) => {
@@ -2302,6 +7077,35 @@ function createSimplePdf(blocks) {
     });
     y -= cardHeight + 12;
   };
+  const addChecklist = (block) => {
+    const items = block.items || [];
+    if (!items.length) return;
+    const columns = items.length > 3 ? 2 : 1;
+    const rowHeight = 23;
+    const rowCount = Math.ceil(items.length / columns);
+    const gap = 14;
+    const colWidth = (maxWidth - gap * (columns - 1)) / columns;
+    const height = 34 + rowCount * rowHeight;
+    ensureSpace(height + 8);
+    addFillRect(margin, y - height, maxWidth, height, "0.98 0.99 0.99");
+    addStrokeRect(margin, y - height, maxWidth, height, "0.84 0.87 0.86", 0.6);
+    addTextLine("COMMITTEE READINESS", margin + 12, y - 16, { size: 7.5, font: "F2", color: "0.09 0.46 0.43" });
+    addTextLine(`${block.score || 0}/100`, pageWidth - margin - 54, y - 16, { size: 11, font: "F2", color: "0.07 0.09 0.09" });
+    items.forEach((item, index) => {
+      const column = index % columns;
+      const rowIndex = Math.floor(index / columns);
+      const x = margin + column * (colWidth + gap);
+      const rowY = y - 40 - rowIndex * rowHeight;
+      const score = Math.max(0, Math.min(100, Number(item.score) || 0));
+      const barX = x + 116;
+      const barWidth = Math.max(72, colWidth - 150);
+      addTextLine(snippet(item.label, 22), x + 12, rowY + 2, { size: 8.1, font: "F2", color: "0.15 0.2 0.19" });
+      addFillRect(barX, rowY - 4, barWidth, 7, "0.89 0.92 0.91");
+      addFillRect(barX, rowY - 4, barWidth * (score / 100), 7, score >= 72 ? "0.25 0.63 0.35" : score >= 55 ? "0.70 0.41 0.00" : "0.70 0.15 0.12");
+      addTextLine(String(score), x + colWidth - 24, rowY, { size: 8.2, font: "F2", color: "0.07 0.09 0.09" });
+    });
+    y -= height + 10;
+  };
   const addEvidenceCard = (block) => {
     ensureSpace(70);
     addFillRect(margin, y - 60, maxWidth, 60, "1 1 1");
@@ -2314,10 +7118,11 @@ function createSimplePdf(blocks) {
   const addSourceTable = (block) => {
     if (!block.rows.length) return;
     const rows = block.rows.slice(0, 6);
-    const gap = 8;
-    const cardWidth = (maxWidth - gap) / 2;
-    const cardHeight = 58;
-    const rowCount = Math.ceil(rows.length / 2);
+    const columns = rows.length > 4 ? 3 : 2;
+    const gap = 7;
+    const cardWidth = (maxWidth - gap * (columns - 1)) / columns;
+    const cardHeight = 52;
+    const rowCount = Math.ceil(rows.length / columns);
     const totalHeight = 28 + rowCount * cardHeight + Math.max(0, rowCount - 1) * gap + 4;
     ensureSpace(totalHeight);
     addFillRect(margin, y - 22, maxWidth, 22, "0.07 0.09 0.09");
@@ -2325,17 +7130,17 @@ function createSimplePdf(blocks) {
     addTextLine(`${rows.length} passages sorted by relevance`, pageWidth - margin - 142, y - 14, { size: 7.2, font: "F2", color: "1 1 1" });
     y -= 30;
     rows.forEach((row, index) => {
-      const column = index % 2;
-      const rowIndex = Math.floor(index / 2);
+      const column = index % columns;
+      const rowIndex = Math.floor(index / columns);
       const x = margin + column * (cardWidth + gap);
       const top = y - rowIndex * (cardHeight + gap);
       addFillRect(x, top - cardHeight, cardWidth, cardHeight, "1 1 1");
       addStrokeRect(x, top - cardHeight, cardWidth, cardHeight, "0.84 0.87 0.86", 0.45);
       addFillRect(x + 8, top - 22, 26, 15, "0.89 0.95 0.94");
       addTextLine(row.id, x + 14, top - 17, { size: 7.5, font: "F2", color: "0.09 0.46 0.43" });
-      addWrappedAt(`${row.score} | ${snippet(row.source, 38)}`, x + 42, top - 14, cardWidth - 52, { size: 7.4, font: "F2", leading: 9, maxLines: 1 });
-      addWrappedAt(snippet(row.section, 58), x + 9, top - 33, cardWidth - 18, { size: 7.8, leading: 9, maxLines: 1, color: "0.15 0.2 0.19" });
-      addWrappedAt(snippet(row.text, 115), x + 9, top - 46, cardWidth - 18, { size: 7.1, leading: 8.3, maxLines: 1, color: "0.39 0.44 0.43" });
+      addWrappedAt(`${row.score} | ${snippet(row.source, 26)}`, x + 42, top - 14, cardWidth - 52, { size: 7.1, font: "F2", leading: 8.6, maxLines: 1 });
+      addWrappedAt(snippet(row.section, 42), x + 9, top - 32, cardWidth - 18, { size: 7.4, leading: 8.4, maxLines: 1, color: "0.15 0.2 0.19" });
+      addWrappedAt(snippet(row.text, 76), x + 9, top - 44, cardWidth - 18, { size: 6.8, leading: 7.8, maxLines: 1, color: "0.39 0.44 0.43" });
     });
     y -= rowCount * cardHeight + Math.max(0, rowCount - 1) * gap + 8;
   };
@@ -2370,6 +7175,7 @@ function createSimplePdf(blocks) {
     else if (block.type === "callout") addCallout(block.text);
     else if (block.type === "riskCard") addRiskCard(block);
     else if (block.type === "cueGrid") addCueGrid(block);
+    else if (block.type === "checklist") addChecklist(block);
     else if (block.type === "evidenceCard") addEvidenceCard(block);
     else if (block.type === "sourceTable") addSourceTable(block);
     else if (block.type === "eyebrow") addText(block.text, { size: 10, font: "F2", leading: 13, gapAfter: 4 });
@@ -2811,6 +7617,12 @@ async function submitWaitlistLead() {
   };
   state.waitlistLeads = [lead, ...state.waitlistLeads].slice(0, 50);
   saveJson(STORAGE_KEYS.waitlist, state.waitlistLeads);
+  recordWorkflowEvent("lead", {
+    ticker: lead.tickers || inferTickerFromQuestion(lead.question) || "",
+    plan: lead.plan,
+    need: lead.need
+  });
+  renderLaunchOps();
 
   const summary = [
     "CiteAlpha waitlist lead",
@@ -3014,6 +7826,7 @@ function makeBridgeDoc({ ticker, company, title, type, text, sourceKind, date })
     sections: splitImportedText(String(text || "").replace(/\s+/g, " ").trim())
   };
   doc.sourceQuality = assessSourceQuality(doc);
+  doc.securityAudit = assessDocumentSecurity(doc);
   return doc;
 }
 
@@ -3049,6 +7862,7 @@ function makeUploadedDoc({ ticker, title, type, text }) {
     sections: splitImportedText(cleanText)
   };
   doc.sourceQuality = assessSourceQuality(doc);
+  doc.securityAudit = assessDocumentSecurity(doc);
   return doc;
 }
 
@@ -3066,11 +7880,19 @@ function addUploadedDocs(docs, options = {}) {
     state.activeTickers.add(doc.ticker);
   });
   saveJson(STORAGE_KEYS.uploads, state.uploadedDocs);
+  recordWorkflowEvent("import", {
+    ticker: Array.from(new Set(filtered.map((doc) => doc.ticker))).join(", "),
+    count: filtered.length,
+    source: options.sourceLabel || "manual import"
+  });
   renderCoverage();
   renderLibrary();
   renderSourceQuality();
+  renderSecurityPosture();
   renderContextBand();
+  renderMarketStatusRail();
   renderValuationOptions();
+  renderLaunchOps();
   drawSignalMap();
 }
 
@@ -3088,6 +7910,7 @@ function normalizeUploadedDoc(doc) {
   };
   normalized.company = normalized.company || `${normalized.ticker} imported corpus`;
   normalized.sourceQuality = assessSourceQuality(normalized);
+  normalized.securityAudit = assessDocumentSecurity(normalized);
   return normalized;
 }
 
@@ -3113,11 +7936,71 @@ function assessSourceQuality(doc) {
   };
 }
 
+function assessDocumentSecurity(doc) {
+  const text = [
+    doc.ticker,
+    doc.company,
+    doc.type,
+    doc.period,
+    ...(doc.sections || []).map((section) => `${section.title} ${section.text}`)
+  ].join(" ");
+  return assessTextSecurity(text, getDocSourceLabel(doc));
+}
+
+function assessTextSecurity(text, label = "Text") {
+  const value = String(text || "");
+  const findings = SECURITY_PATTERNS
+    .filter((rule) => rule.pattern.test(value))
+    .map((rule) => ({
+      id: rule.id,
+      label: rule.label,
+      severity: rule.severity,
+      advice: rule.advice
+    }));
+  const highCount = findings.filter((finding) => finding.severity === "high").length;
+  const mediumCount = findings.filter((finding) => finding.severity === "medium").length;
+  const score = Math.max(30, 100 - highCount * 28 - mediumCount * 14);
+  const level = highCount ? "high" : mediumCount ? "medium" : "low";
+  const summary = findings.length
+    ? `${label} flagged ${findings.length} pattern${findings.length === 1 ? "" : "s"}`
+    : `${label} clear`;
+  return {
+    score,
+    level,
+    findings,
+    summary
+  };
+}
+
+function summarizeSecurityPosture() {
+  const enabledDocs = state.uploadedDocs.filter((doc) => state.enabledDocIds.has(doc.id));
+  const docs = enabledDocs.length ? enabledDocs : state.uploadedDocs;
+  const audits = docs.map((doc) => doc.securityAudit || assessDocumentSecurity(doc));
+  const findings = audits.flatMap((audit) => audit.findings || []);
+  const sourceScore = audits.length
+    ? Math.round(audits.reduce((sum, audit) => sum + (audit.score || 100), 0) / audits.length)
+    : 100;
+  const questionScore = state.lastQuestionSecurity ? state.lastQuestionSecurity.score : 100;
+  const providerPenalty = state.marketSettings.provider !== "demo" ? 3 : 0;
+  const score = Math.max(40, Math.min(100, Math.round((sourceScore * 0.65 + questionScore * 0.35) - providerPenalty)));
+  return {
+    score,
+    findings,
+    sourceScore,
+    questionScore,
+    ragGuard: findings.some((finding) => finding.id === "prompt-injection") ? "Flagged source text" : "Evidence-only mode",
+    secretPosture: findings.some((finding) => finding.id === "secret-leak") ? "Credential warning" : "No stored API keys",
+    importPosture: docs.length ? `${docs.length} checked` : "Sample only"
+  };
+}
+
 function summarizeImportAudit(docs, sourceLabel = "") {
   const first = docs[0];
   const sections = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.sections) || doc.sections.length), 0);
   const passages = docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.passages) || 0), 0);
   const quality = Math.round(docs.reduce((sum, doc) => sum + ((doc.sourceQuality && doc.sourceQuality.quality) || 50), 0) / docs.length);
+  const securityScore = Math.round(docs.reduce((sum, doc) => sum + ((doc.securityAudit && doc.securityAudit.score) || 100), 0) / docs.length);
+  const securityFindings = docs.flatMap((doc) => (doc.securityAudit && doc.securityAudit.findings) || []);
   const tickerList = Array.from(new Set(docs.map((doc) => doc.ticker))).join(", ");
   const typeList = Array.from(new Set(docs.map((doc) => shortDocType(doc.type)))).join(", ");
   return {
@@ -3127,6 +8010,10 @@ function summarizeImportAudit(docs, sourceLabel = "") {
     sections,
     passages,
     quality,
+    securityScore,
+    securityNote: securityFindings.length
+      ? `Security review flagged: ${securityFindings.slice(0, 2).map((finding) => finding.label).join(", ")}.`
+      : "Security scan clear.",
     note: `${sourceLabel ? `${sourceLabel}: ` : ""}${docs.length} imported source${docs.length === 1 ? "" : "s"} added and prioritized ahead of the sample corpus when enabled.${first ? ` Latest: ${first.period}.` : ""}`
   };
 }
@@ -3248,6 +8135,42 @@ function formatMoney(value) {
   return `$${(absolute * 1000).toFixed(0)}M`;
 }
 
+function formatMarketCap(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "n/a";
+  if (number >= 1e12) return `$${(number / 1e12).toFixed(2)}T`;
+  if (number >= 1e9) return `$${(number / 1e9).toFixed(1)}B`;
+  if (number >= 1e6) return `$${(number / 1e6).toFixed(0)}M`;
+  return `$${number.toFixed(0)}`;
+}
+
+function formatQuotePrice(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "n/a";
+  return `$${number.toFixed(number >= 100 ? 2 : 3)}`;
+}
+
+function formatQuoteMove(quote) {
+  const change = Number(quote && quote.change) || 0;
+  const percent = Number(quote && quote.changePercent) || 0;
+  const sign = change >= 0 ? "+" : "";
+  return `${sign}${change.toFixed(2)} (${sign}${percent.toFixed(2)}%)`;
+}
+
+function formatMetricValue(value, suffix = "") {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "n/a";
+  return `${number.toFixed(number >= 10 ? 1 : 2)}${suffix}`;
+}
+
+function countSourceKinds(docs) {
+  return docs.reduce((acc, doc) => {
+    const kind = getSourceKind(doc);
+    acc[kind] = (acc[kind] || 0) + 1;
+    return acc;
+  }, {});
+}
+
 function snippet(text, maxLength) {
   const clean = String(text || "").replace(/\s+/g, " ").trim();
   if (clean.length <= maxLength) return clean;
@@ -3258,6 +8181,14 @@ function stripHtml(html) {
   const div = document.createElement("div");
   div.innerHTML = html;
   return div.textContent || div.innerText || "";
+}
+
+function stripMarkdown(text) {
+  return String(text || "")
+    .replace(/`{1,3}/g, "")
+    .replace(/[#*_>\[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value) {

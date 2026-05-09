@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260508-07" />
+    <link rel="manifest" href="site.webmanifest?v=20260509-13" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -52,8 +52,8 @@
       .right-rail, .left-rail, .workbench { display: grid; gap: 12px; }
       @media (max-width: 900px) { .topbar, .terminal-layout { grid-template-columns: 1fr; } }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260508-07" />
-    <link rel="stylesheet" href="launch.css?v=20260508-07" />
+    <link rel="stylesheet" href="styles.css?v=20260509-09" />
+    <link rel="stylesheet" href="launch.css?v=20260509-13" />
   </head>
   <body>
     <div class="app-shell">
@@ -219,7 +219,34 @@
               <button class="secondary-button small" type="submit">Connect filings</button>
               <div class="sec-bridge-status" id="secBridgeStatus" aria-live="polite"></div>
             </form>
+            <form class="live-data-panel" id="liveDataForm" aria-label="Live market bridge">
+              <div>
+                <strong>Live market bridge</strong>
+                <span>Connect a quote provider when ready. Keys stay in this browser and are never bundled into the app.</span>
+              </div>
+              <div class="field-row">
+                <label>
+                  <span>Provider</span>
+                  <select id="marketProvider">
+                    <option value="demo">Demo quote</option>
+                    <option value="alpha-vantage">Alpha Vantage</option>
+                    <option value="fmp">Financial Modeling Prep</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Ticker</span>
+                  <input id="marketTicker" type="text" maxlength="8" value="NVDA" />
+                </label>
+              </div>
+              <label>
+                <span>API key</span>
+                <input id="marketApiKey" type="password" autocomplete="off" placeholder="Not needed for demo quote" />
+              </label>
+              <button class="secondary-button small" type="submit">Fetch quote</button>
+              <div class="live-data-status" id="liveDataStatus" aria-live="polite"></div>
+            </form>
             <div class="source-quality-panel" id="sourceQualityPanel" aria-live="polite"></div>
+            <div class="security-posture-panel" id="securityPosturePanel" aria-live="polite"></div>
             <form class="paste-form" id="pasteForm">
               <div class="field-row">
                 <label>
@@ -253,6 +280,8 @@
         <section class="workbench" aria-label="Research answer desk">
           <section class="query-panel">
             <div class="context-band" id="contextBand"></div>
+            <div class="market-status-rail" id="marketStatusRail" aria-live="polite"></div>
+            <div class="question-security-strip" id="questionSecurityStrip" aria-live="polite"></div>
             <form id="queryForm" class="query-form">
               <label for="queryInput">Ask the desk</label>
               <textarea
@@ -322,6 +351,7 @@
                 <strong id="equityValue">$0B</strong>
               </div>
             </div>
+            <div class="market-quote-card" id="marketQuoteCard"></div>
             <div class="slider-grid">
               <label>
                 <span>Revenue CAGR <b id="growthValue">0%</b></span>
@@ -487,11 +517,837 @@
         </div>
       </section>
 
+      <section class="launch-section ops-section" aria-labelledby="opsTitle" id="ops">
+        <div class="ops-header">
+          <div class="section-heading">
+            <span>Operations</span>
+            <h2 id="opsTitle">Pilot launch console.</h2>
+            <p>Track the first users, research workflows, product risk, and launch readiness from one founder view.</p>
+          </div>
+          <button class="secondary-button small" id="exportFounderBrief" type="button">Export founder brief</button>
+        </div>
+        <div class="ops-metric-grid" id="opsMetricGrid"></div>
+        <div class="ops-console-grid">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Lead Quality</span>
+              <strong id="leadQualityScore">0/100</strong>
+            </div>
+            <div id="leadQualityBoard"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Product Analytics</span>
+              <strong id="workflowScore">0 runs</strong>
+            </div>
+            <div id="workflowHeatmap"></div>
+          </article>
+        </div>
+        <div class="ops-console-grid secondary">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Launch Readiness</span>
+              <strong id="launchReadinessScore">0%</strong>
+            </div>
+            <div id="launchChecklist"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Next Operating Moves</span>
+              <strong id="opsPriority">Pilot</strong>
+            </div>
+            <div id="opsSignalGrid"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section portfolio-section" aria-labelledby="portfolioTitle" id="portfolio">
+        <div class="portfolio-header">
+          <div class="section-heading">
+            <span>Portfolio</span>
+            <h2 id="portfolioTitle">Portfolio intelligence workspace.</h2>
+            <p>Turn holdings into a ranked research queue with exposure, source coverage, market signal, and next-question prompts.</p>
+          </div>
+          <button class="secondary-button small" id="exportPortfolioBrief" type="button">Export portfolio brief</button>
+        </div>
+        <div class="portfolio-grid">
+          <article class="portfolio-builder">
+            <div class="ops-card-heading">
+              <span>Holdings Input</span>
+              <strong id="portfolioPositionCount">0 names</strong>
+            </div>
+            <textarea id="portfolioInput" rows="5" spellcheck="false">NVDA 35
+AAPL 25
+TSLA 20
+MSFT 15
+CASH 5</textarea>
+            <div class="portfolio-actions">
+              <button class="secondary-button small" id="applyPortfolio" type="button">Rebuild lens</button>
+              <button class="secondary-button small" id="useActiveTickers" type="button">Use active tickers</button>
+            </div>
+          </article>
+          <article class="portfolio-summary">
+            <div class="portfolio-metric-grid" id="portfolioMetricGrid"></div>
+          </article>
+        </div>
+        <div class="portfolio-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Priority Ranking</span>
+              <strong id="portfolioRiskScore">0/100</strong>
+            </div>
+            <div id="portfolioPriorityList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Scenario Board</span>
+              <strong id="portfolioScenarioLabel">Base</strong>
+            </div>
+            <div id="portfolioScenarioBoard"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Research Queue</span>
+              <strong id="portfolioQueueCount">0 asks</strong>
+            </div>
+            <div id="portfolioQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section committee-section" aria-labelledby="committeeTitle" id="committee">
+        <div class="committee-header">
+          <div class="section-heading">
+            <span>Committee</span>
+            <h2 id="committeeTitle">Investment committee room.</h2>
+            <p>Convert research into a disciplined decision memo with conviction, risk gates, sizing discipline, and saved decision history.</p>
+          </div>
+          <button class="secondary-button small" id="exportDecisionMemo" type="button">Export IC memo</button>
+        </div>
+        <div class="committee-grid">
+          <form class="decision-form" id="decisionForm">
+            <label>
+              <span>Ticker</span>
+              <input id="decisionTicker" type="text" value="NVDA" maxlength="8" />
+            </label>
+            <label>
+              <span>Decision</span>
+              <select id="decisionAction">
+                <option>Add</option>
+                <option>Buy</option>
+                <option>Hold</option>
+                <option>Trim</option>
+                <option>Avoid</option>
+              </select>
+            </label>
+            <label>
+              <span>Target weight</span>
+              <input id="decisionWeight" type="number" min="0" max="100" step="0.5" value="5" />
+            </label>
+            <label>
+              <span>Horizon</span>
+              <select id="decisionHorizon">
+                <option>12 months</option>
+                <option>3 months</option>
+                <option>3 years</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              <span>Thesis</span>
+              <textarea id="decisionThesis" rows="3">AI demand, margin resilience, and source-backed execution support a starter position while monitoring customer concentration.</textarea>
+            </label>
+            <label class="wide-field">
+              <span>Bear case</span>
+              <textarea id="decisionBear" rows="3">Customer procurement slows, supply commitments pressure cash conversion, or export controls reduce shipment timing.</textarea>
+            </label>
+            <label class="wide-field">
+              <span>Catalyst</span>
+              <input id="decisionCatalyst" type="text" value="Next earnings call confirms backlog durability and margin protection." />
+            </label>
+            <label class="wide-field">
+              <span>Kill criteria</span>
+              <input id="decisionKill" type="text" value="Cut if source evidence shows demand pause, margin erosion, or cash conversion risk worsening." />
+            </label>
+            <div class="committee-actions">
+              <button class="primary-button" type="submit">Score decision</button>
+              <button class="secondary-button" id="saveDecision" type="button">Save decision</button>
+              <button class="secondary-button" id="useCurrentResearch" type="button">Use current research</button>
+            </div>
+          </form>
+          <article class="committee-scorecard">
+            <div class="decision-metric-grid" id="decisionMetricGrid"></div>
+            <div class="decision-preview" id="decisionPreview"></div>
+          </article>
+        </div>
+        <div class="committee-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Decision Gates</span>
+              <strong id="decisionGateScore">0/5</strong>
+            </div>
+            <div id="decisionGateList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Saved Decisions</span>
+              <strong id="decisionHistoryCount">0</strong>
+            </div>
+            <div id="decisionHistory"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section alert-section" aria-labelledby="alertTitle" id="alerts">
+        <div class="alert-header">
+          <div class="section-heading">
+            <span>Alerts</span>
+            <h2 id="alertTitle">Catalyst & alert command center.</h2>
+            <p>Track thesis triggers, earnings and filing catalysts, price moves, and the next research action before the market forces the question.</p>
+          </div>
+          <button class="secondary-button small" id="exportAlertBrief" type="button">Export alert brief</button>
+        </div>
+        <div class="alert-grid">
+          <form class="alert-form" id="alertForm">
+            <label>
+              <span>Ticker</span>
+              <input id="alertTicker" type="text" value="NVDA" maxlength="8" />
+            </label>
+            <label>
+              <span>Trigger</span>
+              <select id="alertTrigger">
+                <option>Risk phrase</option>
+                <option>Earnings call</option>
+                <option>SEC filing</option>
+                <option>Price move</option>
+                <option>Valuation threshold</option>
+              </select>
+            </label>
+            <label>
+              <span>Priority</span>
+              <select id="alertPriority">
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+              </select>
+            </label>
+            <label>
+              <span>Due date</span>
+              <input id="alertDueDate" type="date" />
+            </label>
+            <label class="wide-field">
+              <span>Watch condition</span>
+              <input id="alertCondition" type="text" value="Flag if management mentions customer concentration, supply commitments, or export-control pressure." />
+            </label>
+            <div class="alert-actions">
+              <button class="primary-button" type="submit">Create alert</button>
+              <button class="secondary-button" id="buildAlertsFromPortfolio" type="button">Build from portfolio</button>
+              <button class="secondary-button" id="clearAlerts" type="button">Clear alerts</button>
+            </div>
+          </form>
+          <article class="alert-summary">
+            <div class="alert-metric-grid" id="alertMetricGrid"></div>
+          </article>
+        </div>
+        <div class="alert-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Active Alerts</span>
+              <strong id="alertCount">0</strong>
+            </div>
+            <div id="alertList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Catalyst Calendar</span>
+              <strong id="catalystCount">0</strong>
+            </div>
+            <div id="catalystCalendar"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Action Queue</span>
+              <strong id="alertActionCount">0</strong>
+            </div>
+            <div id="alertActionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section revenue-section" aria-labelledby="revenueTitle" id="revenue">
+        <div class="revenue-header">
+          <div class="section-heading">
+            <span>Revenue</span>
+            <h2 id="revenueTitle">Revenue & subscription console.</h2>
+            <p>Model waitlist conversion, plan mix, paywall entitlements, checkout readiness, and the first paid pilot targets.</p>
+          </div>
+          <button class="secondary-button small" id="exportRevenueBrief" type="button">Export revenue brief</button>
+        </div>
+        <div class="revenue-grid">
+          <form class="revenue-form" id="revenueForm">
+            <label>
+              <span>Target leads</span>
+              <input id="revenueLeadTarget" type="number" min="1" max="10000" value="100" />
+            </label>
+            <label>
+              <span>Conversion %</span>
+              <input id="revenueConversion" type="number" min="1" max="100" value="12" />
+            </label>
+            <label>
+              <span>Monthly churn %</span>
+              <input id="revenueChurn" type="number" min="0" max="50" value="4" />
+            </label>
+            <label>
+              <span>Monthly growth %</span>
+              <input id="revenueGrowth" type="number" min="0" max="200" value="18" />
+            </label>
+            <label>
+              <span>Starter mix %</span>
+              <input id="revenueStarterMix" type="number" min="0" max="100" value="30" />
+            </label>
+            <label>
+              <span>Pro mix %</span>
+              <input id="revenueProMix" type="number" min="0" max="100" value="50" />
+            </label>
+            <label>
+              <span>Analyst mix %</span>
+              <input id="revenueAnalystMix" type="number" min="0" max="100" value="20" />
+            </label>
+            <label>
+              <span>Trial days</span>
+              <input id="revenueTrialDays" type="number" min="0" max="60" value="7" />
+            </label>
+            <div class="revenue-actions">
+              <button class="primary-button" type="submit">Recalculate</button>
+              <button class="secondary-button" id="useWaitlistRevenue" type="button">Use waitlist</button>
+              <button class="secondary-button" id="resetRevenueModel" type="button">Reset model</button>
+            </div>
+          </form>
+          <article class="revenue-summary">
+            <div class="revenue-metric-grid" id="revenueMetricGrid"></div>
+          </article>
+        </div>
+        <div class="revenue-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Plan Mix</span>
+              <strong id="revenuePlanCount">3 plans</strong>
+            </div>
+            <div id="revenuePlanMix"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Paywall Entitlements</span>
+              <strong id="revenueEntitlementScore">0%</strong>
+            </div>
+            <div id="revenueEntitlements"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Checkout Readiness</span>
+              <strong id="checkoutReadinessScore">0%</strong>
+            </div>
+            <div id="checkoutReadiness"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section pipeline-section" aria-labelledby="pipelineTitle" id="pipeline">
+        <div class="pipeline-header">
+          <div class="section-heading">
+            <span>Pipeline</span>
+            <h2 id="pipelineTitle">Production data pipeline console.</h2>
+            <p>Plan the backend path for SEC ingestion, earnings transcripts, market data, embeddings, retrieval jobs, and provider readiness.</p>
+          </div>
+          <button class="secondary-button small" id="exportPipelineBrief" type="button">Export production brief</button>
+        </div>
+        <div class="pipeline-grid">
+          <form class="pipeline-form" id="pipelineForm">
+            <label>
+              <span>Coverage names</span>
+              <input id="pipelineCompanies" type="number" min="1" max="5000" value="50" />
+            </label>
+            <label>
+              <span>Filings / name</span>
+              <input id="pipelineFilings" type="number" min="1" max="40" value="6" />
+            </label>
+            <label>
+              <span>Calls / month</span>
+              <input id="pipelineCalls" type="number" min="0" max="2000" value="25" />
+            </label>
+            <label>
+              <span>Chunks / doc</span>
+              <input id="pipelineChunks" type="number" min="20" max="5000" value="180" />
+            </label>
+            <label>
+              <span>Queries / month</span>
+              <input id="pipelineQueries" type="number" min="100" max="1000000" value="12000" />
+            </label>
+            <label>
+              <span>Backend</span>
+              <select id="pipelineBackend">
+                <option>Supabase Edge</option>
+                <option>Vercel Functions</option>
+                <option>AWS Lambda</option>
+                <option>Render Worker</option>
+              </select>
+            </label>
+            <label>
+              <span>Vector store</span>
+              <select id="pipelineVectorStore">
+                <option>pgvector</option>
+                <option>Pinecone</option>
+                <option>Qdrant</option>
+                <option>Weaviate</option>
+              </select>
+            </label>
+            <label>
+              <span>Market API</span>
+              <select id="pipelineMarketApi">
+                <option>Financial Modeling Prep</option>
+                <option>Alpha Vantage</option>
+                <option>Polygon</option>
+                <option>Demo only</option>
+              </select>
+            </label>
+            <div class="pipeline-actions">
+              <button class="primary-button" type="submit">Recalculate</button>
+              <button class="secondary-button" id="usePilotScale" type="button">Pilot scale</button>
+              <button class="secondary-button" id="useMvpScale" type="button">MVP scale</button>
+            </div>
+          </form>
+          <article class="pipeline-summary">
+            <div class="pipeline-metric-grid" id="pipelineMetricGrid"></div>
+          </article>
+        </div>
+        <div class="pipeline-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Integration Map</span>
+              <strong id="pipelineIntegrationScore">0%</strong>
+            </div>
+            <div id="pipelineIntegrationMap"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Environment Checklist</span>
+              <strong id="pipelineEnvScore">0%</strong>
+            </div>
+            <div id="pipelineEnvChecklist"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Data Ops Queue</span>
+              <strong id="pipelineOpsCount">0 jobs</strong>
+            </div>
+            <div id="pipelineOpsQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section eval-section" aria-labelledby="evalTitle" id="evals">
+        <div class="eval-header">
+          <div class="section-heading">
+            <span>Quality</span>
+            <h2 id="evalTitle">Answer quality & evaluation lab.</h2>
+            <p>Score citation faithfulness, source coverage, risk disclosure, and regression readiness before a research answer reaches paying users.</p>
+          </div>
+          <button class="secondary-button small" id="exportEvalBrief" type="button">Export eval brief</button>
+        </div>
+        <div class="eval-grid">
+          <form class="eval-form" id="evalForm">
+            <label>
+              <span>Eval cases</span>
+              <input id="evalCaseCount" type="number" min="3" max="100" value="12" />
+            </label>
+            <label>
+              <span>Pass threshold %</span>
+              <input id="evalPassThreshold" type="number" min="50" max="99" value="82" />
+            </label>
+            <label>
+              <span>Min citations</span>
+              <input id="evalMinCitations" type="number" min="1" max="12" value="3" />
+            </label>
+            <label>
+              <span>Review sample %</span>
+              <input id="evalReviewSample" type="number" min="5" max="100" value="25" />
+            </label>
+            <label>
+              <span>Suite focus</span>
+              <select id="evalFocus">
+                <option>Balanced</option>
+                <option>Risk factors</option>
+                <option>Valuation</option>
+                <option>Earnings tone</option>
+                <option>Portfolio workflow</option>
+              </select>
+            </label>
+            <label>
+              <span>Regression mode</span>
+              <select id="evalRegressionMode">
+                <option>Strict</option>
+                <option>Standard</option>
+                <option>Exploratory</option>
+              </select>
+            </label>
+            <div class="eval-actions">
+              <button class="primary-button" type="submit">Run eval suite</button>
+              <button class="secondary-button" id="useCurrentAnswerEval" type="button">Use current answer</button>
+              <button class="secondary-button" id="resetEvalSuite" type="button">Reset suite</button>
+            </div>
+          </form>
+          <article class="eval-summary">
+            <div class="eval-metric-grid" id="evalMetricGrid"></div>
+          </article>
+        </div>
+        <div class="eval-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Eval Cases</span>
+              <strong id="evalCaseSummary">0 cases</strong>
+            </div>
+            <div id="evalCaseList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Quality Gates</span>
+              <strong id="evalGateScore">0%</strong>
+            </div>
+            <div id="evalGateList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Human Review Queue</span>
+              <strong id="evalReviewCount">0</strong>
+            </div>
+            <div id="evalReviewQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section compliance-section" aria-labelledby="complianceTitle" id="compliance">
+        <div class="compliance-header">
+          <div class="section-heading">
+            <span>Compliance</span>
+            <h2 id="complianceTitle">Compliance & audit center.</h2>
+            <p>Check research-only language, disclosure readiness, data retention, citation minimums, and review evidence before a memo goes to users.</p>
+          </div>
+          <button class="secondary-button small" id="exportComplianceBrief" type="button">Export audit pack</button>
+        </div>
+        <div class="compliance-grid">
+          <form class="compliance-form" id="complianceForm">
+            <label>
+              <span>Research posture</span>
+              <select id="compliancePosture">
+                <option>Research only</option>
+                <option>Advisor review</option>
+                <option>Educational mode</option>
+              </select>
+            </label>
+            <label>
+              <span>Disclosure version</span>
+              <input id="complianceDisclosure" type="text" value="CA-RESEARCH-2026.05" />
+            </label>
+            <label>
+              <span>Required citations</span>
+              <input id="complianceRequiredCitations" type="number" min="1" max="12" value="3" />
+            </label>
+            <label>
+              <span>Retention policy</span>
+              <select id="complianceRetention">
+                <option>Local browser only</option>
+                <option>30-day audit log</option>
+                <option>Do not store</option>
+              </select>
+            </label>
+            <label>
+              <span>Review owner</span>
+              <input id="complianceOwner" type="text" value="Founder review" />
+            </label>
+            <label>
+              <span>Escalation level</span>
+              <select id="complianceEscalation">
+                <option>Standard</option>
+                <option>Heightened</option>
+                <option>Block publish</option>
+              </select>
+            </label>
+            <div class="compliance-actions">
+              <button class="primary-button" type="submit">Run compliance check</button>
+              <button class="secondary-button" id="useCurrentAnswerCompliance" type="button">Use current answer</button>
+              <button class="secondary-button" id="resetCompliance" type="button">Reset policy</button>
+            </div>
+          </form>
+          <article class="compliance-summary">
+            <div class="compliance-metric-grid" id="complianceMetricGrid"></div>
+          </article>
+        </div>
+        <div class="compliance-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Policy Checks</span>
+              <strong id="compliancePolicyScore">0%</strong>
+            </div>
+            <div id="compliancePolicyList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Audit Trail</span>
+              <strong id="complianceAuditCount">0</strong>
+            </div>
+            <div id="complianceAuditTrail"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Disclosure Pack</span>
+              <strong id="complianceDisclosureStatus">Draft</strong>
+            </div>
+            <div id="complianceDisclosurePack"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section trace-section" aria-labelledby="traceTitle" id="trace">
+        <div class="trace-header">
+          <div class="section-heading">
+            <span>Traceability</span>
+            <h2 id="traceTitle">Evidence trace & claim inspector.</h2>
+            <p>Break each research answer into auditable claims, map those claims to source passages, and surface weak support or filing-call tension before export.</p>
+          </div>
+          <button class="secondary-button small" id="exportTracePack" type="button">Export trace pack</button>
+        </div>
+        <div class="trace-grid">
+          <form class="trace-form" id="traceForm">
+            <label>
+              <span>Claim limit</span>
+              <input id="traceClaimLimit" type="number" min="3" max="20" value="8" />
+            </label>
+            <label>
+              <span>Support threshold %</span>
+              <input id="traceSupportThreshold" type="number" min="35" max="95" value="62" />
+            </label>
+            <label>
+              <span>Min term overlap</span>
+              <input id="traceMinOverlap" type="number" min="1" max="8" value="2" />
+            </label>
+            <label>
+              <span>Trace mode</span>
+              <select id="traceMode">
+                <option>Strict</option>
+                <option>Balanced</option>
+                <option>Fast scan</option>
+              </select>
+            </label>
+            <label>
+              <span>Tension focus</span>
+              <select id="traceTensionFocus">
+                <option>Filing vs call</option>
+                <option>Risk vs valuation</option>
+                <option>Tone drift</option>
+              </select>
+            </label>
+            <div class="trace-actions">
+              <button class="primary-button" type="submit">Run trace</button>
+              <button class="secondary-button" id="useCurrentAnswerTrace" type="button">Use current answer</button>
+              <button class="secondary-button" id="resetTrace" type="button">Reset trace</button>
+            </div>
+          </form>
+          <article class="trace-summary">
+            <div class="trace-metric-grid" id="traceMetricGrid"></div>
+          </article>
+        </div>
+        <div class="trace-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Claim Map</span>
+              <strong id="traceClaimCount">0 claims</strong>
+            </div>
+            <div id="traceClaimMap"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Weak Claims</span>
+              <strong id="traceWeakCount">0</strong>
+            </div>
+            <div id="traceWeakClaims"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Source Lineage</span>
+              <strong id="traceLineageCount">0</strong>
+            </div>
+            <div id="traceSourceLineage"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section peer-section" aria-labelledby="peerTitle" id="peers">
+        <div class="peer-header">
+          <div class="section-heading">
+            <span>Peers</span>
+            <h2 id="peerTitle">Peer benchmark & thesis screener.</h2>
+            <p>Rank a target company against its peer set, expose factor gaps, and turn the spread into diligence questions for the next research run.</p>
+          </div>
+          <button class="secondary-button small" id="exportPeerBrief" type="button">Export peer brief</button>
+        </div>
+        <div class="peer-grid">
+          <form class="peer-form" id="peerForm">
+            <label>
+              <span>Target ticker</span>
+              <select id="peerTarget"></select>
+            </label>
+            <label>
+              <span>Peer tickers</span>
+              <input id="peerBasket" type="text" value="NSCP, AURR, HLGD" />
+            </label>
+            <label>
+              <span>Primary factor</span>
+              <select id="peerFactor">
+                <option>Quality growth</option>
+                <option>Margin durability</option>
+                <option>Risk-adjusted value</option>
+                <option>Management tone</option>
+              </select>
+            </label>
+            <label>
+              <span>Risk penalty %</span>
+              <input id="peerRiskPenalty" type="number" min="0" max="60" value="24" />
+            </label>
+            <label>
+              <span>Valuation weight %</span>
+              <input id="peerValuationWeight" type="number" min="0" max="60" value="18" />
+            </label>
+            <label>
+              <span>Evidence mode</span>
+              <select id="peerEvidenceMode">
+                <option>Cited answer</option>
+                <option>Enabled docs</option>
+                <option>All coverage</option>
+              </select>
+            </label>
+            <div class="peer-actions">
+              <button class="primary-button" type="submit">Run peer screen</button>
+              <button class="secondary-button" id="useCurrentPeerSet" type="button">Use current focus</button>
+              <button class="secondary-button" id="resetPeerScreen" type="button">Reset screen</button>
+            </div>
+          </form>
+          <article class="peer-summary">
+            <div class="peer-metric-grid" id="peerMetricGrid"></div>
+          </article>
+        </div>
+        <div class="peer-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Ranking</span>
+              <strong id="peerRankingCount">0 names</strong>
+            </div>
+            <div id="peerRankingList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Factor Gaps</span>
+              <strong id="peerGapCount">0</strong>
+            </div>
+            <div id="peerGapList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Diligence Queue</span>
+              <strong id="peerQuestionCount">0</strong>
+            </div>
+            <div id="peerQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section stress-section" aria-labelledby="stressTitle" id="stress">
+        <div class="stress-header">
+          <div class="section-heading">
+            <span>Scenario</span>
+            <h2 id="stressTitle">Scenario stress test lab.</h2>
+            <p>Shock rates, demand, margins, and inflation to see which theses bend first, which names stay resilient, and which follow-up questions deserve priority.</p>
+          </div>
+          <button class="secondary-button small" id="exportStressBrief" type="button">Export stress memo</button>
+        </div>
+        <div class="stress-grid">
+          <form class="stress-form" id="stressForm">
+            <label>
+              <span>Scenario preset</span>
+              <select id="stressPreset">
+                <option>Rates stay high</option>
+                <option>Demand air pocket</option>
+                <option>Margin squeeze</option>
+                <option>Funding stress</option>
+                <option>Base recession</option>
+              </select>
+            </label>
+            <label>
+              <span>Coverage tickers</span>
+              <input id="stressTickers" type="text" value="NSCP, AURR, HLGD" />
+            </label>
+            <label>
+              <span>Rate shock bps</span>
+              <input id="stressRateShock" type="number" min="0" max="800" value="150" />
+            </label>
+            <label>
+              <span>Demand shock %</span>
+              <input id="stressDemandShock" type="number" min="0" max="60" value="12" />
+            </label>
+            <label>
+              <span>Margin shock bps</span>
+              <input id="stressMarginShock" type="number" min="0" max="1000" value="250" />
+            </label>
+            <label>
+              <span>Inflation drag %</span>
+              <input id="stressInflationDrag" type="number" min="0" max="25" value="3" />
+            </label>
+            <label>
+              <span>Weight mode</span>
+              <select id="stressWeightMode">
+                <option>Equal weight</option>
+                <option>Portfolio weights</option>
+                <option>Target only</option>
+              </select>
+            </label>
+            <div class="stress-actions">
+              <button class="primary-button" type="submit">Run stress test</button>
+              <button class="secondary-button" id="usePortfolioStress" type="button">Use portfolio</button>
+              <button class="secondary-button" id="resetStress" type="button">Reset stress</button>
+            </div>
+          </form>
+          <article class="stress-summary">
+            <div class="stress-metric-grid" id="stressMetricGrid"></div>
+          </article>
+        </div>
+        <div class="stress-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Stress Ranking</span>
+              <strong id="stressRankingCount">0 names</strong>
+            </div>
+            <div id="stressRankingList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Portfolio Impact</span>
+              <strong id="stressPortfolioImpact">0%</strong>
+            </div>
+            <div id="stressPortfolioBoard"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Action Queue</span>
+              <strong id="stressActionCount">0</strong>
+            </div>
+            <div id="stressActionQueue"></div>
+          </article>
+        </div>
+      </section>
+
       <footer class="disclosure">
         Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
       </footer>
     </div>
 
-    <script src="app.js?v=20260508-07" defer></script>
+    <script src="app.js?v=20260509-13" defer></script>
   </body>
 </html>
