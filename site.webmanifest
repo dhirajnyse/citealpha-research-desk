@@ -1,2 +1,21 @@
-User-agent: *
-Allow: /
+{
+  "name": "CiteAlpha",
+  "short_name": "CiteAlpha",
+  "description": "Evidence-backed equity research across SEC filings, earnings calls, and valuation scenarios.",
+  "start_url": "/citealpha-research-desk/",
+  "display": "standalone",
+  "background_color": "#edf1f0",
+  "theme_color": "#121817",
+  "icons": [
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
