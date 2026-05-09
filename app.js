@@ -16,7 +16,18 @@ const STORAGE_KEYS = {
   complianceEvents: "citealpha-compliance-events-v1",
   trace: "citealpha-trace-v1",
   peer: "citealpha-peer-v1",
-  stress: "citealpha-stress-v1"
+  stress: "citealpha-stress-v1",
+  filingChange: "citealpha-filing-change-v1",
+  valuationMatrix: "citealpha-valuation-matrix-v1",
+  tearSheet: "citealpha-tear-sheet-v1",
+  thesisDebate: "citealpha-thesis-debate-v1",
+  dossier: "citealpha-dossier-v1",
+  timeline: "citealpha-thesis-timeline-v1",
+  briefing: "citealpha-morning-briefing-v1",
+  callPrep: "citealpha-call-prep-v1",
+  debrief: "citealpha-post-earnings-debrief-v1",
+  revision: "citealpha-guidance-revision-v1",
+  modelControl: "citealpha-model-version-control-v1"
 };
 
 const WAITLIST_ENDPOINT = "https://formsubmit.co/ajax/dhirajnyse@gmail.com";
@@ -199,6 +210,57 @@ const DEMO_IMPORT_PACKS = {
     ]
   }
 };
+
+const DEFAULT_CHANGE_PRIOR_TEXT =
+  "Risk factors. Prior-year filing language said AI accelerator demand depends on cloud capital spending and enterprise adoption. Customer concentration remained elevated, but management said multi-year supply agreements and net cash provided flexibility. Supply commitments were described as manageable under the base demand plan. Export controls and foundry capacity constraints could delay shipments, though platform transition risk was described as limited.";
+
+const DEFAULT_CHANGE_CURRENT_TEXT =
+  "Risk factors. Current-year filing language says AI accelerator demand depends on a smaller group of hyperscale customers and procurement timing can shift materially between quarters. Supply purchase commitments, advanced packaging deposits, and long-lead tooling obligations increased and may pressure cash conversion if customer ramps pause. Export controls, foundry capacity constraints, and platform qualification delays could reduce shipment timing or require redesign work. Inventory exposure may rise if demand normalizes faster than expected.";
+
+const CHANGE_THEME_LIBRARY = [
+  {
+    id: "customer",
+    label: "Customer concentration",
+    severity: "High",
+    terms: ["customer", "customers", "hyperscale", "concentration", "procurement", "cloud"]
+  },
+  {
+    id: "demand",
+    label: "Demand cadence",
+    severity: "High",
+    terms: ["demand", "capital spending", "budget", "pause", "ramp", "adoption", "orders"]
+  },
+  {
+    id: "supply",
+    label: "Supply commitments",
+    severity: "Medium",
+    terms: ["supply", "purchase commitments", "long-lead", "tooling", "packaging", "capacity", "deposits"]
+  },
+  {
+    id: "cash",
+    label: "Cash conversion",
+    severity: "Medium",
+    terms: ["cash conversion", "working capital", "inventory", "liquidity", "cash flow", "obligations"]
+  },
+  {
+    id: "export",
+    label: "Export and policy",
+    severity: "Medium",
+    terms: ["export", "controls", "regulatory", "policy", "redesign", "restriction"]
+  },
+  {
+    id: "margin",
+    label: "Margin durability",
+    severity: "Medium",
+    terms: ["margin", "yield", "pricing", "mix", "cost", "gross margin"]
+  },
+  {
+    id: "financing",
+    label: "Financing exposure",
+    severity: "High",
+    terms: ["debt", "financing", "refinancing", "interest", "rates", "credit"]
+  }
+];
 
 const RISK_FACTOR_LIBRARY = {
   NSCP: [
@@ -623,6 +685,28 @@ const state = {
   currentPeer: null,
   stressConfig: null,
   currentStress: null,
+  changeConfig: null,
+  currentChange: null,
+  valuationMatrixConfig: null,
+  currentValuationMatrix: null,
+  tearSheetConfig: null,
+  currentTearSheet: null,
+  thesisDebateConfig: null,
+  currentThesisDebate: null,
+  dossierConfig: null,
+  currentDossier: null,
+  timelineConfig: null,
+  currentTimeline: null,
+  briefingConfig: null,
+  currentBriefing: null,
+  callPrepConfig: null,
+  currentCallPrep: null,
+  debriefConfig: null,
+  currentDebrief: null,
+  revisionConfig: null,
+  currentRevision: null,
+  modelControlConfig: null,
+  currentModelControl: null,
   marketSettings: { provider: "demo", ticker: "NVDA", apiKey: "" },
   marketQuote: null,
   marketStatus: { level: "idle", message: "Demo quote ready" },
@@ -657,6 +741,17 @@ function init() {
   state.traceConfig = loadTraceConfig();
   state.peerConfig = loadPeerConfig();
   state.stressConfig = loadStressConfig();
+  state.changeConfig = loadChangeConfig();
+  state.valuationMatrixConfig = loadValuationMatrixConfig();
+  state.tearSheetConfig = loadTearSheetConfig();
+  state.thesisDebateConfig = loadThesisDebateConfig();
+  state.dossierConfig = loadDossierConfig();
+  state.timelineConfig = loadTimelineConfig();
+  state.briefingConfig = loadBriefingConfig();
+  state.callPrepConfig = loadCallPrepConfig();
+  state.debriefConfig = loadDebriefConfig();
+  state.revisionConfig = loadRevisionConfig();
+  state.modelControlConfig = loadModelControlConfig();
   state.marketSettings = loadMarketSettings();
   state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
   state.documents.forEach((doc) => state.enabledDocIds.add(doc.id));
@@ -686,6 +781,17 @@ function init() {
   renderTraceInspector();
   renderPeerScreener();
   renderStressLab();
+  renderFilingChangeMonitor();
+  renderValuationMatrix();
+  renderResearchTearSheet();
+  renderThesisDebateRoom();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
   bindEvents();
   updateValuationFromCompany();
   updateValuation();
@@ -939,6 +1045,194 @@ function cacheElements() {
   els.stressPortfolioBoard = document.querySelector("#stressPortfolioBoard");
   els.stressActionCount = document.querySelector("#stressActionCount");
   els.stressActionQueue = document.querySelector("#stressActionQueue");
+  els.changeForm = document.querySelector("#changeForm");
+  els.changeTicker = document.querySelector("#changeTicker");
+  els.changePriorPeriod = document.querySelector("#changePriorPeriod");
+  els.changeCurrentPeriod = document.querySelector("#changeCurrentPeriod");
+  els.changeMateriality = document.querySelector("#changeMateriality");
+  els.changePriorText = document.querySelector("#changePriorText");
+  els.changeCurrentText = document.querySelector("#changeCurrentText");
+  els.useImportsChange = document.querySelector("#useImportsChange");
+  els.resetChangeMonitor = document.querySelector("#resetChangeMonitor");
+  els.exportChangeBrief = document.querySelector("#exportChangeBrief");
+  els.changeMetricGrid = document.querySelector("#changeMetricGrid");
+  els.changeAddedCount = document.querySelector("#changeAddedCount");
+  els.changeAddedList = document.querySelector("#changeAddedList");
+  els.changeReducedCount = document.querySelector("#changeReducedCount");
+  els.changeReducedList = document.querySelector("#changeReducedList");
+  els.changeQuestionCount = document.querySelector("#changeQuestionCount");
+  els.changeQuestionQueue = document.querySelector("#changeQuestionQueue");
+  els.matrixForm = document.querySelector("#matrixForm");
+  els.matrixTicker = document.querySelector("#matrixTicker");
+  els.matrixGrowth = document.querySelector("#matrixGrowth");
+  els.matrixMargin = document.querySelector("#matrixMargin");
+  els.matrixMultiple = document.querySelector("#matrixMultiple");
+  els.matrixDiscount = document.querySelector("#matrixDiscount");
+  els.matrixSpread = document.querySelector("#matrixSpread");
+  els.matrixEvidenceBar = document.querySelector("#matrixEvidenceBar");
+  els.matrixHorizon = document.querySelector("#matrixHorizon");
+  els.useValuationLens = document.querySelector("#useValuationLens");
+  els.resetMatrix = document.querySelector("#resetMatrix");
+  els.exportMatrixBrief = document.querySelector("#exportMatrixBrief");
+  els.matrixMetricGrid = document.querySelector("#matrixMetricGrid");
+  els.matrixCaseCount = document.querySelector("#matrixCaseCount");
+  els.matrixCaseList = document.querySelector("#matrixCaseList");
+  els.matrixDriverLabel = document.querySelector("#matrixDriverLabel");
+  els.matrixDriverList = document.querySelector("#matrixDriverList");
+  els.matrixQuestionCount = document.querySelector("#matrixQuestionCount");
+  els.matrixQuestionQueue = document.querySelector("#matrixQuestionQueue");
+  els.tearForm = document.querySelector("#tearForm");
+  els.tearTicker = document.querySelector("#tearTicker");
+  els.tearStance = document.querySelector("#tearStance");
+  els.tearConviction = document.querySelector("#tearConviction");
+  els.tearHorizon = document.querySelector("#tearHorizon");
+  els.tearDecisionNote = document.querySelector("#tearDecisionNote");
+  els.useCurrentTear = document.querySelector("#useCurrentTear");
+  els.resetTearSheet = document.querySelector("#resetTearSheet");
+  els.exportTearSheet = document.querySelector("#exportTearSheet");
+  els.tearMetricGrid = document.querySelector("#tearMetricGrid");
+  els.tearThesisCount = document.querySelector("#tearThesisCount");
+  els.tearThesisList = document.querySelector("#tearThesisList");
+  els.tearRiskLabel = document.querySelector("#tearRiskLabel");
+  els.tearValuationList = document.querySelector("#tearValuationList");
+  els.tearActionCount = document.querySelector("#tearActionCount");
+  els.tearActionQueue = document.querySelector("#tearActionQueue");
+  els.debateForm = document.querySelector("#debateForm");
+  els.debateTicker = document.querySelector("#debateTicker");
+  els.debateMode = document.querySelector("#debateMode");
+  els.debateEvidenceBar = document.querySelector("#debateEvidenceBar");
+  els.debateHorizon = document.querySelector("#debateHorizon");
+  els.debateThesis = document.querySelector("#debateThesis");
+  els.useTearSheetDebate = document.querySelector("#useTearSheetDebate");
+  els.resetDebate = document.querySelector("#resetDebate");
+  els.exportDebateBrief = document.querySelector("#exportDebateBrief");
+  els.debateMetricGrid = document.querySelector("#debateMetricGrid");
+  els.debateBullScore = document.querySelector("#debateBullScore");
+  els.debateBullList = document.querySelector("#debateBullList");
+  els.debateBearScore = document.querySelector("#debateBearScore");
+  els.debateBearList = document.querySelector("#debateBearList");
+  els.debateQuestionCount = document.querySelector("#debateQuestionCount");
+  els.debateQuestionQueue = document.querySelector("#debateQuestionQueue");
+  els.dossierForm = document.querySelector("#dossierForm");
+  els.dossierTicker = document.querySelector("#dossierTicker");
+  els.dossierAudience = document.querySelector("#dossierAudience");
+  els.dossierStyle = document.querySelector("#dossierStyle");
+  els.dossierEvidenceBar = document.querySelector("#dossierEvidenceBar");
+  els.dossierObjective = document.querySelector("#dossierObjective");
+  els.useActiveDossier = document.querySelector("#useActiveDossier");
+  els.resetDossier = document.querySelector("#resetDossier");
+  els.exportDossierBrief = document.querySelector("#exportDossierBrief");
+  els.dossierMetricGrid = document.querySelector("#dossierMetricGrid");
+  els.dossierSectionCount = document.querySelector("#dossierSectionCount");
+  els.dossierSectionList = document.querySelector("#dossierSectionList");
+  els.dossierChecklistScore = document.querySelector("#dossierChecklistScore");
+  els.dossierChecklist = document.querySelector("#dossierChecklist");
+  els.dossierQueueCount = document.querySelector("#dossierQueueCount");
+  els.dossierQuestionQueue = document.querySelector("#dossierQuestionQueue");
+  els.timelineForm = document.querySelector("#timelineForm");
+  els.timelineTicker = document.querySelector("#timelineTicker");
+  els.timelineLens = document.querySelector("#timelineLens");
+  els.timelineLookback = document.querySelector("#timelineLookback");
+  els.timelineScope = document.querySelector("#timelineScope");
+  els.timelineObjective = document.querySelector("#timelineObjective");
+  els.useDossierTimeline = document.querySelector("#useDossierTimeline");
+  els.resetTimeline = document.querySelector("#resetTimeline");
+  els.exportTimelineBrief = document.querySelector("#exportTimelineBrief");
+  els.timelineMetricGrid = document.querySelector("#timelineMetricGrid");
+  els.timelineEventCount = document.querySelector("#timelineEventCount");
+  els.timelineEventList = document.querySelector("#timelineEventList");
+  els.timelineInflectionCount = document.querySelector("#timelineInflectionCount");
+  els.timelineInflectionList = document.querySelector("#timelineInflectionList");
+  els.timelineQuestionCount = document.querySelector("#timelineQuestionCount");
+  els.timelineQuestionQueue = document.querySelector("#timelineQuestionQueue");
+  els.briefingForm = document.querySelector("#briefingForm");
+  els.briefingUniverse = document.querySelector("#briefingUniverse");
+  els.briefingMode = document.querySelector("#briefingMode");
+  els.briefingUrgency = document.querySelector("#briefingUrgency");
+  els.briefingHorizon = document.querySelector("#briefingHorizon");
+  els.briefingObjective = document.querySelector("#briefingObjective");
+  els.useWorkspaceBriefing = document.querySelector("#useWorkspaceBriefing");
+  els.resetBriefing = document.querySelector("#resetBriefing");
+  els.exportBriefingBrief = document.querySelector("#exportBriefingBrief");
+  els.briefingMetricGrid = document.querySelector("#briefingMetricGrid");
+  els.briefingAgendaCount = document.querySelector("#briefingAgendaCount");
+  els.briefingAgendaList = document.querySelector("#briefingAgendaList");
+  els.briefingRiskCount = document.querySelector("#briefingRiskCount");
+  els.briefingRiskList = document.querySelector("#briefingRiskList");
+  els.briefingQuestionCount = document.querySelector("#briefingQuestionCount");
+  els.briefingQuestionQueue = document.querySelector("#briefingQuestionQueue");
+  els.callPrepForm = document.querySelector("#callPrepForm");
+  els.callPrepTicker = document.querySelector("#callPrepTicker");
+  els.callPrepEvent = document.querySelector("#callPrepEvent");
+  els.callPrepStyle = document.querySelector("#callPrepStyle");
+  els.callPrepFocus = document.querySelector("#callPrepFocus");
+  els.callPrepObjective = document.querySelector("#callPrepObjective");
+  els.useBriefingCallPrep = document.querySelector("#useBriefingCallPrep");
+  els.resetCallPrep = document.querySelector("#resetCallPrep");
+  els.exportCallPrepBrief = document.querySelector("#exportCallPrepBrief");
+  els.callPrepMetricGrid = document.querySelector("#callPrepMetricGrid");
+  els.callPrepQuestionCount = document.querySelector("#callPrepQuestionCount");
+  els.callPrepQuestionList = document.querySelector("#callPrepQuestionList");
+  els.callPrepReadoutCount = document.querySelector("#callPrepReadoutCount");
+  els.callPrepReadoutList = document.querySelector("#callPrepReadoutList");
+  els.callPrepScoreCount = document.querySelector("#callPrepScoreCount");
+  els.callPrepScoreList = document.querySelector("#callPrepScoreList");
+  els.debriefForm = document.querySelector("#debriefForm");
+  els.debriefTicker = document.querySelector("#debriefTicker");
+  els.debriefEvent = document.querySelector("#debriefEvent");
+  els.debriefMode = document.querySelector("#debriefMode");
+  els.debriefMarketMove = document.querySelector("#debriefMarketMove");
+  els.debriefTranscript = document.querySelector("#debriefTranscript");
+  els.useCallPrepDebrief = document.querySelector("#useCallPrepDebrief");
+  els.resetDebrief = document.querySelector("#resetDebrief");
+  els.exportDebriefBrief = document.querySelector("#exportDebriefBrief");
+  els.debriefMetricGrid = document.querySelector("#debriefMetricGrid");
+  els.debriefSurpriseCount = document.querySelector("#debriefSurpriseCount");
+  els.debriefSurpriseList = document.querySelector("#debriefSurpriseList");
+  els.debriefThesisCount = document.querySelector("#debriefThesisCount");
+  els.debriefThesisList = document.querySelector("#debriefThesisList");
+  els.debriefActionCount = document.querySelector("#debriefActionCount");
+  els.debriefActionList = document.querySelector("#debriefActionList");
+  els.revisionForm = document.querySelector("#revisionForm");
+  els.revisionTicker = document.querySelector("#revisionTicker");
+  els.revisionPeriod = document.querySelector("#revisionPeriod");
+  els.revisionRevenueGuide = document.querySelector("#revisionRevenueGuide");
+  els.revisionConsensus = document.querySelector("#revisionConsensus");
+  els.revisionMarginGuide = document.querySelector("#revisionMarginGuide");
+  els.revisionPriorModel = document.querySelector("#revisionPriorModel");
+  els.revisionConfidence = document.querySelector("#revisionConfidence");
+  els.revisionMode = document.querySelector("#revisionMode");
+  els.revisionNote = document.querySelector("#revisionNote");
+  els.useDebriefRevision = document.querySelector("#useDebriefRevision");
+  els.resetRevision = document.querySelector("#resetRevision");
+  els.exportRevisionBrief = document.querySelector("#exportRevisionBrief");
+  els.revisionMetricGrid = document.querySelector("#revisionMetricGrid");
+  els.revisionBridgeCount = document.querySelector("#revisionBridgeCount");
+  els.revisionBridgeList = document.querySelector("#revisionBridgeList");
+  els.revisionEstimateCount = document.querySelector("#revisionEstimateCount");
+  els.revisionEstimateList = document.querySelector("#revisionEstimateList");
+  els.revisionActionCount = document.querySelector("#revisionActionCount");
+  els.revisionActionList = document.querySelector("#revisionActionList");
+  els.modelControlForm = document.querySelector("#modelControlForm");
+  els.modelControlTicker = document.querySelector("#modelControlTicker");
+  els.modelControlVersion = document.querySelector("#modelControlVersion");
+  els.modelControlOwner = document.querySelector("#modelControlOwner");
+  els.modelControlStatus = document.querySelector("#modelControlStatus");
+  els.modelControlGrowth = document.querySelector("#modelControlGrowth");
+  els.modelControlMargin = document.querySelector("#modelControlMargin");
+  els.modelControlMultiple = document.querySelector("#modelControlMultiple");
+  els.modelControlDiscount = document.querySelector("#modelControlDiscount");
+  els.modelControlRationale = document.querySelector("#modelControlRationale");
+  els.useRevisionModelControl = document.querySelector("#useRevisionModelControl");
+  els.resetModelControl = document.querySelector("#resetModelControl");
+  els.exportModelControlBrief = document.querySelector("#exportModelControlBrief");
+  els.modelControlMetricGrid = document.querySelector("#modelControlMetricGrid");
+  els.modelControlDeltaCount = document.querySelector("#modelControlDeltaCount");
+  els.modelControlDeltaList = document.querySelector("#modelControlDeltaList");
+  els.modelControlGateCount = document.querySelector("#modelControlGateCount");
+  els.modelControlGateList = document.querySelector("#modelControlGateList");
+  els.modelControlActionCount = document.querySelector("#modelControlActionCount");
+  els.modelControlActionList = document.querySelector("#modelControlActionList");
 }
 
 function bindEvents() {
@@ -1072,6 +1366,11 @@ function bindEvents() {
   updateValuation();
   renderMarketQuoteCard();
   renderLaunchOps();
+  renderFilingChangeMonitor();
+  renderValuationMatrix();
+  renderResearchTearSheet();
+  renderThesisDebateRoom();
+  renderResearchDossierBuilder();
   drawSignalMap();
 });
 
@@ -1456,6 +1755,623 @@ function bindEvents() {
     });
   }
 
+  if (els.changeForm) {
+    els.changeForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.changeConfig = readChangeConfig();
+      saveChangeConfig();
+      renderFilingChangeMonitor();
+      flashButtonLabel(els.changeForm.querySelector("button[type='submit']"), "Scanned");
+    });
+  }
+
+  if (els.useImportsChange) {
+    els.useImportsChange.addEventListener("click", () => {
+      hydrateChangeFromImports();
+      saveChangeConfig();
+      syncChangeInputs();
+      renderFilingChangeMonitor();
+      flashButtonLabel(els.useImportsChange, "Loaded");
+    });
+  }
+
+  if (els.resetChangeMonitor) {
+    els.resetChangeMonitor.addEventListener("click", () => {
+      state.changeConfig = getDefaultChangeConfig();
+      saveChangeConfig();
+      syncChangeInputs();
+      renderFilingChangeMonitor();
+      flashButtonLabel(els.resetChangeMonitor, "Reset");
+    });
+  }
+
+  if (els.exportChangeBrief) {
+    els.exportChangeBrief.addEventListener("click", exportChangeBrief);
+  }
+
+  if (els.changeQuestionQueue) {
+    els.changeQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-change-question]");
+      if (!button) return;
+      const question = button.dataset.changeQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.matrixForm) {
+    els.matrixForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.valuationMatrixConfig = readValuationMatrixConfig();
+      saveValuationMatrixConfig();
+      renderValuationMatrix();
+      renderResearchTearSheet();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.matrixForm.querySelector("button[type='submit']"), "Modeled");
+    });
+  }
+
+  if (els.useValuationLens) {
+    els.useValuationLens.addEventListener("click", () => {
+      hydrateValuationMatrixFromLens();
+      saveValuationMatrixConfig();
+      syncValuationMatrixInputs();
+      renderValuationMatrix();
+      renderResearchTearSheet();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.useValuationLens, "Loaded");
+    });
+  }
+
+  if (els.resetMatrix) {
+    els.resetMatrix.addEventListener("click", () => {
+      state.valuationMatrixConfig = getDefaultValuationMatrixConfig();
+      saveValuationMatrixConfig();
+      syncValuationMatrixInputs();
+      renderValuationMatrix();
+      renderResearchTearSheet();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.resetMatrix, "Reset");
+    });
+  }
+
+  if (els.exportMatrixBrief) {
+    els.exportMatrixBrief.addEventListener("click", exportValuationMatrixBrief);
+  }
+
+  if (els.matrixQuestionQueue) {
+    els.matrixQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-matrix-question]");
+      if (!button) return;
+      const question = button.dataset.matrixQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.tearForm) {
+    els.tearForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.tearSheetConfig = readTearSheetConfig();
+      saveTearSheetConfig();
+      renderResearchTearSheet();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.tearForm.querySelector("button[type='submit']"), "Built");
+    });
+  }
+
+  if (els.useCurrentTear) {
+    els.useCurrentTear.addEventListener("click", () => {
+      hydrateTearSheetFromCurrentResearch();
+      saveTearSheetConfig();
+      syncTearSheetInputs();
+      renderResearchTearSheet();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.useCurrentTear, "Loaded");
+    });
+  }
+
+  if (els.resetTearSheet) {
+    els.resetTearSheet.addEventListener("click", () => {
+      state.tearSheetConfig = getDefaultTearSheetConfig();
+      saveTearSheetConfig();
+      syncTearSheetInputs();
+      renderResearchTearSheet();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.resetTearSheet, "Reset");
+    });
+  }
+
+  if (els.exportTearSheet) {
+    els.exportTearSheet.addEventListener("click", exportResearchTearSheet);
+  }
+
+  if (els.tearActionQueue) {
+    els.tearActionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-tear-question]");
+      if (!button) return;
+      const question = button.dataset.tearQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.debateForm) {
+    els.debateForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.thesisDebateConfig = readThesisDebateConfig();
+      saveThesisDebateConfig();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.debateForm.querySelector("button[type='submit']"), "Debated");
+    });
+  }
+
+  if (els.useTearSheetDebate) {
+    els.useTearSheetDebate.addEventListener("click", () => {
+      hydrateThesisDebateFromTearSheet();
+      saveThesisDebateConfig();
+      syncThesisDebateInputs();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.useTearSheetDebate, "Loaded");
+    });
+  }
+
+  if (els.resetDebate) {
+    els.resetDebate.addEventListener("click", () => {
+      state.thesisDebateConfig = getDefaultThesisDebateConfig();
+      saveThesisDebateConfig();
+      syncThesisDebateInputs();
+      renderThesisDebateRoom();
+      renderResearchDossierBuilder();
+      flashButtonLabel(els.resetDebate, "Reset");
+    });
+  }
+
+  if (els.exportDebateBrief) {
+    els.exportDebateBrief.addEventListener("click", exportThesisDebateBrief);
+  }
+
+  if (els.debateQuestionQueue) {
+    els.debateQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-debate-question]");
+      if (!button) return;
+      const question = button.dataset.debateQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.dossierForm) {
+    els.dossierForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.dossierConfig = readDossierConfig();
+      saveDossierConfig();
+      renderResearchDossierBuilder();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.dossierForm.querySelector("button[type='submit']"), "Built");
+    });
+  }
+
+  if (els.useActiveDossier) {
+    els.useActiveDossier.addEventListener("click", () => {
+      hydrateDossierFromActiveResearch();
+      saveDossierConfig();
+      syncDossierInputs();
+      renderResearchDossierBuilder();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useActiveDossier, "Loaded");
+    });
+  }
+
+  if (els.resetDossier) {
+    els.resetDossier.addEventListener("click", () => {
+      state.dossierConfig = getDefaultDossierConfig();
+      saveDossierConfig();
+      syncDossierInputs();
+      renderResearchDossierBuilder();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetDossier, "Reset");
+    });
+  }
+
+  if (els.exportDossierBrief) {
+    els.exportDossierBrief.addEventListener("click", exportResearchDossier);
+  }
+
+  if (els.dossierQuestionQueue) {
+    els.dossierQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-dossier-question]");
+      if (!button) return;
+      const question = button.dataset.dossierQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.timelineForm) {
+    els.timelineForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.timelineConfig = readTimelineConfig();
+      saveTimelineConfig();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.timelineForm.querySelector("button[type='submit']"), "Built");
+    });
+  }
+
+  if (els.useDossierTimeline) {
+    els.useDossierTimeline.addEventListener("click", () => {
+      hydrateTimelineFromDossier();
+      saveTimelineConfig();
+      syncTimelineInputs();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useDossierTimeline, "Loaded");
+    });
+  }
+
+  if (els.resetTimeline) {
+    els.resetTimeline.addEventListener("click", () => {
+      state.timelineConfig = getDefaultTimelineConfig();
+      saveTimelineConfig();
+      syncTimelineInputs();
+      renderThesisTimelineAuditTrail();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetTimeline, "Reset");
+    });
+  }
+
+  if (els.exportTimelineBrief) {
+    els.exportTimelineBrief.addEventListener("click", exportThesisTimelineBrief);
+  }
+
+  if (els.timelineQuestionQueue) {
+    els.timelineQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-timeline-question]");
+      if (!button) return;
+      const question = button.dataset.timelineQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.briefingForm) {
+    els.briefingForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.briefingConfig = readBriefingConfig();
+      saveBriefingConfig();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.briefingForm.querySelector("button[type='submit']"), "Built");
+    });
+  }
+
+  if (els.useWorkspaceBriefing) {
+    els.useWorkspaceBriefing.addEventListener("click", () => {
+      hydrateBriefingFromWorkspace();
+      saveBriefingConfig();
+      syncBriefingInputs();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useWorkspaceBriefing, "Loaded");
+    });
+  }
+
+  if (els.resetBriefing) {
+    els.resetBriefing.addEventListener("click", () => {
+      state.briefingConfig = getDefaultBriefingConfig();
+      saveBriefingConfig();
+      syncBriefingInputs();
+      renderMorningBriefingRoom();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetBriefing, "Reset");
+    });
+  }
+
+  if (els.exportBriefingBrief) {
+    els.exportBriefingBrief.addEventListener("click", exportMorningBriefing);
+  }
+
+  if (els.briefingQuestionQueue) {
+    els.briefingQuestionQueue.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-briefing-question]");
+      if (!button) return;
+      const question = button.dataset.briefingQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.callPrepForm) {
+    els.callPrepForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.callPrepConfig = readCallPrepConfig();
+      saveCallPrepConfig();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.callPrepForm.querySelector("button[type='submit']"), "Prepped");
+    });
+  }
+
+  if (els.useBriefingCallPrep) {
+    els.useBriefingCallPrep.addEventListener("click", () => {
+      hydrateCallPrepFromBriefing();
+      saveCallPrepConfig();
+      syncCallPrepInputs();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useBriefingCallPrep, "Loaded");
+    });
+  }
+
+  if (els.resetCallPrep) {
+    els.resetCallPrep.addEventListener("click", () => {
+      state.callPrepConfig = getDefaultCallPrepConfig();
+      saveCallPrepConfig();
+      syncCallPrepInputs();
+      renderEarningsCallPrepRoom();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetCallPrep, "Reset");
+    });
+  }
+
+  if (els.exportCallPrepBrief) {
+    els.exportCallPrepBrief.addEventListener("click", exportEarningsCallPrep);
+  }
+
+  if (els.callPrepQuestionList) {
+    els.callPrepQuestionList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-callprep-question]");
+      if (!button) return;
+      const question = button.dataset.callprepQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.debriefForm) {
+    els.debriefForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.debriefConfig = readDebriefConfig();
+      saveDebriefConfig();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.debriefForm.querySelector("button[type='submit']"), "Debriefed");
+    });
+  }
+
+  if (els.useCallPrepDebrief) {
+    els.useCallPrepDebrief.addEventListener("click", () => {
+      hydrateDebriefFromCallPrep();
+      saveDebriefConfig();
+      syncDebriefInputs();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useCallPrepDebrief, "Loaded");
+    });
+  }
+
+  if (els.resetDebrief) {
+    els.resetDebrief.addEventListener("click", () => {
+      state.debriefConfig = getDefaultDebriefConfig();
+      saveDebriefConfig();
+      syncDebriefInputs();
+      renderPostEarningsDebriefRoom();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetDebrief, "Reset");
+    });
+  }
+
+  if (els.exportDebriefBrief) {
+    els.exportDebriefBrief.addEventListener("click", exportPostEarningsDebrief);
+  }
+
+  if (els.debriefActionList) {
+    els.debriefActionList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-debrief-question]");
+      if (!button) return;
+      const question = button.dataset.debriefQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.revisionForm) {
+    els.revisionForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.revisionConfig = readRevisionConfig();
+      saveRevisionConfig();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.revisionForm.querySelector("button[type='submit']"), "Revised");
+    });
+  }
+
+  if (els.useDebriefRevision) {
+    els.useDebriefRevision.addEventListener("click", () => {
+      hydrateRevisionFromDebrief();
+      saveRevisionConfig();
+      syncRevisionInputs();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useDebriefRevision, "Loaded");
+    });
+  }
+
+  if (els.resetRevision) {
+    els.resetRevision.addEventListener("click", () => {
+      state.revisionConfig = getDefaultRevisionConfig();
+      saveRevisionConfig();
+      syncRevisionInputs();
+      renderGuidanceRevisionRoom();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetRevision, "Reset");
+    });
+  }
+
+  if (els.exportRevisionBrief) {
+    els.exportRevisionBrief.addEventListener("click", exportGuidanceRevision);
+  }
+
+  if (els.revisionActionList) {
+    els.revisionActionList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-revision-question]");
+      if (!button) return;
+      const question = button.dataset.revisionQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
+  if (els.modelControlForm) {
+    els.modelControlForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.modelControlConfig = readModelControlConfig();
+      saveModelControlConfig();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.modelControlForm.querySelector("button[type='submit']"), "Locked");
+    });
+  }
+
+  if (els.useRevisionModelControl) {
+    els.useRevisionModelControl.addEventListener("click", () => {
+      hydrateModelControlFromRevision();
+      saveModelControlConfig();
+      syncModelControlInputs();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.useRevisionModelControl, "Loaded");
+    });
+  }
+
+  if (els.resetModelControl) {
+    els.resetModelControl.addEventListener("click", () => {
+      state.modelControlConfig = getDefaultModelControlConfig();
+      saveModelControlConfig();
+      syncModelControlInputs();
+      renderModelVersionControlRoom();
+      flashButtonLabel(els.resetModelControl, "Reset");
+    });
+  }
+
+  if (els.exportModelControlBrief) {
+    els.exportModelControlBrief.addEventListener("click", exportModelVersionControl);
+  }
+
+  if (els.modelControlActionList) {
+    els.modelControlActionList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-modelctl-question]");
+      if (!button) return;
+      const question = button.dataset.modelctlQuestion;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      submitCurrentQuestion();
+    });
+  }
+
   if (els.peerQuestionQueue) {
     els.peerQuestionQueue.addEventListener("click", (event) => {
       const button = event.target.closest("[data-peer-question]");
@@ -1606,6 +2522,7 @@ function renderLibrary() {
       renderSecurityPosture();
       renderContextBand();
       renderMarketStatusRail();
+      renderResearchDossierBuilder();
     });
   });
 }
@@ -2014,6 +2931,13 @@ function syncTickerFocus(question) {
   updateValuation();
   renderMarketQuoteCard();
   renderLaunchOps();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
   drawSignalMap();
   return focus;
 }
@@ -2099,6 +3023,13 @@ function runAnalysis(question) {
   renderContextBand();
   renderMarketStatusRail();
   renderLaunchOps();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
   drawSignalMap(citations);
 }
 
@@ -2117,6 +3048,13 @@ function renderNoDocs(question) {
   renderContextBand();
   renderMarketStatusRail();
   renderLaunchOps();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
 }
 
 function renderNoHits(question) {
@@ -2134,6 +3072,13 @@ function renderNoHits(question) {
   renderContextBand();
   renderMarketStatusRail();
   renderLaunchOps();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
 }
 
 function buildAnswerModel(question, citations, intent, tickerFocus = null) {
@@ -2679,6 +3624,10 @@ function tokenize(text) {
 
 function normalizeToken(token) {
   return String(token).toLowerCase().replace(/[^a-z0-9.]/g, "");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function detectIntent(question) {
@@ -5975,10 +6924,11 @@ function renderPeerScreener() {
   syncPeerInputs();
   const snapshot = buildPeerSnapshot();
   state.currentPeer = snapshot;
+  const benchmarkGap = snapshot.targetRow && snapshot.benchmarkRow ? snapshot.targetRow.score - snapshot.benchmarkRow.score : 0;
   els.peerMetricGrid.innerHTML = [
     { label: "Screen leader", value: snapshot.leader ? snapshot.leader.ticker : "None", sub: snapshot.leader ? `${snapshot.leader.score}/100 ${snapshot.config.factor}` : "Add peer names" },
     { label: "Target rank", value: snapshot.targetRow ? `#${snapshot.targetRow.rank}` : "-", sub: `${snapshot.rows.length} names screened` },
-    { label: "Score gap", value: snapshot.targetRow && snapshot.leader ? `${Math.max(0, snapshot.leader.score - snapshot.targetRow.score)}` : "0", sub: "Leader minus target" },
+    { label: "Benchmark peer", value: snapshot.benchmarkRow ? snapshot.benchmarkRow.ticker : "Peer group", sub: snapshot.benchmarkRow ? `${benchmarkGap >= 0 ? "+" : ""}${benchmarkGap} target score gap` : "No peer comparison" },
     { label: "Evidence hits", value: String(snapshot.totalEvidence), sub: `${snapshot.config.evidenceMode} mode` }
   ].map((metric) => `
     <div class="peer-metric">
@@ -6006,8 +6956,9 @@ function buildPeerSnapshot() {
   });
   const targetRow = rows.find((row) => row.ticker === config.target) || rows[0] || null;
   const leader = rows[0] || null;
-  const gapRows = buildPeerGapRows(targetRow, rows, config);
-  const questionRows = buildPeerQuestionRows(targetRow, leader, gapRows, config);
+  const benchmarkRow = pickPeerBenchmarkRow(targetRow, rows);
+  const gapRows = buildPeerGapRows(targetRow, benchmarkRow, config);
+  const questionRows = buildPeerQuestionRows(targetRow, benchmarkRow, gapRows, config);
   const totalEvidence = rows.reduce((sum, row) => sum + row.evidenceHits, 0);
   return {
     config,
@@ -6015,10 +6966,16 @@ function buildPeerSnapshot() {
     rows,
     targetRow,
     leader,
+    benchmarkRow,
     gapRows,
     questionRows,
     totalEvidence
   };
+}
+
+function pickPeerBenchmarkRow(targetRow, rows) {
+  if (!targetRow) return rows[0] || null;
+  return rows.find((row) => row.ticker !== targetRow.ticker) || null;
 }
 
 function resolvePeerCompanies(config) {
@@ -6125,9 +7082,9 @@ function makePeerReason(company, config, score, evidenceHits, valuationGap) {
   return `${company.growth}% growth, ${company.opMargin}% operating margin, ${score}/100 factor score.`;
 }
 
-function buildPeerGapRows(targetRow, rows, config) {
+function buildPeerGapRows(targetRow, benchmarkRow, config) {
   if (!targetRow) return [];
-  const leader = rows[0] || targetRow;
+  if (!benchmarkRow || benchmarkRow.ticker === targetRow.ticker) return [];
   const metrics = [
     { label: "Growth", key: "growth", unit: "%", better: "higher" },
     { label: "Operating margin", key: "opMargin", unit: "%", better: "higher" },
@@ -6138,16 +7095,16 @@ function buildPeerGapRows(targetRow, rows, config) {
   ];
   return metrics.map((metric) => {
     const targetValue = Number(targetRow[metric.key]) || 0;
-    const leaderValue = Number(leader[metric.key]) || 0;
-    const rawGap = leaderValue - targetValue;
+    const benchmarkValue = Number(benchmarkRow[metric.key]) || 0;
+    const rawGap = benchmarkValue - targetValue;
     const advantage = metric.better === "lower" ? -rawGap : rawGap;
     return {
       label: metric.label,
       target: `${targetValue}${metric.unit}`,
-      benchmark: `${leaderValue}${metric.unit}`,
+      benchmark: `${benchmarkValue}${metric.unit}`,
       gap: Math.round(rawGap),
       status: advantage > 4 ? "lag" : advantage < -4 ? "lead" : "even",
-      note: makePeerGapNote(metric, targetRow, leader, advantage, config)
+      note: makePeerGapNote(metric, targetRow, benchmarkRow, advantage, config)
     };
   }).sort((a, b) => {
     const severity = { lag: 2, even: 1, lead: 0 };
@@ -6155,25 +7112,25 @@ function buildPeerGapRows(targetRow, rows, config) {
   }).slice(0, 5);
 }
 
-function makePeerGapNote(metric, targetRow, leader, advantage, config) {
-  if (advantage > 4) return `${targetRow.ticker} trails ${leader.ticker} on ${metric.label.toLowerCase()} for the ${config.factor.toLowerCase()} screen.`;
-  if (advantage < -4) return `${targetRow.ticker} leads ${leader.ticker} on ${metric.label.toLowerCase()}.`;
-  return `${targetRow.ticker} is broadly in line with ${leader.ticker} on ${metric.label.toLowerCase()}.`;
+function makePeerGapNote(metric, targetRow, benchmarkRow, advantage, config) {
+  if (advantage > 4) return `${targetRow.ticker} trails ${benchmarkRow.ticker} on ${metric.label.toLowerCase()} for the ${config.factor.toLowerCase()} screen.`;
+  if (advantage < -4) return `${targetRow.ticker} leads ${benchmarkRow.ticker} on ${metric.label.toLowerCase()}.`;
+  return `${targetRow.ticker} is broadly in line with ${benchmarkRow.ticker} on ${metric.label.toLowerCase()}.`;
 }
 
-function buildPeerQuestionRows(targetRow, leader, gapRows, config) {
+function buildPeerQuestionRows(targetRow, benchmarkRow, gapRows, config) {
   if (!targetRow) return [];
-  const leadTicker = leader ? leader.ticker : targetRow.ticker;
+  const benchmarkPhrase = benchmarkRow && benchmarkRow.ticker !== targetRow.ticker ? `$${benchmarkRow.ticker}` : "the peer group";
   const rows = [
     {
       topic: "Main gap",
       question: gapRows[0]
-        ? `Why does $${targetRow.ticker} ${gapRows[0].status === "lag" ? "trail" : "lead"} $${leadTicker} on ${gapRows[0].label.toLowerCase()}?`
+        ? makePeerGapQuestion(targetRow, benchmarkPhrase, gapRows[0])
         : `What is the strongest source-backed reason to prefer $${targetRow.ticker} over peers?`
     },
     {
       topic: "Evidence test",
-      question: `Which filing or call passages best support $${targetRow.ticker}'s ${config.factor.toLowerCase()} thesis versus $${leadTicker}?`
+      question: `Which filing or call passages best support $${targetRow.ticker}'s ${config.factor.toLowerCase()} thesis versus ${benchmarkPhrase}?`
     },
     {
       topic: "Risk check",
@@ -6181,7 +7138,7 @@ function buildPeerQuestionRows(targetRow, leader, gapRows, config) {
     },
     {
       topic: "Valuation spread",
-      question: `Is $${targetRow.ticker}'s valuation spread justified by growth, margin quality, and risk versus $${leadTicker}?`
+      question: `Is $${targetRow.ticker}'s valuation spread justified by growth, margin quality, and risk versus ${benchmarkPhrase}?`
     }
   ];
   if (targetRow.evidenceHits < 2) {
@@ -6191,6 +7148,13 @@ function buildPeerQuestionRows(targetRow, leader, gapRows, config) {
     });
   }
   return rows.slice(0, 5);
+}
+
+function makePeerGapQuestion(targetRow, benchmarkPhrase, gapRow) {
+  const label = gapRow.label.toLowerCase();
+  if (gapRow.status === "lag") return `Why does $${targetRow.ticker} trail ${benchmarkPhrase} on ${label}?`;
+  if (gapRow.status === "lead") return `Why does $${targetRow.ticker} lead ${benchmarkPhrase} on ${label}?`;
+  return `What source detail explains why $${targetRow.ticker} is in line with ${benchmarkPhrase} on ${label}?`;
 }
 
 function renderPeerRankingList(rows, target) {
@@ -6343,6 +7307,7 @@ function exportPeerBrief() {
     "",
     `- Target ticker: ${snapshot.config.target}`,
     `- Peer basket: ${snapshot.config.peerBasket}`,
+    `- Benchmark peer: ${snapshot.benchmarkRow ? snapshot.benchmarkRow.ticker : "Peer group"}`,
     `- Primary factor: ${snapshot.config.factor}`,
     `- Risk penalty: ${snapshot.config.riskPenalty}%`,
     `- Valuation weight: ${snapshot.config.valuationWeight}%`,
@@ -6690,6 +7655,4102 @@ function exportStressBrief() {
   ].join("\n");
   downloadTextFile(`citealpha-scenario-stress-test-${date}.md`, content, "text/markdown;charset=utf-8");
   flashButtonLabel(els.exportStressBrief, "Exported");
+}
+
+function renderFilingChangeMonitor() {
+  if (!els.changeMetricGrid) return;
+  if (!state.changeConfig) state.changeConfig = loadChangeConfig();
+  syncChangeInputs();
+  const snapshot = buildFilingChangeSnapshot();
+  state.currentChange = snapshot;
+  els.changeMetricGrid.innerHTML = [
+    { label: "Materiality", value: `${snapshot.materialityScore}/100`, sub: snapshot.materialityLabel },
+    { label: "New themes", value: String(snapshot.addedRows.length), sub: `${snapshot.config.currentPeriod} vs prior` },
+    { label: "Thesis drift", value: snapshot.driftLabel, sub: snapshot.anchorTheme || "No single issue" },
+    { label: "Review action", value: snapshot.reviewAction, sub: `${snapshot.questionRows.length} follow-ups` }
+  ].map((metric) => `
+    <div class="change-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.changeAddedCount.textContent = String(snapshot.addedRows.length);
+  els.changeAddedList.innerHTML = renderChangeRows(snapshot.addedRows, "No expanded risks", "Paste two filing sections, then run the change scan.");
+  els.changeReducedCount.textContent = String(snapshot.reducedRows.length);
+  els.changeReducedList.innerHTML = renderChangeRows(snapshot.reducedRows, "No softened language", "Current language does not clearly remove prior-year risk signals.");
+  els.changeQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.changeQuestionQueue.innerHTML = renderChangeQuestions(snapshot.questionRows);
+}
+
+function buildFilingChangeSnapshot() {
+  const config = normalizeChangeConfig(state.changeConfig || getDefaultChangeConfig());
+  const priorThemes = scoreChangeThemes(config.priorText);
+  const currentThemes = scoreChangeThemes(config.currentText);
+  const addedRows = buildChangeThemeRows(priorThemes, currentThemes, config.currentText, "added", config);
+  const reducedRows = buildChangeThemeRows(currentThemes, priorThemes, config.priorText, "reduced", config);
+  const currentSentenceCount = splitChangeSentences(config.currentText).length;
+  const priorSentenceCount = splitChangeSentences(config.priorText).length;
+  const severityPoints = addedRows.reduce((sum, row) => sum + (row.severity === "High" ? 16 : 10) + row.delta * 3, 0);
+  const reductionOffset = Math.min(18, reducedRows.length * 5);
+  const materialityScore = Math.max(0, Math.min(100, Math.round(32 + severityPoints + Math.max(0, currentSentenceCount - priorSentenceCount) * 2 - reductionOffset)));
+  const materialityLabel = materialityScore >= 75 ? "Board review" : materialityScore >= 55 ? "Analyst review" : "Monitor";
+  const anchorTheme = addedRows[0] ? addedRows[0].label : (currentThemes[0] ? currentThemes[0].label : "");
+  const driftLabel = materialityScore >= 75 ? "High" : materialityScore >= 55 ? "Medium" : "Low";
+  const reviewAction = materialityScore >= getChangeMaterialityThreshold(config.materiality) ? "Review" : "Watch";
+  const questionRows = buildChangeQuestionRows(addedRows, reducedRows, config, materialityScore);
+  return {
+    config,
+    priorThemes,
+    currentThemes,
+    addedRows,
+    reducedRows,
+    materialityScore,
+    materialityLabel,
+    driftLabel,
+    anchorTheme,
+    reviewAction,
+    questionRows
+  };
+}
+
+function scoreChangeThemes(text) {
+  const lower = String(text || "").toLowerCase();
+  return CHANGE_THEME_LIBRARY.map((theme) => {
+    const matches = theme.terms.reduce((sum, term) => {
+      const pattern = new RegExp(`\\b${escapeRegExp(term.toLowerCase()).replace(/\\s+/g, "\\s+")}\\b`, "g");
+      const found = lower.match(pattern);
+      return sum + (found ? found.length : 0);
+    }, 0);
+    return {
+      ...theme,
+      score: matches,
+      evidence: findThemeEvidence(text, theme)
+    };
+  }).sort((a, b) => b.score - a.score || (a.severity === "High" ? -1 : 1));
+}
+
+function buildChangeThemeRows(baseThemes, compareThemes, evidenceText, mode, config) {
+  const compareMap = new Map(compareThemes.map((theme) => [theme.id, theme]));
+  return baseThemes.map((theme) => {
+    const compareScore = (compareMap.get(theme.id) || { score: 0 }).score;
+    const delta = theme.score - compareScore;
+    return {
+      id: theme.id,
+      label: theme.label,
+      severity: theme.severity,
+      score: theme.score,
+      delta,
+      period: mode === "added" ? config.currentPeriod : config.priorPeriod,
+      evidence: theme.evidence || findThemeEvidence(evidenceText, theme),
+      note: makeChangeThemeNote(theme, delta, mode, config)
+    };
+  }).filter((row) => row.score > 0 && row.delta > 0)
+    .sort((a, b) => (b.severity === "High" ? 1 : 0) - (a.severity === "High" ? 1 : 0) || b.delta - a.delta || b.score - a.score)
+    .slice(0, 5);
+}
+
+function makeChangeThemeNote(theme, delta, mode, config) {
+  const direction = mode === "added" ? "expanded" : "softened";
+  const period = mode === "added" ? config.currentPeriod : config.priorPeriod;
+  return `${theme.label} language ${direction} by ${delta} signal${delta === 1 ? "" : "s"} in ${period}.`;
+}
+
+function buildChangeQuestionRows(addedRows, reducedRows, config, materialityScore) {
+  const rows = [];
+  const anchor = addedRows[0] || reducedRows[0] || { label: "risk language", severity: "Medium" };
+  if (addedRows[0]) {
+    rows.push({
+      topic: "Change driver",
+      question: `What changed in $${config.ticker} filing language around ${addedRows[0].label.toLowerCase()} between ${config.priorPeriod} and ${config.currentPeriod}?`
+    });
+  }
+  if (addedRows[1]) {
+    rows.push({
+      topic: "Second-order risk",
+      question: `Which source passages show whether $${config.ticker}'s ${addedRows[1].label.toLowerCase()} risk is now more material?`
+    });
+  }
+  rows.push({
+    topic: "Management check",
+    question: `Did management address $${config.ticker}'s ${anchor.label.toLowerCase()} change on the latest earnings call?`
+  });
+  rows.push({
+    topic: "Valuation impact",
+    question: `What valuation assumption should move first if $${config.ticker}'s ${anchor.label.toLowerCase()} language keeps worsening?`
+  });
+  if (materialityScore >= 70) {
+    rows.push({
+      topic: "Escalation",
+      question: `Should $${config.ticker}'s new filing language trigger an investment committee review before the next position decision?`
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function renderChangeRows(rows, emptyTitle, emptyText) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>${escapeHtml(emptyTitle)}</strong>
+        <span>${escapeHtml(emptyText)}</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <div class="change-row ${escapeAttr(row.severity.toLowerCase())}">
+      <span>${escapeHtml(row.severity)}</span>
+      <div>
+        <strong>${escapeHtml(row.label)}</strong>
+        <em>${escapeHtml(row.evidence || row.note)}</em>
+      </div>
+      <b>+${escapeHtml(String(row.delta))}</b>
+    </div>
+  `).join("");
+}
+
+function renderChangeQuestions(rows) {
+  if (!rows.length) {
+    return `
+      <div class="ops-empty">
+        <strong>No change questions yet</strong>
+        <span>Run the filing monitor to create the next research queue.</span>
+      </div>
+    `;
+  }
+  return rows.map((row) => `
+    <button class="change-question-row" type="button" data-change-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function findThemeEvidence(text, theme) {
+  const terms = theme.terms.map((term) => term.toLowerCase());
+  return splitChangeSentences(text).find((sentence) => {
+    const lower = sentence.toLowerCase();
+    return terms.some((term) => lower.includes(term));
+  }) || "";
+}
+
+function splitChangeSentences(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+|[\r\n]+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 24)
+    .slice(0, 30);
+}
+
+function readChangeConfig() {
+  return normalizeChangeConfig({
+    ticker: els.changeTicker.value,
+    priorPeriod: els.changePriorPeriod.value,
+    currentPeriod: els.changeCurrentPeriod.value,
+    materiality: els.changeMateriality.value,
+    priorText: els.changePriorText.value,
+    currentText: els.changeCurrentText.value
+  });
+}
+
+function syncChangeInputs() {
+  if (!els.changeTicker) return;
+  const config = normalizeChangeConfig(state.changeConfig || getDefaultChangeConfig());
+  els.changeTicker.value = config.ticker;
+  els.changePriorPeriod.value = config.priorPeriod;
+  els.changeCurrentPeriod.value = config.currentPeriod;
+  els.changeMateriality.value = config.materiality;
+  els.changePriorText.value = config.priorText;
+  els.changeCurrentText.value = config.currentText;
+}
+
+function normalizeChangeConfig(config) {
+  const defaults = getDefaultChangeConfig();
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    priorPeriod: String(config.priorPeriod || defaults.priorPeriod).slice(0, 40),
+    currentPeriod: String(config.currentPeriod || defaults.currentPeriod).slice(0, 40),
+    materiality: normalizeChoice(config.materiality, ["Balanced", "Strict", "Early warning"], defaults.materiality),
+    priorText: String(config.priorText || defaults.priorText).slice(0, 6000),
+    currentText: String(config.currentText || defaults.currentText).slice(0, 6000)
+  };
+}
+
+function getDefaultChangeConfig() {
+  return {
+    ticker: "NVDA",
+    priorPeriod: "FY2024 10-K",
+    currentPeriod: "FY2025 10-K",
+    materiality: "Balanced",
+    priorText: DEFAULT_CHANGE_PRIOR_TEXT,
+    currentText: DEFAULT_CHANGE_CURRENT_TEXT
+  };
+}
+
+function getChangeMaterialityThreshold(mode) {
+  if (mode === "Strict") return 75;
+  if (mode === "Early warning") return 45;
+  return 58;
+}
+
+function loadChangeConfig() {
+  return normalizeChangeConfig(loadJson(STORAGE_KEYS.filingChange, getDefaultChangeConfig()));
+}
+
+function saveChangeConfig() {
+  saveJson(STORAGE_KEYS.filingChange, normalizeChangeConfig(state.changeConfig || getDefaultChangeConfig()));
+}
+
+function hydrateChangeFromImports() {
+  const current = normalizeChangeConfig(state.changeConfig || getDefaultChangeConfig());
+  const focusTicker = normalizeTicker((state.tickerFocus && state.tickerFocus.ticker) || current.ticker || state.selectedTicker || "NVDA");
+  const docs = state.documents
+    .filter((doc) => doc.ticker === focusTicker && state.enabledDocIds.has(doc.id))
+    .sort((a, b) => Number(b.sourceKind === "uploaded") - Number(a.sourceKind === "uploaded"));
+  const currentDoc = docs[0] || null;
+  const priorDoc = docs.find((doc) => doc !== currentDoc && /risk|10-k|filing|annual/i.test(`${doc.type} ${doc.title}`)) || docs[1] || null;
+  state.changeConfig = normalizeChangeConfig({
+    ...current,
+    ticker: focusTicker,
+    priorPeriod: priorDoc ? `${priorDoc.type} prior` : "Prior filing",
+    currentPeriod: currentDoc ? `${currentDoc.type} current` : "Current filing",
+    priorText: priorDoc ? priorDoc.text : DEFAULT_CHANGE_PRIOR_TEXT,
+    currentText: currentDoc ? currentDoc.text : DEFAULT_CHANGE_CURRENT_TEXT
+  });
+}
+
+function exportChangeBrief() {
+  const snapshot = state.currentChange || buildFilingChangeSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Filing Change Monitor Memo",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Change Setup",
+    "",
+    `- Ticker: ${snapshot.config.ticker}`,
+    `- Prior period: ${snapshot.config.priorPeriod}`,
+    `- Current period: ${snapshot.config.currentPeriod}`,
+    `- Materiality bar: ${snapshot.config.materiality}`,
+    "",
+    "## Change Scorecard",
+    "",
+    `- Materiality: ${snapshot.materialityScore}/100`,
+    `- Thesis drift: ${snapshot.driftLabel}`,
+    `- Review action: ${snapshot.reviewAction}`,
+    `- Anchor theme: ${snapshot.anchorTheme || "None"}`,
+    "",
+    "## New or Expanded Risks",
+    "",
+    ...(snapshot.addedRows.length ? snapshot.addedRows.map((row) => `- ${row.severity}: ${row.label} +${row.delta} - ${row.evidence || row.note}`) : ["- No expanded risks detected."]),
+    "",
+    "## Softened or Removed Language",
+    "",
+    ...(snapshot.reducedRows.length ? snapshot.reducedRows.map((row) => `- ${row.severity}: ${row.label} +${row.delta} - ${row.evidence || row.note}`) : ["- No softened language detected."]),
+    "",
+    "## Follow-Up Queue",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This filing change monitor is a client-side prototype. Production should compare normalized filing sections by accession, preserve immutable text snapshots, and route material changes through reviewer workflow before user-facing alerts."
+  ].join("\n");
+  downloadTextFile(`citealpha-filing-change-monitor-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportChangeBrief, "Exported");
+}
+
+function renderValuationMatrix() {
+  if (!els.matrixMetricGrid) return;
+  if (!state.valuationMatrixConfig) state.valuationMatrixConfig = loadValuationMatrixConfig();
+  syncValuationMatrixInputs();
+  const snapshot = buildValuationMatrixSnapshot();
+  state.currentValuationMatrix = snapshot;
+  els.matrixMetricGrid.innerHTML = [
+    { label: "Base value", value: formatPerShare(snapshot.baseCase.perShare), sub: `${formatMoney(snapshot.baseCase.equityValue)} equity value` },
+    { label: "Bear / bull range", value: `${formatPerShare(snapshot.bearCase.perShare)} - ${formatPerShare(snapshot.bullCase.perShare)}`, sub: `${formatPerShare(snapshot.range)} spread` },
+    { label: "Top driver", value: snapshot.topDriver ? snapshot.topDriver.shortLabel : "None", sub: snapshot.topDriver ? `${formatSignedPerShare(snapshot.topDriver.delta)} per share` : "Run matrix" },
+    { label: "Evidence fit", value: `${snapshot.evidenceScore}/100`, sub: snapshot.evidenceLabel }
+  ].map((metric) => `
+    <div class="matrix-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.matrixCaseCount.textContent = `${snapshot.caseRows.length} cases`;
+  els.matrixCaseList.innerHTML = renderValuationCaseRows(snapshot.caseRows);
+  els.matrixDriverLabel.textContent = snapshot.topDriver ? snapshot.topDriver.shortLabel : "0";
+  els.matrixDriverList.innerHTML = renderValuationDriverRows(snapshot.driverRows);
+  els.matrixQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.matrixQuestionQueue.innerHTML = renderValuationMatrixQuestions(snapshot.questionRows);
+}
+
+function buildValuationMatrixSnapshot() {
+  const config = normalizeValuationMatrixConfig(state.valuationMatrixConfig || getDefaultValuationMatrixConfig());
+  const company = resolveValuationMatrixCompany(config.ticker);
+  const caseRows = buildValuationCaseRows(company, config);
+  const baseCase = caseRows.find((row) => row.id === "base") || caseRows[1];
+  const bearCase = caseRows.find((row) => row.id === "bear") || caseRows[0];
+  const bullCase = caseRows.find((row) => row.id === "bull") || caseRows[2];
+  const range = Math.max(0, Math.round(bullCase.perShare - bearCase.perShare));
+  const driverRows = buildValuationDriverRows(company, config, baseCase);
+  const topDriver = driverRows[0] || null;
+  const evidence = scoreValuationEvidence(company, config);
+  const questionRows = buildValuationQuestionRows(company, config, topDriver, evidence, caseRows);
+  return {
+    config,
+    company,
+    caseRows,
+    baseCase,
+    bearCase,
+    bullCase,
+    range,
+    driverRows,
+    topDriver,
+    evidenceScore: evidence.score,
+    evidenceLabel: evidence.label,
+    questionRows
+  };
+}
+
+function buildValuationCaseRows(company, config) {
+  const spread = getMatrixSpread(config.spread);
+  const rows = [
+    {
+      id: "bear",
+      label: "Bear",
+      growth: config.growth - spread.growth,
+      margin: config.margin - spread.margin,
+      multiple: config.multiple - spread.multiple,
+      discount: config.discount + spread.discount,
+      note: "Demand, cash conversion, and multiple support all fade."
+    },
+    {
+      id: "base",
+      label: "Base",
+      growth: config.growth,
+      margin: config.margin,
+      multiple: config.multiple,
+      discount: config.discount,
+      note: "Current model assumptions from the active valuation lens."
+    },
+    {
+      id: "bull",
+      label: "Bull",
+      growth: config.growth + spread.growth,
+      margin: config.margin + spread.margin,
+      multiple: config.multiple + spread.multiple,
+      discount: Math.max(4, config.discount - spread.discount),
+      note: "Evidence supports stronger growth, margin, and risk premium."
+    }
+  ];
+  return rows.map((row) => ({
+    ...row,
+    ...computeValuationCase(company, row, config.horizonYears)
+  }));
+}
+
+function computeValuationCase(company, scenario, years) {
+  const growth = scenario.growth / 100;
+  const margin = scenario.margin / 100;
+  const discount = scenario.discount / 100;
+  let revenue = Number(company.revenue) || 0;
+  let presentValueFcf = 0;
+  for (let year = 1; year <= years; year += 1) {
+    revenue *= 1 + growth;
+    const fcf = revenue * margin;
+    presentValueFcf += fcf / Math.pow(1 + discount, year);
+  }
+  const terminalFcf = revenue * margin;
+  const discountedTerminal = terminalFcf * scenario.multiple / Math.pow(1 + discount, years);
+  const enterpriseValue = presentValueFcf + discountedTerminal;
+  const equityValue = Math.max(0, enterpriseValue - Number(company.netDebt || 0));
+  const perShare = equityValue / Math.max(Number(company.shares || 0), 0.01);
+  return {
+    terminalRevenue: revenue,
+    terminalFcf,
+    enterpriseValue,
+    equityValue,
+    perShare
+  };
+}
+
+function buildValuationDriverRows(company, config, baseCase) {
+  const scenarios = [
+    { id: "margin", shortLabel: "Margin", label: "FCF margin +2 pts", input: { ...config, margin: config.margin + 2 }, thesis: "FCF margin has the cleanest read-through from filing evidence." },
+    { id: "growth", shortLabel: "Growth", label: "Revenue CAGR +3 pts", input: { ...config, growth: config.growth + 3 }, thesis: "Growth matters only if demand evidence supports the ramp." },
+    { id: "multiple", shortLabel: "Multiple", label: "Terminal multiple +2x", input: { ...config, multiple: config.multiple + 2 }, thesis: "Multiple expansion needs better durability, not just excitement." },
+    { id: "discount", shortLabel: "Discount", label: "Discount rate -100 bps", input: { ...config, discount: Math.max(4, config.discount - 1) }, thesis: "Lower risk premium must be earned by source quality and balance-sheet confidence." }
+  ];
+  return scenarios.map((item) => {
+    const caseValue = computeValuationCase(company, item.input, config.horizonYears);
+    const delta = Math.round(caseValue.perShare - baseCase.perShare);
+    return {
+      ...item,
+      value: caseValue.perShare,
+      delta,
+      absDelta: Math.abs(delta)
+    };
+  }).sort((a, b) => b.absDelta - a.absDelta);
+}
+
+function scoreValuationEvidence(company, config) {
+  const docs = state.documents.filter((doc) => doc.ticker === company.ticker && state.enabledDocIds.has(doc.id));
+  const citations = state.currentCitations.filter((citation) => citation.ticker === company.ticker);
+  const sourceAudit = makeLightSourceAudit(citations.length ? citations : []);
+  const threshold = config.evidenceBar === "Strict" ? 82 : config.evidenceBar === "Exploratory" ? 45 : 64;
+  const rawScore = Math.round(38 + docs.length * 9 + citations.length * 6 + (sourceAudit.quality || 45) * 0.18 - Math.max(0, company.risk - 50) * 0.25);
+  const score = Math.max(25, Math.min(100, rawScore));
+  return {
+    score,
+    label: score >= threshold ? "Model support ready" : `Needs ${threshold - score} pts support`
+  };
+}
+
+function buildValuationQuestionRows(company, config, topDriver, evidence, caseRows) {
+  const base = caseRows.find((row) => row.id === "base") || caseRows[0];
+  const bull = caseRows.find((row) => row.id === "bull") || base;
+  const rows = [
+    {
+      topic: "Margin proof",
+      question: `Which filing or call passages support $${company.ticker} sustaining ${config.margin}% FCF margin through the forecast period?`
+    },
+    {
+      topic: "Growth bridge",
+      question: `What source evidence justifies $${company.ticker}'s ${config.growth}% revenue CAGR rather than the bear case?`
+    },
+    {
+      topic: "Multiple guardrail",
+      question: `What would need to be true for $${company.ticker} to deserve a ${config.multiple}x terminal FCF multiple?`
+    },
+    {
+      topic: "Downside trigger",
+      question: `Which risk factor would push $${company.ticker} from ${formatPerShare(base.perShare)} base value toward the bear case first?`
+    }
+  ];
+  if (topDriver) {
+    rows.unshift({
+      topic: "Top sensitivity",
+      question: `What evidence would confirm ${topDriver.label.toLowerCase()} for $${company.ticker}, the largest valuation driver in the matrix?`
+    });
+  }
+  if (evidence.score < 65) {
+    rows.push({
+      topic: "Source gap",
+      question: `Which 10-K, MD&A, or earnings call sections should I import before trusting the ${formatPerShare(bull.perShare)} bull case for $${company.ticker}?`
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function renderValuationCaseRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No valuation cases yet</strong><span>Run the matrix to create bull/base/bear values.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="matrix-case-row ${escapeAttr(row.id)}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(formatPerShare(row.perShare))} per share | ${escapeHtml(formatMoney(row.equityValue))}</strong>
+        <em>${escapeHtml(Math.round(row.growth))}% growth, ${escapeHtml(Math.round(row.margin))}% FCF, ${escapeHtml(String(Math.round(row.multiple)))}x, ${escapeHtml(String(roundOne(row.discount)))}% discount. ${escapeHtml(row.note)}</em>
+      </div>
+      <b>${escapeHtml(formatMoney(row.terminalFcf))}</b>
+    </div>
+  `).join("");
+}
+
+function renderValuationDriverRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No drivers yet</strong><span>Run the matrix to see what moves value most.</span></div>`;
+  }
+  const maxDelta = Math.max(1, ...rows.map((row) => row.absDelta));
+  return rows.map((row) => `
+    <div class="matrix-driver-row">
+      <span>${escapeHtml(row.shortLabel)}</span>
+      <div>
+        <strong>${escapeHtml(row.label)} | ${escapeHtml(formatSignedPerShare(row.delta))}</strong>
+        <em>${escapeHtml(row.thesis)}</em>
+        <i><b style="width:${escapeAttr(String(Math.max(6, Math.round((row.absDelta / maxDelta) * 100))))}%"></b></i>
+      </div>
+      <b>${escapeHtml(formatPerShare(row.value))}</b>
+    </div>
+  `).join("");
+}
+
+function renderValuationMatrixQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No model questions yet</strong><span>Run the matrix to generate valuation diligence prompts.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="matrix-question-row" type="button" data-matrix-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readValuationMatrixConfig() {
+  return normalizeValuationMatrixConfig({
+    ticker: els.matrixTicker.value,
+    growth: Number(els.matrixGrowth.value),
+    margin: Number(els.matrixMargin.value),
+    multiple: Number(els.matrixMultiple.value),
+    discount: Number(els.matrixDiscount.value),
+    spread: els.matrixSpread.value,
+    evidenceBar: els.matrixEvidenceBar.value,
+    horizon: els.matrixHorizon.value
+  });
+}
+
+function syncValuationMatrixInputs() {
+  if (!els.matrixTicker) return;
+  syncValuationMatrixTickerOptions();
+  const config = normalizeValuationMatrixConfig(state.valuationMatrixConfig || getDefaultValuationMatrixConfig());
+  els.matrixTicker.value = config.ticker;
+  els.matrixGrowth.value = String(roundOne(config.growth));
+  els.matrixMargin.value = String(roundOne(config.margin));
+  els.matrixMultiple.value = String(roundOne(config.multiple));
+  els.matrixDiscount.value = String(roundOne(config.discount));
+  els.matrixSpread.value = config.spread;
+  els.matrixEvidenceBar.value = config.evidenceBar;
+  els.matrixHorizon.value = config.horizon;
+}
+
+function syncValuationMatrixTickerOptions() {
+  if (!els.matrixTicker) return;
+  const config = normalizeValuationMatrixConfig(state.valuationMatrixConfig || getDefaultValuationMatrixConfig());
+  const tickers = getCompanies().map((company) => company.ticker);
+  if (!tickers.includes(config.ticker)) tickers.unshift(config.ticker);
+  els.matrixTicker.innerHTML = Array.from(new Set(tickers)).map((ticker) => {
+    const company = resolveValuationMatrixCompany(ticker);
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name || ticker)}</option>`;
+  }).join("");
+}
+
+function normalizeValuationMatrixConfig(config) {
+  const defaults = getDefaultValuationMatrixConfig();
+  const horizon = normalizeChoice(config.horizon, ["3 years", "5 years", "7 years"], defaults.horizon);
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    growth: clampDecimal(config.growth, -10, 60, defaults.growth),
+    margin: clampDecimal(config.margin, -10, 45, defaults.margin),
+    multiple: clampDecimal(config.multiple, 4, 60, defaults.multiple),
+    discount: clampDecimal(config.discount, 4, 20, defaults.discount),
+    spread: normalizeChoice(config.spread, ["Balanced", "Wide", "Tight"], defaults.spread),
+    evidenceBar: normalizeChoice(config.evidenceBar, ["Balanced", "Strict", "Exploratory"], defaults.evidenceBar),
+    horizon,
+    horizonYears: Number(horizon.match(/\d+/)?.[0] || 5)
+  };
+}
+
+function getDefaultValuationMatrixConfig() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  return {
+    ticker: company.ticker || "NSCP",
+    growth: Number(company.growth) || 12,
+    margin: Number(company.fcfMargin) || 12,
+    multiple: Number(company.multiple) || 18,
+    discount: Number(els.discountSlider?.value) || 10,
+    spread: "Balanced",
+    evidenceBar: "Balanced",
+    horizon: "5 years"
+  };
+}
+
+function hydrateValuationMatrixFromLens() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  state.valuationMatrixConfig = normalizeValuationMatrixConfig({
+    ...(state.valuationMatrixConfig || getDefaultValuationMatrixConfig()),
+    ticker: company.ticker,
+    growth: Number(els.growthSlider?.value) || company.growth,
+    margin: Number(els.marginSlider?.value) || company.fcfMargin,
+    multiple: Number(els.multipleSlider?.value) || company.multiple,
+    discount: Number(els.discountSlider?.value) || 10
+  });
+}
+
+function loadValuationMatrixConfig() {
+  return normalizeValuationMatrixConfig(loadJson(STORAGE_KEYS.valuationMatrix, getDefaultValuationMatrixConfig()));
+}
+
+function saveValuationMatrixConfig() {
+  saveJson(STORAGE_KEYS.valuationMatrix, normalizeValuationMatrixConfig(state.valuationMatrixConfig || getDefaultValuationMatrixConfig()));
+}
+
+function resolveValuationMatrixCompany(ticker) {
+  const normalized = normalizeTicker(ticker);
+  const companies = getCompanies();
+  const exact = companies.find((company) => company.ticker === normalized);
+  if (exact) return exact;
+  const alias = PUBLIC_TICKER_ALIASES[normalized];
+  if (alias) {
+    return companies.find((company) => company.ticker === alias.ticker) || getCompany(alias.ticker);
+  }
+  return getCompany(normalized) || SAMPLE_COMPANIES[0];
+}
+
+function getMatrixSpread(spread) {
+  const spreads = {
+    Tight: { growth: 2, margin: 1, multiple: 2, discount: 0.75 },
+    Balanced: { growth: 4, margin: 2, multiple: 3, discount: 1.25 },
+    Wide: { growth: 7, margin: 4, multiple: 5, discount: 2 }
+  };
+  return spreads[spread] || spreads.Balanced;
+}
+
+function clampDecimal(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(number * 10) / 10));
+}
+
+function roundOne(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
+}
+
+function formatPerShare(value) {
+  return `$${Math.max(0, Math.round(Number(value) || 0))}`;
+}
+
+function formatSignedPerShare(value) {
+  const rounded = Math.round(Number(value) || 0);
+  if (rounded < 0) return `-$${Math.abs(rounded)}`;
+  return `+$${rounded}`;
+}
+
+function exportValuationMatrixBrief() {
+  const snapshot = state.currentValuationMatrix || buildValuationMatrixSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Valuation Sensitivity Memo",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Model Setup",
+    "",
+    `- Ticker: ${snapshot.company.ticker} - ${snapshot.company.name}`,
+    `- Revenue CAGR: ${snapshot.config.growth}%`,
+    `- FCF margin: ${snapshot.config.margin}%`,
+    `- Terminal multiple: ${snapshot.config.multiple}x`,
+    `- Discount rate: ${snapshot.config.discount}%`,
+    `- Horizon: ${snapshot.config.horizon}`,
+    `- Evidence bar: ${snapshot.config.evidenceBar}`,
+    "",
+    "## Case Grid",
+    "",
+    ...snapshot.caseRows.map((row) => `- ${row.label}: ${formatPerShare(row.perShare)} per share, ${formatMoney(row.equityValue)} equity value, ${roundOne(row.growth)}% growth, ${roundOne(row.margin)}% FCF, ${roundOne(row.multiple)}x multiple, ${roundOne(row.discount)}% discount.`),
+    "",
+    "## Driver Sensitivity",
+    "",
+    ...snapshot.driverRows.map((row) => `- ${row.label}: ${formatSignedPerShare(row.delta)} per share - ${row.thesis}`),
+    "",
+    "## Model Questions",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This valuation matrix is a client-side scenario tool, not a price target. Production should connect audited financial statements, normalized market data, analyst-approved assumptions, and review controls before presenting valuation outputs to paying users."
+  ].join("\n");
+  downloadTextFile(`citealpha-valuation-sensitivity-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportMatrixBrief, "Exported");
+}
+
+function renderResearchTearSheet() {
+  if (!els.tearMetricGrid) return;
+  if (!state.tearSheetConfig) state.tearSheetConfig = loadTearSheetConfig();
+  syncTearSheetInputs();
+  const snapshot = buildResearchTearSheetSnapshot();
+  state.currentTearSheet = snapshot;
+  els.tearMetricGrid.innerHTML = [
+    { label: "Stance", value: snapshot.stance, sub: `${snapshot.config.conviction} conviction` },
+    { label: "Value range", value: `${formatPerShare(snapshot.bearCase.perShare)} - ${formatPerShare(snapshot.bullCase.perShare)}`, sub: `${formatPerShare(snapshot.baseCase.perShare)} base` },
+    { label: "Risk score", value: `${snapshot.riskScore}/100`, sub: snapshot.riskLabel },
+    { label: "Evidence cover", value: `${snapshot.evidenceScore}/100`, sub: `${snapshot.docCount} docs | ${snapshot.citationCount} cites` }
+  ].map((metric) => `
+    <div class="tear-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.tearThesisCount.textContent = `${snapshot.thesisRows.length}`;
+  els.tearThesisList.innerHTML = renderTearSheetRows(snapshot.thesisRows);
+  els.tearRiskLabel.textContent = snapshot.riskLabel;
+  els.tearValuationList.innerHTML = renderTearSheetRows(snapshot.valuationRows);
+  els.tearActionCount.textContent = String(snapshot.actionRows.length);
+  els.tearActionQueue.innerHTML = renderTearSheetActions(snapshot.actionRows);
+}
+
+function buildResearchTearSheetSnapshot() {
+  const config = normalizeTearSheetConfig(state.tearSheetConfig || getDefaultTearSheetConfig());
+  const company = resolveValuationMatrixCompany(config.ticker);
+  const docs = state.documents.filter((doc) => doc.ticker === company.ticker && state.enabledDocIds.has(doc.id));
+  const citations = state.currentCitations.filter((citation) => citation.ticker === company.ticker);
+  const sourceAudit = makeLightSourceAudit(citations);
+  const citationBoost = citations.length * 6;
+  const docBoost = docs.length * 8;
+  const evidenceScore = Math.max(32, Math.min(100, Math.round(38 + docBoost + citationBoost + (sourceAudit.quality || 40) * 0.18)));
+  const riskFactors = buildRiskFactors(citations, company);
+  const valuation = buildTearSheetValuation(company);
+  const riskScore = Math.max(1, Math.min(99, Math.round(company.risk + (riskFactors[0]?.severity === "High" ? 4 : 0) - Math.max(0, evidenceScore - 72) * 0.12)));
+  const riskLabel = riskScore >= 70 ? "High" : riskScore >= 55 ? "Watch" : "Moderate";
+  const stance = resolveTearSheetStance(config, company, riskScore, evidenceScore);
+  const topRisk = riskFactors[0] || makeGenericRiskBlueprint(company)[0];
+  const thesisRows = buildTearSheetThesisRows(company, config, stance, valuation, topRisk, evidenceScore);
+  const valuationRows = buildTearSheetValuationRows(company, config, valuation, riskScore, evidenceScore);
+  const actionRows = buildTearSheetActions(company, config, topRisk, valuation, evidenceScore, riskScore);
+  return {
+    config,
+    company,
+    docs,
+    docCount: docs.length,
+    citationCount: citations.length,
+    sourceAudit,
+    evidenceScore,
+    riskFactors,
+    riskScore,
+    riskLabel,
+    stance,
+    ...valuation,
+    thesisRows,
+    valuationRows,
+    actionRows
+  };
+}
+
+function buildTearSheetValuation(company) {
+  const activeMatrix = state.currentValuationMatrix && state.currentValuationMatrix.company && state.currentValuationMatrix.company.ticker === company.ticker
+    ? state.currentValuationMatrix
+    : null;
+  if (activeMatrix) {
+    return {
+      caseRows: activeMatrix.caseRows,
+      baseCase: activeMatrix.baseCase,
+      bearCase: activeMatrix.bearCase,
+      bullCase: activeMatrix.bullCase,
+      topDriver: activeMatrix.topDriver
+    };
+  }
+  const matrixConfig = normalizeValuationMatrixConfig({
+    ticker: company.ticker,
+    growth: Number(company.growth) || 10,
+    margin: Number(company.fcfMargin) || 10,
+    multiple: Number(company.multiple) || 16,
+    discount: Number(els.discountSlider?.value) || 10,
+    spread: "Balanced",
+    evidenceBar: "Balanced",
+    horizon: "5 years"
+  });
+  const caseRows = buildValuationCaseRows(company, matrixConfig);
+  const baseCase = caseRows.find((row) => row.id === "base") || caseRows[1];
+  const bearCase = caseRows.find((row) => row.id === "bear") || caseRows[0];
+  const bullCase = caseRows.find((row) => row.id === "bull") || caseRows[2];
+  const topDriver = buildValuationDriverRows(company, matrixConfig, baseCase)[0] || null;
+  return { caseRows, baseCase, bearCase, bullCase, topDriver };
+}
+
+function resolveTearSheetStance(config, company, riskScore, evidenceScore) {
+  if (config.stance !== "Auto") return config.stance;
+  if (riskScore >= 78 && evidenceScore < 68) return "Avoid";
+  if (evidenceScore >= 72 && riskScore <= 58 && company.sentiment >= 58) return "Constructive";
+  return "Watch";
+}
+
+function buildTearSheetThesisRows(company, config, stance, valuation, topRisk, evidenceScore) {
+  return [
+    {
+      label: "Company",
+      title: `${company.ticker} - ${company.name}`,
+      body: `${company.sector}. ${company.thesis}`,
+      level: "normal"
+    },
+    {
+      label: "Stance",
+      title: `${stance} | ${config.horizon}`,
+      body: `${config.decisionNote}`,
+      level: stance === "Avoid" ? "danger" : stance === "Watch" ? "warning" : "normal"
+    },
+    {
+      label: "Valuation",
+      title: `${formatPerShare(valuation.baseCase.perShare)} base value`,
+      body: `Bear/bull range is ${formatPerShare(valuation.bearCase.perShare)} to ${formatPerShare(valuation.bullCase.perShare)}. Top driver: ${valuation.topDriver ? valuation.topDriver.shortLabel : "n/a"}.`,
+      level: "normal"
+    },
+    {
+      label: "Evidence",
+      title: `${evidenceScore}/100 source coverage`,
+      body: `Tear sheet uses enabled docs, current citations, valuation matrix outputs, and risk-factor templates.`,
+      level: evidenceScore < 62 ? "warning" : "normal"
+    },
+    {
+      label: "Risk",
+      title: topRisk.title,
+      body: topRisk.body,
+      level: topRisk.severity === "High" ? "danger" : "warning"
+    }
+  ];
+}
+
+function buildTearSheetValuationRows(company, config, valuation, riskScore, evidenceScore) {
+  return [
+    {
+      label: "Range",
+      title: `${formatPerShare(valuation.bearCase.perShare)} bear | ${formatPerShare(valuation.baseCase.perShare)} base | ${formatPerShare(valuation.bullCase.perShare)} bull`,
+      body: `${company.revenue ? formatMoney(company.revenue) : "n/a"} revenue, ${company.fcfMargin}% FCF margin, ${company.multiple}x current model multiple.`,
+      level: "normal"
+    },
+    {
+      label: "Driver",
+      title: valuation.topDriver ? `${valuation.topDriver.label} moves value ${formatSignedPerShare(valuation.topDriver.delta)}` : "No driver",
+      body: valuation.topDriver ? valuation.topDriver.thesis : "Run the valuation matrix to rank model sensitivities.",
+      level: "normal"
+    },
+    {
+      label: "Risk",
+      title: `${riskScore}/100 risk score`,
+      body: riskScore >= 70 ? "High-risk sheet should stay in watch/review until source support improves." : "Risk is acceptable for a research workflow, subject to evidence refresh.",
+      level: riskScore >= 70 ? "danger" : riskScore >= 55 ? "warning" : "normal"
+    },
+    {
+      label: "Source",
+      title: `${evidenceScore}/100 evidence cover`,
+      body: evidenceScore < 65 ? "Import current 10-K, MD&A, and earnings call sections before relying on the sheet." : "Source coverage is adequate for a prototype tear sheet.",
+      level: evidenceScore < 65 ? "warning" : "normal"
+    }
+  ];
+}
+
+function buildTearSheetActions(company, config, topRisk, valuation, evidenceScore, riskScore) {
+  const rows = [
+    {
+      topic: "Risk proof",
+      priority: topRisk.severity === "High" ? "High" : "Medium",
+      question: `Which source passages best prove or disprove $${company.ticker}'s ${topRisk.title.toLowerCase()} risk?`
+    },
+    {
+      topic: "Valuation proof",
+      priority: "High",
+      question: `What must be true for $${company.ticker}'s ${formatPerShare(valuation.baseCase.perShare)} base value to be defendable?`
+    },
+    {
+      topic: "Thesis break",
+      priority: riskScore >= 70 ? "High" : "Medium",
+      question: `What single filing change would move $${company.ticker} from ${config.stance === "Auto" ? "the current tear-sheet stance" : config.stance} to avoid?`
+    },
+    {
+      topic: "Source gap",
+      priority: evidenceScore < 65 ? "High" : "Low",
+      question: `Which filing, MD&A, or earnings call section should I import next for $${company.ticker}?`
+    }
+  ];
+  return rows.slice(0, 5);
+}
+
+function renderTearSheetRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No tear sheet yet</strong><span>Build the sheet to create a compact company snapshot.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="tear-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTearSheetActions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No actions yet</strong><span>Build the tear sheet to generate next research prompts.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="tear-action-row" type="button" data-tear-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)} | ${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readTearSheetConfig() {
+  return normalizeTearSheetConfig({
+    ticker: els.tearTicker.value,
+    stance: els.tearStance.value,
+    conviction: els.tearConviction.value,
+    horizon: els.tearHorizon.value,
+    decisionNote: els.tearDecisionNote.value
+  });
+}
+
+function syncTearSheetInputs() {
+  if (!els.tearTicker) return;
+  syncTearSheetTickerOptions();
+  const config = normalizeTearSheetConfig(state.tearSheetConfig || getDefaultTearSheetConfig());
+  els.tearTicker.value = config.ticker;
+  els.tearStance.value = config.stance;
+  els.tearConviction.value = config.conviction;
+  els.tearHorizon.value = config.horizon;
+  els.tearDecisionNote.value = config.decisionNote;
+}
+
+function syncTearSheetTickerOptions() {
+  if (!els.tearTicker) return;
+  const config = normalizeTearSheetConfig(state.tearSheetConfig || getDefaultTearSheetConfig());
+  const tickers = getCompanies().map((company) => company.ticker);
+  if (!tickers.includes(config.ticker)) tickers.unshift(config.ticker);
+  els.tearTicker.innerHTML = Array.from(new Set(tickers)).map((ticker) => {
+    const company = resolveValuationMatrixCompany(ticker);
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name || ticker)}</option>`;
+  }).join("");
+}
+
+function normalizeTearSheetConfig(config) {
+  const defaults = getDefaultTearSheetConfig();
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    stance: normalizeChoice(config.stance, ["Auto", "Constructive", "Watch", "Avoid"], defaults.stance),
+    conviction: normalizeChoice(config.conviction, ["High", "Medium", "Low"], defaults.conviction),
+    horizon: normalizeChoice(config.horizon, ["12 months", "3-5 years", "Next earnings"], defaults.horizon),
+    decisionNote: String(config.decisionNote || defaults.decisionNote).slice(0, 180)
+  };
+}
+
+function getDefaultTearSheetConfig() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  return {
+    ticker: company.ticker || "NSCP",
+    stance: "Auto",
+    conviction: "Medium",
+    horizon: "12 months",
+    decisionNote: "Source-backed watchlist candidate pending live filing refresh."
+  };
+}
+
+function hydrateTearSheetFromCurrentResearch() {
+  const focus = state.tickerFocus || resolveTickerFocus(els.queryInput?.value || "") || null;
+  const target = focus ? focus.ticker : (state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker);
+  state.tearSheetConfig = normalizeTearSheetConfig({
+    ...(state.tearSheetConfig || getDefaultTearSheetConfig()),
+    ticker: target,
+    stance: "Auto",
+    conviction: state.currentCitations.length >= 4 ? "High" : "Medium",
+    decisionNote: state.lastAnswerModel ? `Built from latest ${state.lastAnswerModel.intentId || "research"} answer and active valuation lens.` : "Built from active ticker and current valuation lens."
+  });
+}
+
+function loadTearSheetConfig() {
+  return normalizeTearSheetConfig(loadJson(STORAGE_KEYS.tearSheet, getDefaultTearSheetConfig()));
+}
+
+function saveTearSheetConfig() {
+  saveJson(STORAGE_KEYS.tearSheet, normalizeTearSheetConfig(state.tearSheetConfig || getDefaultTearSheetConfig()));
+}
+
+function exportResearchTearSheet() {
+  const snapshot = state.currentTearSheet || buildResearchTearSheetSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Research Tear Sheet",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Header",
+    "",
+    `- Company: ${snapshot.company.ticker} - ${snapshot.company.name}`,
+    `- Stance: ${snapshot.stance}`,
+    `- Conviction: ${snapshot.config.conviction}`,
+    `- Horizon: ${snapshot.config.horizon}`,
+    `- Evidence coverage: ${snapshot.evidenceScore}/100`,
+    `- Risk score: ${snapshot.riskScore}/100`,
+    "",
+    "## Thesis Snapshot",
+    "",
+    ...snapshot.thesisRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Valuation And Risk",
+    "",
+    ...snapshot.valuationRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Next Research Actions",
+    "",
+    ...snapshot.actionRows.map((row) => `- ${row.priority}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This tear sheet is a client-side research artifact for product prototyping. Production should connect live filings, transcripts, market data, analyst-reviewed assumptions, and compliance review before user-facing publication."
+  ].join("\n");
+  downloadTextFile(`citealpha-research-tear-sheet-${snapshot.company.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportTearSheet, "Exported");
+}
+
+function renderThesisDebateRoom() {
+  if (!els.debateMetricGrid) return;
+  if (!state.thesisDebateConfig) state.thesisDebateConfig = loadThesisDebateConfig();
+  syncThesisDebateInputs();
+  const snapshot = buildThesisDebateSnapshot();
+  state.currentThesisDebate = snapshot;
+  els.debateMetricGrid.innerHTML = [
+    { label: "Bull strength", value: `${snapshot.bullScore}/100`, sub: snapshot.bullLabel },
+    { label: "Bear pressure", value: `${snapshot.bearScore}/100`, sub: snapshot.bearLabel },
+    { label: "Debate tension", value: `${snapshot.tensionScore}/100`, sub: snapshot.tensionLabel },
+    { label: "Decision cue", value: snapshot.decisionCue, sub: `${snapshot.evidenceScore}/100 evidence` }
+  ].map((metric) => `
+    <div class="debate-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.debateBullScore.textContent = `${snapshot.bullScore}/100`;
+  els.debateBullList.innerHTML = renderDebateRows(snapshot.bullRows);
+  els.debateBearScore.textContent = `${snapshot.bearScore}/100`;
+  els.debateBearList.innerHTML = renderDebateRows(snapshot.bearRows);
+  els.debateQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.debateQuestionQueue.innerHTML = renderDebateQuestions([...snapshot.rebuttalRows, ...snapshot.questionRows]);
+}
+
+function buildThesisDebateSnapshot() {
+  const config = normalizeThesisDebateConfig(state.thesisDebateConfig || getDefaultThesisDebateConfig());
+  const company = resolveValuationMatrixCompany(config.ticker);
+  const citations = state.currentCitations.filter((citation) => citation.ticker === company.ticker);
+  const docs = state.documents.filter((doc) => doc.ticker === company.ticker && state.enabledDocIds.has(doc.id));
+  const sourceAudit = makeLightSourceAudit(citations);
+  const evidenceScore = Math.max(30, Math.min(100, Math.round(40 + docs.length * 7 + citations.length * 6 + (sourceAudit.quality || 44) * 0.15)));
+  const valuation = buildTearSheetValuation(company);
+  const riskFactors = buildRiskFactors(citations, company);
+  const riskPenalty = Math.max(0, company.risk - 50);
+  const bullScore = Math.max(5, Math.min(99, Math.round(company.growth * 0.65 + company.fcfMargin * 1.2 + company.sentiment * 0.52 + evidenceScore * 0.18 - riskPenalty * 0.28)));
+  const bearScore = Math.max(5, Math.min(99, Math.round(company.risk * 0.62 + Math.max(0, company.netDebt || 0) * 3.2 + (riskFactors[0]?.severity === "High" ? 12 : 5) + Math.max(0, 68 - evidenceScore) * 0.42 - company.fcfMargin * 0.25)));
+  const modeTilt = config.mode === "Bear case" ? 8 : config.mode === "Bull case" ? -8 : 0;
+  const adjustedBear = Math.max(5, Math.min(99, bearScore + modeTilt));
+  const tensionScore = Math.max(1, Math.min(99, Math.round((bullScore + adjustedBear) / 2 - Math.abs(bullScore - adjustedBear) * 0.15)));
+  const decisionCue = bullScore - adjustedBear >= 18 ? "Advance" : adjustedBear - bullScore >= 12 ? "Pause" : "Research";
+  const topRisk = riskFactors[0] || makeGenericRiskBlueprint(company)[0];
+  const bullRows = buildDebateBullRows(company, config, valuation, evidenceScore);
+  const bearRows = buildDebateBearRows(company, topRisk, valuation, evidenceScore, adjustedBear);
+  const rebuttalRows = buildDebateRebuttalRows(company, topRisk, valuation, evidenceScore);
+  const questionRows = buildDebateQuestionRows(company, config, topRisk, valuation, decisionCue);
+  return {
+    config,
+    company,
+    citations,
+    docs,
+    evidenceScore,
+    valuation,
+    riskFactors,
+    topRisk,
+    bullScore,
+    bearScore: adjustedBear,
+    tensionScore,
+    decisionCue,
+    bullLabel: bullScore >= 72 ? "Thesis has support" : bullScore >= 55 ? "Needs proof" : "Thin upside case",
+    bearLabel: adjustedBear >= 72 ? "Bear case is loud" : adjustedBear >= 55 ? "Real pressure" : "Manageable pressure",
+    tensionLabel: tensionScore >= 70 ? "IC debate needed" : tensionScore >= 50 ? "Good diligence topic" : "Low conflict",
+    bullRows,
+    bearRows,
+    rebuttalRows,
+    questionRows
+  };
+}
+
+function buildDebateBullRows(company, config, valuation, evidenceScore) {
+  return [
+    {
+      label: "Growth",
+      title: `${company.growth}% revenue growth with ${company.sentiment}/100 tone`,
+      body: `${company.thesis} Debate horizon: ${config.horizon}.`,
+      level: "bull"
+    },
+    {
+      label: "Cash",
+      title: `${company.fcfMargin}% FCF margin and ${company.netDebt < 0 ? "net cash" : "net debt"}`,
+      body: company.netDebt < 0 ? "Balance sheet gives the thesis more room for timing volatility." : "Cash conversion must prove it can absorb debt and reinvestment needs.",
+      level: company.netDebt < 0 ? "bull" : "watch"
+    },
+    {
+      label: "Value",
+      title: `${formatPerShare(valuation.baseCase.perShare)} base | ${formatPerShare(valuation.bullCase.perShare)} bull`,
+      body: `Top valuation lever is ${valuation.topDriver ? valuation.topDriver.shortLabel : "n/a"}. Evidence support is ${evidenceScore}/100.`,
+      level: evidenceScore >= 65 ? "bull" : "watch"
+    }
+  ];
+}
+
+function buildDebateBearRows(company, topRisk, valuation, evidenceScore, bearScore) {
+  return [
+    {
+      label: "Risk",
+      title: `${topRisk.title} (${topRisk.severity})`,
+      body: topRisk.body,
+      level: topRisk.severity === "High" ? "bear" : "watch"
+    },
+    {
+      label: "Downside",
+      title: `${formatPerShare(valuation.bearCase.perShare)} bear value`,
+      body: `Bear pressure is ${bearScore}/100. If assumptions fade, the valuation case compresses toward the bear range.`,
+      level: bearScore >= 70 ? "bear" : "watch"
+    },
+    {
+      label: "Source",
+      title: `${evidenceScore}/100 evidence cover`,
+      body: evidenceScore < 65 ? "The bear team can attack source depth before attacking the numbers." : "Source cover is adequate, so the debate should focus on interpretation.",
+      level: evidenceScore < 65 ? "bear" : "watch"
+    }
+  ];
+}
+
+function buildDebateRebuttalRows(company, topRisk, valuation, evidenceScore) {
+  return [
+    {
+      label: "Rebuttal",
+      topic: "Rebuttal",
+      question: `What source evidence rebuts the bear claim that $${company.ticker}'s ${topRisk.title.toLowerCase()} risk can break the thesis?`,
+      title: "Best rebuttal to the bear case",
+      body: `Defend ${formatPerShare(valuation.baseCase.perShare)} base value with source-backed operating evidence, not just multiple expansion.`
+    },
+    {
+      label: "Gap",
+      topic: "Evidence gap",
+      question: `Which missing filing or call passage would most change the $${company.ticker} debate?`,
+      title: "Evidence gap to close",
+      body: evidenceScore < 65 ? "Import more source text before treating the debate as decision-ready." : "Evidence exists; next step is testing whether it directly supports the key assumptions."
+    }
+  ];
+}
+
+function buildDebateQuestionRows(company, config, topRisk, valuation, decisionCue) {
+  return [
+    {
+      topic: "Killer question",
+      question: `What is the strongest reason not to buy $${company.ticker} if the bull case is wrong?`
+    },
+    {
+      topic: "Assumption test",
+      question: `Which assumption must hold for $${company.ticker} to justify ${formatPerShare(valuation.bullCase.perShare)} bull value?`
+    },
+    {
+      topic: "Risk trigger",
+      question: `What filing language would confirm that $${company.ticker}'s ${topRisk.title.toLowerCase()} risk is worsening?`
+    },
+    {
+      topic: "Decision cue",
+      question: `Given a ${decisionCue.toLowerCase()} cue, what evidence should the committee require before changing $${company.ticker}'s stance?`
+    }
+  ].slice(0, config.mode === "IC prep" ? 4 : 3);
+}
+
+function renderDebateRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No debate rows yet</strong><span>Run the debate to pressure-test the thesis.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="debate-row ${escapeAttr(row.level || "watch")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDebateQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No questions yet</strong><span>Run the debate room to generate hard follow-ups.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="debate-question-row" type="button" data-debate-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.topic || row.label || "Question")}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+      ${row.body ? `<em>${escapeHtml(row.body)}</em>` : ""}
+    </button>
+  `).join("");
+}
+
+function readThesisDebateConfig() {
+  return normalizeThesisDebateConfig({
+    ticker: els.debateTicker.value,
+    mode: els.debateMode.value,
+    evidenceBar: els.debateEvidenceBar.value,
+    horizon: els.debateHorizon.value,
+    thesis: els.debateThesis.value
+  });
+}
+
+function syncThesisDebateInputs() {
+  if (!els.debateTicker) return;
+  syncThesisDebateTickerOptions();
+  const config = normalizeThesisDebateConfig(state.thesisDebateConfig || getDefaultThesisDebateConfig());
+  els.debateTicker.value = config.ticker;
+  els.debateMode.value = config.mode;
+  els.debateEvidenceBar.value = config.evidenceBar;
+  els.debateHorizon.value = config.horizon;
+  els.debateThesis.value = config.thesis;
+}
+
+function syncThesisDebateTickerOptions() {
+  if (!els.debateTicker) return;
+  const config = normalizeThesisDebateConfig(state.thesisDebateConfig || getDefaultThesisDebateConfig());
+  const tickers = getCompanies().map((company) => company.ticker);
+  if (!tickers.includes(config.ticker)) tickers.unshift(config.ticker);
+  els.debateTicker.innerHTML = Array.from(new Set(tickers)).map((ticker) => {
+    const company = resolveValuationMatrixCompany(ticker);
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name || ticker)}</option>`;
+  }).join("");
+}
+
+function normalizeThesisDebateConfig(config) {
+  const defaults = getDefaultThesisDebateConfig();
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    mode: normalizeChoice(config.mode, ["Balanced", "Bear case", "Bull case", "IC prep"], defaults.mode),
+    evidenceBar: normalizeChoice(config.evidenceBar, ["Balanced", "Strict", "Exploratory"], defaults.evidenceBar),
+    horizon: normalizeChoice(config.horizon, ["12 months", "3-5 years", "Next earnings"], defaults.horizon),
+    thesis: String(config.thesis || defaults.thesis).slice(0, 180)
+  };
+}
+
+function getDefaultThesisDebateConfig() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  return {
+    ticker: company.ticker || "NSCP",
+    mode: "Balanced",
+    evidenceBar: "Balanced",
+    horizon: "12 months",
+    thesis: "The company has enough evidence-backed upside to stay on the active research list."
+  };
+}
+
+function hydrateThesisDebateFromTearSheet() {
+  const tear = state.currentTearSheet || buildResearchTearSheetSnapshot();
+  state.thesisDebateConfig = normalizeThesisDebateConfig({
+    ...(state.thesisDebateConfig || getDefaultThesisDebateConfig()),
+    ticker: tear.company.ticker,
+    mode: tear.stance === "Avoid" ? "Bear case" : "Balanced",
+    evidenceBar: tear.evidenceScore >= 75 ? "Strict" : "Balanced",
+    horizon: tear.config.horizon,
+    thesis: `${tear.company.ticker} can defend a ${tear.stance.toLowerCase()} stance if the tear sheet evidence holds.`
+  });
+}
+
+function loadThesisDebateConfig() {
+  return normalizeThesisDebateConfig(loadJson(STORAGE_KEYS.thesisDebate, getDefaultThesisDebateConfig()));
+}
+
+function saveThesisDebateConfig() {
+  saveJson(STORAGE_KEYS.thesisDebate, normalizeThesisDebateConfig(state.thesisDebateConfig || getDefaultThesisDebateConfig()));
+}
+
+function exportThesisDebateBrief() {
+  const snapshot = state.currentThesisDebate || buildThesisDebateSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Thesis Debate Memo",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Debate Setup",
+    "",
+    `- Company: ${snapshot.company.ticker} - ${snapshot.company.name}`,
+    `- Mode: ${snapshot.config.mode}`,
+    `- Horizon: ${snapshot.config.horizon}`,
+    `- Thesis: ${snapshot.config.thesis}`,
+    "",
+    "## Scorecard",
+    "",
+    `- Bull strength: ${snapshot.bullScore}/100`,
+    `- Bear pressure: ${snapshot.bearScore}/100`,
+    `- Debate tension: ${snapshot.tensionScore}/100`,
+    `- Decision cue: ${snapshot.decisionCue}`,
+    `- Evidence score: ${snapshot.evidenceScore}/100`,
+    "",
+    "## Bull Case",
+    "",
+    ...snapshot.bullRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Bear Case",
+    "",
+    ...snapshot.bearRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Rebuttals And Questions",
+    "",
+    ...[...snapshot.rebuttalRows, ...snapshot.questionRows].map((row) => `- ${row.topic || row.label}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This debate room is a client-side thesis challenge workflow. Production should connect source-grounded answers, reviewer notes, portfolio context, and compliance controls before presenting debate outcomes to paying users."
+  ].join("\n");
+  downloadTextFile(`citealpha-thesis-debate-${snapshot.company.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportDebateBrief, "Exported");
+}
+
+function renderResearchDossierBuilder() {
+  if (!els.dossierMetricGrid) return;
+  if (!state.dossierConfig) state.dossierConfig = loadDossierConfig();
+  syncDossierInputs();
+  const snapshot = buildResearchDossierSnapshot();
+  state.currentDossier = snapshot;
+  els.dossierMetricGrid.innerHTML = [
+    { label: "Dossier score", value: `${snapshot.dossierScore}/100`, sub: snapshot.scoreLabel },
+    { label: "Packet", value: snapshot.config.style, sub: snapshot.config.audience },
+    { label: "Evidence", value: `${snapshot.evidenceScore}/100`, sub: `${snapshot.citationCount} cites | ${snapshot.docCount} docs` },
+    { label: "Open gaps", value: snapshot.gapCount, sub: snapshot.gapLabel }
+  ].map((metric) => `
+    <div class="dossier-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.dossierSectionCount.textContent = String(snapshot.sectionRows.length);
+  els.dossierSectionList.innerHTML = renderDossierRows(snapshot.sectionRows);
+  els.dossierChecklistScore.textContent = `${snapshot.checklistScore}%`;
+  els.dossierChecklist.innerHTML = renderDossierChecklist(snapshot.checklistRows);
+  els.dossierQueueCount.textContent = String(snapshot.queueRows.length);
+  els.dossierQuestionQueue.innerHTML = renderDossierQuestions(snapshot.queueRows);
+}
+
+function buildResearchDossierSnapshot() {
+  const config = normalizeDossierConfig(state.dossierConfig || getDefaultDossierConfig());
+  const company = resolveValuationMatrixCompany(config.ticker);
+  const docs = state.documents.filter((doc) => doc.ticker === company.ticker && state.enabledDocIds.has(doc.id));
+  const citations = state.currentCitations.filter((citation) => citation.ticker === company.ticker);
+  const sourceAudit = makeLightSourceAudit(citations);
+  const citationCount = citations.length;
+  const docCount = docs.length;
+  const evidenceScore = Math.max(28, Math.min(100, Math.round(34 + docCount * 8 + citationCount * 7 + (sourceAudit.quality || 42) * 0.16)));
+  const security = summarizeSecurityPosture();
+  const valuation = buildTearSheetValuation(company);
+  const riskFactors = buildRiskFactors(citations, company);
+  const topRisk = riskFactors[0] || makeGenericRiskBlueprint(company)[0];
+  const activeTear = state.currentTearSheet && state.currentTearSheet.company && state.currentTearSheet.company.ticker === company.ticker ? state.currentTearSheet : null;
+  const activeDebate = state.currentThesisDebate && state.currentThesisDebate.company && state.currentThesisDebate.company.ticker === company.ticker ? state.currentThesisDebate : null;
+  const stance = activeTear ? activeTear.stance : resolveDossierStance(company, evidenceScore, topRisk);
+  const debateCue = activeDebate ? activeDebate.decisionCue : (company.sentiment >= 70 && topRisk.severity !== "High" ? "Advance" : "Research");
+  const minCitations = getDossierCitationThreshold(config.evidenceBar);
+  const currentAnswerReady = Boolean(state.lastBrief && citationCount >= Math.min(2, minCitations));
+  const sectionRows = buildDossierSectionRows(company, config, {
+    activeTear,
+    activeDebate,
+    stance,
+    debateCue,
+    valuation,
+    topRisk,
+    evidenceScore,
+    sourceAudit,
+    citationCount,
+    docCount,
+    currentAnswerReady,
+    security
+  });
+  const checklistRows = buildDossierChecklistRows(company, config, {
+    activeDebate,
+    evidenceScore,
+    minCitations,
+    citationCount,
+    docCount,
+    currentAnswerReady,
+    security,
+    sourceAudit
+  });
+  const readyRows = checklistRows.filter((row) => row.status === "Ready").length;
+  const checklistScore = Math.round((readyRows / Math.max(1, checklistRows.length)) * 100);
+  const gapCount = checklistRows.filter((row) => row.status !== "Ready").length;
+  const dossierScore = Math.max(1, Math.min(100, Math.round(evidenceScore * 0.34 + checklistScore * 0.34 + security.score * 0.18 + (activeDebate ? 14 : 6))));
+  const queueRows = buildDossierQueueRows(company, config, {
+    activeDebate,
+    valuation,
+    topRisk,
+    minCitations,
+    citationCount,
+    evidenceScore,
+    currentAnswerReady,
+    security,
+    debateCue
+  });
+  return {
+    config,
+    company,
+    docs,
+    citations,
+    citationCount,
+    docCount,
+    sourceAudit,
+    security,
+    valuation,
+    riskFactors,
+    topRisk,
+    activeTear,
+    activeDebate,
+    stance,
+    debateCue,
+    minCitations,
+    evidenceScore,
+    checklistScore,
+    dossierScore,
+    scoreLabel: dossierScore >= 82 ? "Shareable draft" : dossierScore >= 65 ? "Review before sharing" : "Needs more source work",
+    gapCount,
+    gapLabel: gapCount ? "Close before launch" : "Ready for review",
+    sectionRows,
+    checklistRows,
+    queueRows
+  };
+}
+
+function buildDossierSectionRows(company, config, context) {
+  return [
+    {
+      label: "Cover",
+      title: `${company.ticker} research packet for ${config.audience.toLowerCase()}`,
+      body: config.objective,
+      level: "normal"
+    },
+    {
+      label: "Thesis",
+      title: `${context.stance} stance | ${context.debateCue} cue`,
+      body: context.currentAnswerReady ? `Current answer and ${context.citationCount} citations are ready for packet assembly.` : "Run one current answer so the dossier starts from a fresh source-linked brief.",
+      level: context.currentAnswerReady ? "normal" : "warning"
+    },
+    {
+      label: "Evidence",
+      title: `${context.evidenceScore}/100 source coverage`,
+      body: `${context.docCount} enabled documents and ${context.citationCount} current citations. Source audit quality is ${context.sourceAudit.quality || 0}/100.`,
+      level: context.evidenceScore >= 75 ? "normal" : context.evidenceScore >= 58 ? "warning" : "danger"
+    },
+    {
+      label: "Value",
+      title: `${formatPerShare(context.valuation.bearCase.perShare)} bear | ${formatPerShare(context.valuation.baseCase.perShare)} base | ${formatPerShare(context.valuation.bullCase.perShare)} bull`,
+      body: `Top sensitivity is ${context.valuation.topDriver ? context.valuation.topDriver.shortLabel : "not ranked yet"}. Packet style: ${config.style}.`,
+      level: "normal"
+    },
+    {
+      label: "Debate",
+      title: context.activeDebate ? `${context.activeDebate.bullScore}/100 bull vs ${context.activeDebate.bearScore}/100 bear` : "Debate not attached yet",
+      body: context.activeDebate ? `${context.activeDebate.tensionLabel}. Include rebuttals before committee review.` : "Use the Thesis Debate Room to add bull, bear, rebuttal, and killer-question coverage.",
+      level: context.activeDebate ? "normal" : "warning"
+    },
+    {
+      label: "Risk",
+      title: `${context.topRisk.title} (${context.topRisk.severity})`,
+      body: context.topRisk.body,
+      level: context.topRisk.severity === "High" ? "danger" : "warning"
+    },
+    {
+      label: "Control",
+      title: `${context.security.score}/100 security posture`,
+      body: context.security.findings.length ? `${context.security.findings.length} security finding should be reviewed before distribution.` : "No risky patterns detected in enabled imports.",
+      level: context.security.score >= 90 ? "normal" : "warning"
+    }
+  ];
+}
+
+function buildDossierChecklistRows(company, config, context) {
+  return [
+    {
+      label: "Answer",
+      title: "Current source-linked answer",
+      body: context.currentAnswerReady ? "A fresh answer is available for this ticker." : `Ask a current question for $${company.ticker} before exporting the packet.`,
+      status: context.currentAnswerReady ? "Ready" : "Next",
+      level: context.currentAnswerReady ? "normal" : "warning"
+    },
+    {
+      label: "Citations",
+      title: `${context.citationCount}/${context.minCitations} citation minimum`,
+      body: `${config.evidenceBar} evidence bar for ${config.audience.toLowerCase()}.`,
+      status: context.citationCount >= context.minCitations ? "Ready" : "Next",
+      level: context.citationCount >= context.minCitations ? "normal" : "warning"
+    },
+    {
+      label: "Sources",
+      title: `${context.docCount} enabled source docs`,
+      body: context.docCount >= 2 ? "Filing, call, or model evidence can be packaged." : "Import or enable another source before relying on the packet.",
+      status: context.docCount >= 2 ? "Ready" : "Next",
+      level: context.docCount >= 2 ? "normal" : "warning"
+    },
+    {
+      label: "Audit",
+      title: `${context.sourceAudit.quality || 0}/100 source audit`,
+      body: context.sourceAudit.quality >= 70 ? "Evidence trail is strong enough for a prototype packet." : "Evidence needs better coverage or higher-scoring passages.",
+      status: context.sourceAudit.quality >= 70 ? "Ready" : "Next",
+      level: context.sourceAudit.quality >= 70 ? "normal" : "warning"
+    },
+    {
+      label: "Debate",
+      title: context.activeDebate ? "Bull/bear debate attached" : "Debate missing",
+      body: context.activeDebate ? "Packet includes rebuttal pressure before decision use." : "Run the Thesis Debate Room for this ticker.",
+      status: context.activeDebate ? "Ready" : "Next",
+      level: context.activeDebate ? "normal" : "warning"
+    },
+    {
+      label: "Security",
+      title: `${context.security.score}/100 security scan`,
+      body: context.security.findings.length ? "Review imported text findings before export." : "Question and import guardrails are clean.",
+      status: context.security.score >= 90 ? "Ready" : "Review",
+      level: context.security.score >= 90 ? "normal" : "warning"
+    }
+  ];
+}
+
+function buildDossierQueueRows(company, config, context) {
+  const rows = [];
+  if (!context.currentAnswerReady) {
+    rows.push({
+      priority: "High",
+      topic: "Fresh answer",
+      question: `Build a current source-linked dossier answer for $${company.ticker}.`
+    });
+  }
+  if (context.citationCount < context.minCitations) {
+    rows.push({
+      priority: "High",
+      topic: "Citation gap",
+      question: `Which filing or call passages should I import to reach ${context.minCitations} citations for $${company.ticker}?`
+    });
+  }
+  if (!context.activeDebate) {
+    rows.push({
+      priority: "Medium",
+      topic: "Debate gap",
+      question: `What is the strongest bear case against the $${company.ticker} thesis, and what evidence rebuts it?`
+    });
+  }
+  rows.push(
+    {
+      priority: context.topRisk.severity === "High" ? "High" : "Medium",
+      topic: "Risk proof",
+      question: `What source evidence proves whether $${company.ticker}'s ${context.topRisk.title.toLowerCase()} risk is getting better or worse?`
+    },
+    {
+      priority: "Medium",
+      topic: "Value bridge",
+      question: `What assumptions must hold for $${company.ticker} to defend ${formatPerShare(context.valuation.baseCase.perShare)} base value?`
+    },
+    {
+      priority: config.audience === "Compliance review" ? "High" : "Low",
+      topic: "Release review",
+      question: `What should be removed or caveated before sharing the $${company.ticker} dossier with ${config.audience.toLowerCase()}?`
+    }
+  );
+  return rows.slice(0, config.style === "One-page memo" ? 4 : 6);
+}
+
+function renderDossierRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No dossier yet</strong><span>Build the packet to assemble sections.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="dossier-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDossierChecklist(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No checklist yet</strong><span>Build the packet to score release readiness.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="dossier-check-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.status)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDossierQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No open questions</strong><span>The packet is ready for review.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="dossier-question-row" type="button" data-dossier-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)} | ${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readDossierConfig() {
+  return normalizeDossierConfig({
+    ticker: els.dossierTicker.value,
+    audience: els.dossierAudience.value,
+    style: els.dossierStyle.value,
+    evidenceBar: els.dossierEvidenceBar.value,
+    objective: els.dossierObjective.value
+  });
+}
+
+function syncDossierInputs() {
+  if (!els.dossierTicker) return;
+  syncDossierTickerOptions();
+  const config = normalizeDossierConfig(state.dossierConfig || getDefaultDossierConfig());
+  els.dossierTicker.value = config.ticker;
+  els.dossierAudience.value = config.audience;
+  els.dossierStyle.value = config.style;
+  els.dossierEvidenceBar.value = config.evidenceBar;
+  els.dossierObjective.value = config.objective;
+}
+
+function syncDossierTickerOptions() {
+  if (!els.dossierTicker) return;
+  const config = normalizeDossierConfig(state.dossierConfig || getDefaultDossierConfig());
+  const tickers = getCompanies().map((company) => company.ticker);
+  if (!tickers.includes(config.ticker)) tickers.unshift(config.ticker);
+  els.dossierTicker.innerHTML = Array.from(new Set(tickers)).map((ticker) => {
+    const company = resolveValuationMatrixCompany(ticker);
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name || ticker)}</option>`;
+  }).join("");
+}
+
+function normalizeDossierConfig(config) {
+  const defaults = getDefaultDossierConfig();
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    audience: normalizeChoice(config.audience, ["Investment committee", "Retail subscriber", "Founder demo", "Compliance review"], defaults.audience),
+    style: normalizeChoice(config.style, ["Full dossier", "One-page memo", "Board pack", "Sales demo"], defaults.style),
+    evidenceBar: normalizeChoice(config.evidenceBar, ["Decision-ready", "Balanced", "Fast draft"], defaults.evidenceBar),
+    objective: String(config.objective || defaults.objective).slice(0, 190)
+  };
+}
+
+function getDefaultDossierConfig() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  return {
+    ticker: company.ticker || "NSCP",
+    audience: "Investment committee",
+    style: "Full dossier",
+    evidenceBar: "Decision-ready",
+    objective: "Prepare a source-linked research packet that can be reviewed, exported, and shared without losing the evidence trail."
+  };
+}
+
+function hydrateDossierFromActiveResearch() {
+  const focus = state.tickerFocus || resolveTickerFocus(els.queryInput?.value || "") || null;
+  const target = focus ? focus.ticker : (state.currentCitations[0] ? state.currentCitations[0].ticker : state.selectedTicker);
+  const citationCount = state.currentCitations.filter((citation) => citation.ticker === target).length;
+  state.dossierConfig = normalizeDossierConfig({
+    ...(state.dossierConfig || getDefaultDossierConfig()),
+    ticker: target,
+    audience: citationCount >= 4 ? "Investment committee" : "Retail subscriber",
+    style: state.currentThesisDebate ? "Board pack" : "Full dossier",
+    evidenceBar: citationCount >= 4 ? "Decision-ready" : "Balanced",
+    objective: state.lastAnswerModel
+      ? `Package the latest ${state.lastAnswerModel.intentId || "research"} answer, evidence, valuation, and debate checks into a shareable dossier.`
+      : "Package the active ticker into a source-linked research dossier."
+  });
+}
+
+function resolveDossierStance(company, evidenceScore, topRisk) {
+  if (topRisk.severity === "High" && evidenceScore < 70) return "Watch";
+  if (company.sentiment >= 70 && company.risk <= 58 && evidenceScore >= 68) return "Constructive";
+  if (company.risk >= 75 && evidenceScore < 60) return "Avoid";
+  return "Research";
+}
+
+function getDossierCitationThreshold(evidenceBar) {
+  if (evidenceBar === "Decision-ready") return 4;
+  if (evidenceBar === "Fast draft") return 2;
+  return 3;
+}
+
+function loadDossierConfig() {
+  return normalizeDossierConfig(loadJson(STORAGE_KEYS.dossier, getDefaultDossierConfig()));
+}
+
+function saveDossierConfig() {
+  saveJson(STORAGE_KEYS.dossier, normalizeDossierConfig(state.dossierConfig || getDefaultDossierConfig()));
+}
+
+function exportResearchDossier() {
+  const snapshot = state.currentDossier || buildResearchDossierSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Research Dossier",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Packet Setup",
+    "",
+    `- Company: ${snapshot.company.ticker} - ${snapshot.company.name}`,
+    `- Audience: ${snapshot.config.audience}`,
+    `- Style: ${snapshot.config.style}`,
+    `- Evidence bar: ${snapshot.config.evidenceBar}`,
+    `- Objective: ${snapshot.config.objective}`,
+    "",
+    "## Scorecard",
+    "",
+    `- Dossier score: ${snapshot.dossierScore}/100`,
+    `- Evidence score: ${snapshot.evidenceScore}/100`,
+    `- Release checklist: ${snapshot.checklistScore}%`,
+    `- Open gaps: ${snapshot.gapCount}`,
+    `- Security posture: ${snapshot.security.score}/100`,
+    "",
+    "## Packet Sections",
+    "",
+    ...snapshot.sectionRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Release Checklist",
+    "",
+    ...snapshot.checklistRows.map((row) => `- ${row.status}: ${row.title} - ${row.body}`),
+    "",
+    "## Close-The-Pack Questions",
+    "",
+    ...snapshot.queueRows.map((row) => `- ${row.priority} | ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This dossier is a client-side research assembly workflow for product prototyping. Production should use authenticated users, server-side retrieval, immutable audit logs, reviewer approvals, and compliance-reviewed disclosures before sharing with paying users."
+  ].join("\n");
+  downloadTextFile(`citealpha-research-dossier-${snapshot.company.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportDossierBrief, "Exported");
+}
+
+function renderThesisTimelineAuditTrail() {
+  if (!els.timelineMetricGrid) return;
+  if (!state.timelineConfig) state.timelineConfig = loadTimelineConfig();
+  syncTimelineInputs();
+  const snapshot = buildThesisTimelineSnapshot();
+  state.currentTimeline = snapshot;
+  els.timelineMetricGrid.innerHTML = [
+    { label: "Audit score", value: `${snapshot.auditScore}/100`, sub: snapshot.auditLabel },
+    { label: "Events", value: snapshot.eventRows.length, sub: `${snapshot.config.lookback}` },
+    { label: "Thesis drift", value: `${snapshot.driftScore}/100`, sub: snapshot.driftLabel },
+    { label: "Latest signal", value: snapshot.latestSignal, sub: snapshot.latestDate }
+  ].map((metric) => `
+    <div class="timeline-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.timelineEventCount.textContent = String(snapshot.eventRows.length);
+  els.timelineEventList.innerHTML = renderTimelineEvents(snapshot.eventRows);
+  els.timelineInflectionCount.textContent = String(snapshot.inflectionRows.length);
+  els.timelineInflectionList.innerHTML = renderTimelineInflections(snapshot.inflectionRows);
+  els.timelineQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.timelineQuestionQueue.innerHTML = renderTimelineQuestions(snapshot.questionRows);
+}
+
+function buildThesisTimelineSnapshot() {
+  const config = normalizeTimelineConfig(state.timelineConfig || getDefaultTimelineConfig());
+  const company = resolveValuationMatrixCompany(config.ticker);
+  const rawEvents = buildTimelineEventRows(company, config);
+  const scopedEvents = filterTimelineRows(rawEvents, config);
+  const eventRows = scopedEvents
+    .sort((a, b) => b.sortDate - a.sortDate || b.score - a.score)
+    .slice(0, config.scope === "Current answer only" ? 8 : 14);
+  const latest = eventRows[0] || makeTimelineFallbackEvent(company);
+  const scores = eventRows.map((row) => row.score);
+  const driftScore = scores.length > 1 ? Math.min(100, Math.max(1, Math.round(Math.max(...scores) - Math.min(...scores)))) : 12;
+  const evidenceRows = eventRows.filter((row) => row.kind === "source" || row.kind === "citation");
+  const reviewRows = eventRows.filter((row) => row.level === "warning" || row.level === "danger");
+  const security = summarizeSecurityPosture();
+  const evidenceScore = Math.max(25, Math.min(100, Math.round(34 + evidenceRows.length * 9 + (state.currentCitations.filter((citation) => citation.ticker === company.ticker).length * 5))));
+  const auditScore = Math.max(1, Math.min(100, Math.round(evidenceScore * 0.3 + security.score * 0.2 + Math.max(35, 100 - driftScore) * 0.22 + Math.min(100, eventRows.length * 12) * 0.18 + (state.currentDossier ? 10 : 4))));
+  const inflectionRows = buildTimelineInflectionRows(company, config, eventRows, {
+    driftScore,
+    evidenceScore,
+    reviewRows,
+    security
+  });
+  const questionRows = buildTimelineQuestionRows(company, config, latest, inflectionRows, {
+    driftScore,
+    evidenceScore,
+    reviewRows
+  });
+  return {
+    config,
+    company,
+    eventRows,
+    inflectionRows,
+    questionRows,
+    evidenceScore,
+    security,
+    auditScore,
+    auditLabel: auditScore >= 82 ? "Narrative is review-ready" : auditScore >= 65 ? "Usable with caveats" : "Needs timeline work",
+    driftScore,
+    driftLabel: driftScore >= 45 ? "Thesis moved materially" : driftScore >= 22 ? "Watch the movement" : "Stable narrative",
+    latestSignal: latest.label,
+    latestDate: latest.dateLabel
+  };
+}
+
+function buildTimelineEventRows(company, config) {
+  const rows = [];
+  const docs = state.documents.filter((doc) => doc.ticker === company.ticker && state.enabledDocIds.has(doc.id));
+  docs.forEach((doc) => {
+    const quality = (doc.sourceQuality && doc.sourceQuality.quality) || 58;
+    const audit = (doc.securityAudit && doc.securityAudit.score) || 100;
+    rows.push(makeTimelineRow({
+      date: doc.date,
+      kind: "source",
+      label: doc.type || "Source",
+      title: `${doc.period || doc.type} added to source stack`,
+      body: `${doc.sourceKind === "uploaded" ? "Imported" : "Sample"} source with ${doc.sections ? doc.sections.length : 0} sections, ${quality}/100 source quality, and ${audit}/100 security score.`,
+      level: quality >= 72 && audit >= 90 ? "normal" : quality < 55 || audit < 85 ? "warning" : "normal",
+      score: Math.round(quality * 0.7 + audit * 0.3),
+      source: doc.sourceKind || "sample"
+    }));
+  });
+
+  state.currentCitations
+    .filter((citation) => citation.ticker === company.ticker)
+    .forEach((citation) => {
+      rows.push(makeTimelineRow({
+        date: citation.date,
+        kind: "citation",
+        label: citation.citationId || "Cite",
+        title: `${citation.type || "Evidence"} supports current answer`,
+        body: `${citation.period || "Current source"} scored ${Math.round(citation.score || 0)} relevance for the latest answer.`,
+        level: Number(citation.score || 0) >= 24 ? "normal" : "warning",
+        score: Math.max(35, Math.min(100, Math.round((citation.score || 18) * 3))),
+        source: "current answer"
+      }));
+    });
+
+  state.workflowEvents
+    .filter((event) => timelineEventMatchesTicker(event, company))
+    .forEach((event) => {
+      rows.push(makeTimelineRow({
+        date: event.date,
+        kind: event.kind || "workflow",
+        label: formatTimelineKind(event.kind),
+        title: makeWorkflowTimelineTitle(event),
+        body: makeWorkflowTimelineBody(event),
+        level: event.kind === "analysis" ? "normal" : "warning",
+        score: event.kind === "analysis" ? 68 : event.kind === "save" ? 74 : event.kind === "import" ? 72 : 58,
+        source: "workspace"
+      }));
+    });
+
+  state.notes
+    .filter((note) => normalizeTicker(note.intent || "") === company.ticker || String(note.body || "").toUpperCase().includes(company.ticker))
+    .forEach((note) => {
+      rows.push(makeTimelineRow({
+        date: note.date,
+        kind: "memo",
+        label: "Saved memo",
+        title: note.title || "Saved research brief",
+        body: "Saved brief preserved the research state for later review.",
+        level: "normal",
+        score: 76,
+        source: "notebook"
+      }));
+    });
+
+  if (state.currentValuationMatrix && state.currentValuationMatrix.company && state.currentValuationMatrix.company.ticker === company.ticker) {
+    rows.push(makeTimelineRow({
+      date: new Date().toISOString(),
+      kind: "valuation",
+      label: "Valuation",
+      title: `${formatPerShare(state.currentValuationMatrix.baseCase.perShare)} base value refreshed`,
+      body: `Sensitivity work found ${state.currentValuationMatrix.topDriver ? state.currentValuationMatrix.topDriver.shortLabel : "a model driver"} as the key value lever.`,
+      level: "normal",
+      score: 78,
+      source: "valuation matrix"
+    }));
+  }
+
+  if (state.currentTearSheet && state.currentTearSheet.company && state.currentTearSheet.company.ticker === company.ticker) {
+    rows.push(makeTimelineRow({
+      date: new Date().toISOString(),
+      kind: "tear",
+      label: "Tear sheet",
+      title: `${state.currentTearSheet.stance} stance created`,
+      body: `${state.currentTearSheet.evidenceScore}/100 evidence cover and ${state.currentTearSheet.riskScore}/100 risk score.`,
+      level: state.currentTearSheet.stance === "Avoid" ? "danger" : state.currentTearSheet.stance === "Watch" ? "warning" : "normal",
+      score: state.currentTearSheet.evidenceScore,
+      source: "tear sheet"
+    }));
+  }
+
+  if (state.currentThesisDebate && state.currentThesisDebate.company && state.currentThesisDebate.company.ticker === company.ticker) {
+    rows.push(makeTimelineRow({
+      date: new Date().toISOString(),
+      kind: "debate",
+      label: "Debate",
+      title: `${state.currentThesisDebate.decisionCue} cue after bull/bear review`,
+      body: `${state.currentThesisDebate.bullScore}/100 bull strength vs ${state.currentThesisDebate.bearScore}/100 bear pressure.`,
+      level: state.currentThesisDebate.decisionCue === "Pause" ? "danger" : state.currentThesisDebate.tensionScore >= 70 ? "warning" : "normal",
+      score: Math.max(20, 100 - Math.abs(state.currentThesisDebate.bullScore - state.currentThesisDebate.bearScore)),
+      source: "debate room"
+    }));
+  }
+
+  if (state.currentDossier && state.currentDossier.company && state.currentDossier.company.ticker === company.ticker) {
+    rows.push(makeTimelineRow({
+      date: new Date().toISOString(),
+      kind: "dossier",
+      label: "Dossier",
+      title: `${state.currentDossier.dossierScore}/100 packet readiness`,
+      body: `${state.currentDossier.gapCount} open gap${state.currentDossier.gapCount === 1 ? "" : "s"} before sharing with ${state.currentDossier.config.audience.toLowerCase()}.`,
+      level: state.currentDossier.gapCount ? "warning" : "normal",
+      score: state.currentDossier.dossierScore,
+      source: "dossier builder"
+    }));
+  }
+
+  if (!rows.length) rows.push(makeTimelineFallbackEvent(company));
+  return rows;
+}
+
+function makeTimelineRow(row) {
+  const date = parseTimelineDate(row.date);
+  return {
+    date,
+    sortDate: date.getTime(),
+    dateLabel: formatTimelineDate(date),
+    kind: row.kind || "event",
+    label: row.label || "Event",
+    title: row.title || "Timeline event",
+    body: row.body || "",
+    level: row.level || "normal",
+    score: Math.max(1, Math.min(100, Math.round(Number(row.score) || 50))),
+    source: row.source || "workspace"
+  };
+}
+
+function makeTimelineFallbackEvent(company) {
+  return makeTimelineRow({
+    date: new Date().toISOString(),
+    kind: "setup",
+    label: "Setup",
+    title: `${company.ticker} timeline ready`,
+    body: "Run an answer, import sources, build a dossier, or save a brief to populate the thesis history.",
+    level: "warning",
+    score: 42,
+    source: "workspace"
+  });
+}
+
+function filterTimelineRows(rows, config) {
+  const cutoff = getTimelineCutoff(config.lookback);
+  return rows.filter((row) => {
+    if (cutoff && row.sortDate < cutoff.getTime()) return false;
+    if (config.scope === "Filings and calls") return ["source", "citation"].includes(row.kind) || /filing|call/i.test(row.label);
+    if (config.scope === "Decisions and exports") return ["memo", "save", "dossier", "debate", "tear", "valuation"].includes(row.kind);
+    if (config.scope === "Current answer only") return ["citation"].includes(row.kind) || row.source === "current answer";
+    return true;
+  });
+}
+
+function getTimelineCutoff(lookback) {
+  const now = new Date();
+  if (lookback === "Last 90 days") return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  if (lookback === "Last 12 months") return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  if (lookback === "Current session") return new Date(now.toISOString().slice(0, 10));
+  return null;
+}
+
+function buildTimelineInflectionRows(company, config, rows, context) {
+  const latestRisk = rows.find((row) => row.level === "danger" || /risk|bear|pause/i.test(`${row.title} ${row.body}`));
+  const latestEvidence = rows.find((row) => row.kind === "citation" || row.kind === "source");
+  const latestDossier = rows.find((row) => row.kind === "dossier");
+  const latestDebate = rows.find((row) => row.kind === "debate");
+  const inflections = [
+    {
+      label: "Narrative",
+      title: context.driftScore >= 45 ? "Thesis narrative moved materially" : "Thesis narrative is broadly stable",
+      body: `${context.driftScore}/100 drift across ${rows.length} timeline events under the ${config.lens.toLowerCase()} lens.`,
+      level: context.driftScore >= 45 ? "warning" : "normal"
+    },
+    {
+      label: "Evidence",
+      title: latestEvidence ? latestEvidence.title : "No evidence inflection yet",
+      body: latestEvidence ? latestEvidence.body : `Run a fresh question or import source text for $${company.ticker}.`,
+      level: context.evidenceScore >= 70 ? "normal" : "warning"
+    },
+    {
+      label: "Risk",
+      title: latestRisk ? latestRisk.title : "No high-risk movement detected",
+      body: latestRisk ? latestRisk.body : "Risk movement is not dominating the current timeline.",
+      level: latestRisk && latestRisk.level === "danger" ? "danger" : latestRisk ? "warning" : "normal"
+    },
+    {
+      label: "Review",
+      title: latestDossier ? latestDossier.title : "Dossier state not attached",
+      body: latestDossier ? latestDossier.body : "Build the dossier so the timeline can show packet readiness.",
+      level: latestDossier && latestDossier.level === "normal" ? "normal" : "warning"
+    },
+    {
+      label: "Debate",
+      title: latestDebate ? latestDebate.title : "No debate turn recorded",
+      body: latestDebate ? latestDebate.body : "Run the Thesis Debate Room to add bull/bear pressure to the audit trail.",
+      level: latestDebate && latestDebate.level === "normal" ? "normal" : "warning"
+    }
+  ];
+  return inflections.slice(0, config.lens === "Committee narrative" ? 5 : 4);
+}
+
+function buildTimelineQuestionRows(company, config, latest, inflections, context) {
+  const rows = [
+    {
+      priority: context.driftScore >= 45 ? "High" : "Medium",
+      topic: "Thesis change",
+      question: `What changed most in the $${company.ticker} thesis between the earliest and latest timeline events?`
+    },
+    {
+      priority: context.evidenceScore < 70 ? "High" : "Medium",
+      topic: "Evidence gap",
+      question: `Which source would best explain the latest $${company.ticker} signal: ${latest.title}?`
+    },
+    {
+      priority: context.reviewRows.length ? "High" : "Low",
+      topic: "Risk audit",
+      question: `Which risk disclosure could invalidate the current $${company.ticker} narrative first?`
+    },
+    {
+      priority: "Medium",
+      topic: "Committee story",
+      question: `How should I summarize the $${company.ticker} thesis history for ${config.lens.toLowerCase()} review?`
+    },
+    {
+      priority: "Low",
+      topic: "Next event",
+      question: `What should the next tracked event be for $${company.ticker}: filing, call, valuation, debate, or dossier update?`
+    }
+  ];
+  if (config.scope === "Filings and calls") {
+    rows.unshift({
+      priority: "High",
+      topic: "Filing trail",
+      question: `Which 10-K or earnings call language shows whether $${company.ticker}'s thesis improved or deteriorated?`
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function renderTimelineEvents(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No timeline events</strong><span>Run research or import sources to create the audit trail.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="timeline-event-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.dateLabel)}</span>
+      <div>
+        <strong>${escapeHtml(row.label)} | ${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTimelineInflections(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No inflections yet</strong><span>Build the timeline to reveal narrative changes.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="timeline-inflection-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTimelineQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No audit questions</strong><span>The timeline has no open follow-up.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="timeline-question-row" type="button" data-timeline-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)} | ${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readTimelineConfig() {
+  return normalizeTimelineConfig({
+    ticker: els.timelineTicker.value,
+    lens: els.timelineLens.value,
+    lookback: els.timelineLookback.value,
+    scope: els.timelineScope.value,
+    objective: els.timelineObjective.value
+  });
+}
+
+function syncTimelineInputs() {
+  if (!els.timelineTicker) return;
+  syncTimelineTickerOptions();
+  const config = normalizeTimelineConfig(state.timelineConfig || getDefaultTimelineConfig());
+  els.timelineTicker.value = config.ticker;
+  els.timelineLens.value = config.lens;
+  els.timelineLookback.value = config.lookback;
+  els.timelineScope.value = config.scope;
+  els.timelineObjective.value = config.objective;
+}
+
+function syncTimelineTickerOptions() {
+  if (!els.timelineTicker) return;
+  const config = normalizeTimelineConfig(state.timelineConfig || getDefaultTimelineConfig());
+  const tickers = getCompanies().map((company) => company.ticker);
+  if (!tickers.includes(config.ticker)) tickers.unshift(config.ticker);
+  els.timelineTicker.innerHTML = Array.from(new Set(tickers)).map((ticker) => {
+    const company = resolveValuationMatrixCompany(ticker);
+    return `<option value="${escapeAttr(ticker)}">${escapeHtml(ticker)} - ${escapeHtml(company.name || ticker)}</option>`;
+  }).join("");
+}
+
+function normalizeTimelineConfig(config) {
+  const defaults = getDefaultTimelineConfig();
+  return {
+    ticker: normalizeTicker(config.ticker || defaults.ticker),
+    lens: normalizeChoice(config.lens, ["Thesis evolution", "Risk movement", "Evidence history", "Committee narrative"], defaults.lens),
+    lookback: normalizeChoice(config.lookback, ["All available", "Last 90 days", "Last 12 months", "Current session"], defaults.lookback),
+    scope: normalizeChoice(config.scope, ["All research artifacts", "Filings and calls", "Decisions and exports", "Current answer only"], defaults.scope),
+    objective: String(config.objective || defaults.objective).slice(0, 190)
+  };
+}
+
+function getDefaultTimelineConfig() {
+  const company = getCompany(state.selectedTicker || "NSCP") || SAMPLE_COMPANIES[0];
+  return {
+    ticker: company.ticker || "NSCP",
+    lens: "Thesis evolution",
+    lookback: "All available",
+    scope: "All research artifacts",
+    objective: "Show the thesis path, key evidence changes, unresolved risks, and next audit questions before sharing the research packet."
+  };
+}
+
+function hydrateTimelineFromDossier() {
+  const dossier = state.currentDossier || buildResearchDossierSnapshot();
+  state.timelineConfig = normalizeTimelineConfig({
+    ...(state.timelineConfig || getDefaultTimelineConfig()),
+    ticker: dossier.company.ticker,
+    lens: dossier.gapCount ? "Evidence history" : "Committee narrative",
+    lookback: "All available",
+    scope: "All research artifacts",
+    objective: `Audit the ${dossier.company.ticker} dossier path, explain ${dossier.gapCount} open gap${dossier.gapCount === 1 ? "" : "s"}, and identify the next source event to track.`
+  });
+}
+
+function loadTimelineConfig() {
+  return normalizeTimelineConfig(loadJson(STORAGE_KEYS.timeline, getDefaultTimelineConfig()));
+}
+
+function saveTimelineConfig() {
+  saveJson(STORAGE_KEYS.timeline, normalizeTimelineConfig(state.timelineConfig || getDefaultTimelineConfig()));
+}
+
+function timelineEventMatchesTicker(event, company) {
+  const text = `${event.ticker || ""} ${event.question || ""} ${event.title || ""}`.toUpperCase();
+  return text.includes(company.ticker) || (PUBLIC_TICKER_ALIASES[event.ticker] && PUBLIC_TICKER_ALIASES[event.ticker].ticker === company.ticker);
+}
+
+function formatTimelineKind(kind) {
+  const labels = {
+    analysis: "Answer",
+    import: "Import",
+    save: "Saved",
+    waitlist: "Waitlist"
+  };
+  return labels[kind] || "Workflow";
+}
+
+function makeWorkflowTimelineTitle(event) {
+  if (event.kind === "analysis") return `Question run: ${String(event.question || "Research question").slice(0, 80)}`;
+  if (event.kind === "import") return `${event.count || 1} source${Number(event.count || 1) === 1 ? "" : "s"} imported`;
+  if (event.kind === "save") return event.title || "Brief saved";
+  return `${formatTimelineKind(event.kind)} event recorded`;
+}
+
+function makeWorkflowTimelineBody(event) {
+  if (event.kind === "analysis") return `Depth ${event.depth || "brief"} analysis created a new research signal.`;
+  if (event.kind === "import") return `Source path: ${event.source || "manual import"}.`;
+  if (event.kind === "save") return "Saved note can anchor thesis history and future review.";
+  return "Workspace action became part of the audit trail.";
+}
+
+function parseTimelineDate(value) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value;
+  const parsed = new Date(value || "");
+  if (Number.isFinite(parsed.getTime())) return parsed;
+  return new Date();
+}
+
+function formatTimelineDate(date) {
+  const safe = parseTimelineDate(date);
+  return safe.toISOString().slice(0, 10);
+}
+
+function exportThesisTimelineBrief() {
+  const snapshot = state.currentTimeline || buildThesisTimelineSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Thesis Timeline Audit",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Timeline Setup",
+    "",
+    `- Company: ${snapshot.company.ticker} - ${snapshot.company.name}`,
+    `- Lens: ${snapshot.config.lens}`,
+    `- Lookback: ${snapshot.config.lookback}`,
+    `- Source scope: ${snapshot.config.scope}`,
+    `- Objective: ${snapshot.config.objective}`,
+    "",
+    "## Scorecard",
+    "",
+    `- Audit score: ${snapshot.auditScore}/100`,
+    `- Thesis drift: ${snapshot.driftScore}/100`,
+    `- Evidence score: ${snapshot.evidenceScore}/100`,
+    `- Latest signal: ${snapshot.latestSignal} (${snapshot.latestDate})`,
+    "",
+    "## Thesis Trail",
+    "",
+    ...snapshot.eventRows.map((row) => `- ${row.dateLabel} | ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Inflection Map",
+    "",
+    ...snapshot.inflectionRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "## Audit Questions",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.priority} | ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This thesis timeline is a client-side audit trail for product prototyping. Production should store immutable event history, source versions, reviewer approvals, and export logs server-side before relying on the timeline for regulated workflows."
+  ].join("\n");
+  downloadTextFile(`citealpha-thesis-timeline-${snapshot.company.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportTimelineBrief, "Exported");
+}
+
+function renderMorningBriefingRoom() {
+  if (!els.briefingMetricGrid) return;
+  if (!state.briefingConfig) state.briefingConfig = loadBriefingConfig();
+  syncBriefingInputs();
+  const snapshot = buildMorningBriefingSnapshot();
+  state.currentBriefing = snapshot;
+  els.briefingMetricGrid.innerHTML = [
+    { label: "Briefing score", value: `${snapshot.briefingScore}/100`, sub: snapshot.scoreLabel },
+    { label: "Top priority", value: snapshot.topTicker, sub: snapshot.topReason },
+    { label: "Risk watch", value: snapshot.riskRows.length, sub: `${snapshot.highRiskCount} high risk` },
+    { label: "Session load", value: snapshot.sessionLoad, sub: `${snapshot.questionRows.length} asks queued` }
+  ].map((metric) => `
+    <div class="briefing-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.briefingAgendaCount.textContent = String(snapshot.agendaRows.length);
+  els.briefingAgendaList.innerHTML = renderBriefingAgenda(snapshot.agendaRows);
+  els.briefingRiskCount.textContent = String(snapshot.riskRows.length);
+  els.briefingRiskList.innerHTML = renderBriefingRisks(snapshot.riskRows);
+  els.briefingQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.briefingQuestionQueue.innerHTML = renderBriefingQuestions(snapshot.questionRows);
+}
+
+function buildMorningBriefingSnapshot() {
+  const config = normalizeBriefingConfig(state.briefingConfig || getDefaultBriefingConfig());
+  const universe = resolveBriefingUniverse(config);
+  const agendaRows = universe.map((ticker) => buildBriefingAgendaRow(ticker, config))
+    .filter((row) => config.urgency !== "High-conviction only" || row.priorityScore >= 58)
+    .sort((a, b) => b.priorityScore - a.priorityScore || a.ticker.localeCompare(b.ticker))
+    .slice(0, config.mode === "Launch demo" ? 4 : 7);
+  const riskRows = agendaRows
+    .map((row) => buildBriefingRiskRow(row, config))
+    .filter(Boolean)
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 5);
+  const questionRows = buildBriefingQuestionRows(config, agendaRows, riskRows);
+  const highRiskCount = riskRows.filter((row) => row.level === "danger").length;
+  const evidenceReadiness = agendaRows.length
+    ? Math.round(agendaRows.reduce((sum, row) => sum + row.evidenceScore, 0) / agendaRows.length)
+    : 0;
+  const coveragePenalty = Math.max(0, 5 - agendaRows.length) * 4;
+  const security = summarizeSecurityPosture();
+  const briefingScore = Math.max(1, Math.min(100, Math.round(evidenceReadiness * 0.36 + security.score * 0.2 + Math.min(100, questionRows.length * 18) * 0.16 + Math.max(35, 100 - highRiskCount * 14) * 0.18 + (state.currentTimeline ? 10 : 4) - coveragePenalty)));
+  const top = agendaRows[0] || buildBriefingAgendaRow("NSCP", config);
+  return {
+    config,
+    universe,
+    agendaRows,
+    riskRows,
+    questionRows,
+    highRiskCount,
+    evidenceReadiness,
+    security,
+    briefingScore,
+    scoreLabel: briefingScore >= 82 ? "Ready for morning use" : briefingScore >= 65 ? "Good triage draft" : "Needs more source coverage",
+    topTicker: top.ticker,
+    topReason: top.reason,
+    sessionLoad: questionRows.length >= 5 ? "Heavy" : questionRows.length >= 3 ? "Balanced" : "Light"
+  };
+}
+
+function buildBriefingAgendaRow(ticker, config) {
+  const normalized = normalizeTicker(ticker);
+  const company = resolvePortfolioCompany(normalized);
+  const proxyTicker = company.proxyTicker || company.ticker || normalized;
+  const sourceCount = countPortfolioSources(normalized, proxyTicker);
+  const citationCount = state.currentCitations.filter((citation) => {
+    return citation.ticker === normalized || citation.ticker === proxyTicker;
+  }).length;
+  const move = getPortfolioMarketMove(normalized);
+  const moveScore = Number.isFinite(move) ? Math.min(28, Math.abs(move) * 5) : 6;
+  const sourceGap = sourceCount ? 0 : 20;
+  const dossierGap = state.currentDossier && (state.currentDossier.company.ticker === normalized || state.currentDossier.company.ticker === proxyTicker)
+    ? state.currentDossier.gapCount * 5
+    : 6;
+  const timelineBoost = state.currentTimeline && (state.currentTimeline.company.ticker === normalized || state.currentTimeline.company.ticker === proxyTicker) ? 8 : 0;
+  const risk = Math.max(1, Math.min(99, Math.round(Number(company.risk) || 55)));
+  const evidenceScore = Math.max(10, Math.min(100, Math.round(sourceCount * 16 + citationCount * 12 + (timelineBoost ? 12 : 0) + (sourceCount ? 28 : 10))));
+  const priorityScore = Math.max(1, Math.min(100, Math.round(risk * 0.38 + moveScore + sourceGap + dossierGap + timelineBoost + (config.mode === "Risk watch" ? risk * 0.18 : 0))));
+  const level = priorityScore >= 72 || risk >= 76 ? "danger" : priorityScore >= 55 || evidenceScore < 55 ? "warning" : "normal";
+  const moveText = Number.isFinite(move) ? `${move >= 0 ? "+" : ""}${move.toFixed(1)}% quote move` : "no quote move";
+  const agenda = makeBriefingAgendaTitle(company, config, { sourceCount, citationCount, moveText, risk, evidenceScore });
+  return {
+    ticker: normalized,
+    proxyTicker,
+    name: company.name || normalized,
+    level,
+    risk,
+    evidenceScore,
+    sourceCount,
+    citationCount,
+    move,
+    priorityScore,
+    agenda,
+    reason: `${risk}/100 risk | ${evidenceScore}/100 evidence | ${moveText}`,
+    question: makeBriefingQuestion(company, config, { sourceCount, citationCount, risk, evidenceScore })
+  };
+}
+
+function makeBriefingAgendaTitle(company, config, context) {
+  if (config.mode === "Portfolio morning") return `${company.ticker}: check concentration, quote move, and source gap`;
+  if (config.mode === "Risk watch") return `${company.ticker}: inspect ${context.risk}/100 risk before adding conviction`;
+  if (config.mode === "Launch demo") return `${company.ticker}: show a crisp source-linked research workflow`;
+  if (context.evidenceScore < 55) return `${company.ticker}: close evidence gap before relying on the answer`;
+  return `${company.ticker}: run the next highest-leverage research question`;
+}
+
+function buildBriefingRiskRow(row, config) {
+  const riskScore = Math.max(1, Math.min(100, Math.round(row.risk + (row.sourceCount ? 0 : 12) + (row.evidenceScore < 55 ? 10 : 0) + (Number.isFinite(row.move) ? Math.abs(row.move) * 1.4 : 0))));
+  const level = riskScore >= 76 ? "danger" : riskScore >= 58 ? "warning" : "normal";
+  if (config.urgency === "High-conviction only" && level === "normal") return null;
+  return {
+    ticker: row.ticker,
+    level,
+    riskScore,
+    title: `${row.ticker} risk watch: ${riskScore}/100`,
+    body: row.sourceCount
+      ? `${row.sourceCount} source${row.sourceCount === 1 ? "" : "s"} active, ${row.citationCount} current citation${row.citationCount === 1 ? "" : "s"}.`
+      : "Source gap. Import a filing or call section before treating the risk view as live."
+  };
+}
+
+function buildBriefingQuestionRows(config, agendaRows, riskRows) {
+  const questions = [];
+  agendaRows.slice(0, 4).forEach((row) => {
+    questions.push({
+      priority: row.level === "danger" ? "High" : "Medium",
+      topic: row.ticker,
+      question: row.question
+    });
+  });
+  riskRows.slice(0, 2).forEach((row) => {
+    questions.push({
+      priority: row.level === "danger" ? "High" : "Medium",
+      topic: "Risk watch",
+      question: `What source evidence would reduce or confirm the ${row.riskScore}/100 risk watch for $${row.ticker}?`
+    });
+  });
+  if (state.currentDossier && state.currentDossier.gapCount) {
+    questions.push({
+      priority: "High",
+      topic: "Dossier gap",
+      question: `Which open dossier gap should I close first for $${state.currentDossier.company.ticker}?`
+    });
+  }
+  if (state.currentTimeline) {
+    questions.push({
+      priority: "Medium",
+      topic: "Timeline",
+      question: `What changed most in the $${state.currentTimeline.company.ticker} thesis timeline since the last source event?`
+    });
+  }
+  return dedupeBriefingQuestions(questions).slice(0, config.mode === "Launch demo" ? 5 : 7);
+}
+
+function makeBriefingQuestion(company, config, context) {
+  if (!context.sourceCount) return `Which filing, 10-K risk factor, or earnings call section should I import first for $${company.ticker}?`;
+  if (config.mode === "Risk watch" || context.risk >= 70) return `What are the three most material risks for $${company.ticker}, and which citations support each one?`;
+  if (config.mode === "Portfolio morning") return `Is $${company.ticker} still sized correctly given valuation, risk, source coverage, and quote movement?`;
+  if (context.evidenceScore < 65) return `What evidence gap prevents $${company.ticker} from being decision-ready today?`;
+  return `What is the highest-conviction update on $${company.ticker} for today's research briefing?`;
+}
+
+function renderBriefingAgenda(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No agenda yet</strong><span>Add tickers or use the workspace to build the morning queue.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="briefing-agenda-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.ticker)}</span>
+      <div>
+        <strong>${escapeHtml(row.agenda)}</strong>
+        <em>${escapeHtml(row.reason)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderBriefingRisks(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No risk watch</strong><span>The selected briefing universe has no urgent risk rows.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="briefing-risk-row ${escapeAttr(row.level || "normal")}">
+      <span>${escapeHtml(row.ticker)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderBriefingQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No questions queued</strong><span>The briefing is quiet.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="briefing-question-row" type="button" data-briefing-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)} | ${escapeHtml(row.topic)}</span>
+      <strong>${escapeHtml(row.question)}</strong>
+    </button>
+  `).join("");
+}
+
+function readBriefingConfig() {
+  return normalizeBriefingConfig({
+    universe: els.briefingUniverse.value,
+    mode: els.briefingMode.value,
+    urgency: els.briefingUrgency.value,
+    horizon: els.briefingHorizon.value,
+    objective: els.briefingObjective.value
+  });
+}
+
+function syncBriefingInputs() {
+  if (!els.briefingUniverse) return;
+  const config = normalizeBriefingConfig(state.briefingConfig || getDefaultBriefingConfig());
+  els.briefingUniverse.value = config.universe;
+  els.briefingMode.value = config.mode;
+  els.briefingUrgency.value = config.urgency;
+  els.briefingHorizon.value = config.horizon;
+  els.briefingObjective.value = config.objective;
+}
+
+function normalizeBriefingConfig(config) {
+  const defaults = getDefaultBriefingConfig();
+  return {
+    universe: String(config.universe || defaults.universe).slice(0, 140),
+    mode: normalizeChoice(config.mode, ["Research triage", "Portfolio morning", "Risk watch", "Launch demo"], defaults.mode),
+    urgency: normalizeChoice(config.urgency, ["Balanced", "High-conviction only", "Catch-up"], defaults.urgency),
+    horizon: normalizeChoice(config.horizon, ["Today", "This week", "Next catalyst", "Pre-market"], defaults.horizon),
+    objective: String(config.objective || defaults.objective).slice(0, 190)
+  };
+}
+
+function getDefaultBriefingConfig() {
+  return {
+    universe: "NVDA, AAPL, TSLA, MSFT, NSCP",
+    mode: "Research triage",
+    urgency: "Balanced",
+    horizon: "Today",
+    objective: "Prioritize what to read, what to ask, and which evidence gaps to close before the next investment decision."
+  };
+}
+
+function hydrateBriefingFromWorkspace() {
+  const portfolioTickers = state.portfolioPositions.length
+    ? normalizePortfolioWeights(state.portfolioPositions).map((position) => position.ticker)
+    : [];
+  const active = Array.from(state.activeTickers || []).slice(0, 6);
+  const focus = state.tickerFocus ? [state.tickerFocus.rawTicker || state.tickerFocus.ticker] : [];
+  const timeline = state.currentTimeline ? [state.currentTimeline.company.ticker] : [];
+  const dossier = state.currentDossier ? [state.currentDossier.company.ticker] : [];
+  const universe = Array.from(new Set([...focus, ...portfolioTickers, ...timeline, ...dossier, ...active, "NVDA", "AAPL", "TSLA"].map(normalizeTicker).filter(Boolean))).slice(0, 8);
+  state.briefingConfig = normalizeBriefingConfig({
+    ...(state.briefingConfig || getDefaultBriefingConfig()),
+    universe: universe.join(", "),
+    mode: state.portfolioPositions.length ? "Portfolio morning" : "Research triage",
+    urgency: state.currentDossier && state.currentDossier.gapCount ? "Catch-up" : "Balanced",
+    horizon: "Today",
+    objective: "Use the active workspace to decide which ticker, risk, source gap, or follow-up question deserves attention first."
+  });
+}
+
+function resolveBriefingUniverse(config) {
+  const raw = String(config.universe || "")
+    .split(/[,\s;]+/)
+    .map((item) => normalizeTicker(item.replace(/^\$/, "")))
+    .filter(Boolean);
+  const fromConfig = Array.from(new Set(raw)).slice(0, 10);
+  if (fromConfig.length) return fromConfig;
+  return Array.from(new Set([...Array.from(state.activeTickers || []), ...DEFAULT_PORTFOLIO_POSITIONS.map((position) => position.ticker)])).slice(0, 8);
+}
+
+function dedupeBriefingQuestions(rows) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = String(row.question || "").toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function loadBriefingConfig() {
+  return normalizeBriefingConfig(loadJson(STORAGE_KEYS.briefing, getDefaultBriefingConfig()));
+}
+
+function saveBriefingConfig() {
+  saveJson(STORAGE_KEYS.briefing, normalizeBriefingConfig(state.briefingConfig || getDefaultBriefingConfig()));
+}
+
+function exportMorningBriefing() {
+  const snapshot = state.currentBriefing || buildMorningBriefingSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Morning Briefing",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Briefing Setup",
+    "",
+    `- Universe: ${snapshot.config.universe}`,
+    `- Mode: ${snapshot.config.mode}`,
+    `- Urgency: ${snapshot.config.urgency}`,
+    `- Horizon: ${snapshot.config.horizon}`,
+    `- Objective: ${snapshot.config.objective}`,
+    "",
+    "## Scorecard",
+    "",
+    `- Briefing score: ${snapshot.briefingScore}/100`,
+    `- Top priority: ${snapshot.topTicker} - ${snapshot.topReason}`,
+    `- Risk watch rows: ${snapshot.riskRows.length}`,
+    `- Session load: ${snapshot.sessionLoad}`,
+    "",
+    "## Research Agenda",
+    "",
+    ...snapshot.agendaRows.map((row) => `- ${row.ticker}: ${row.agenda} - ${row.reason}`),
+    "",
+    "## Risk Watch",
+    "",
+    ...(snapshot.riskRows.length ? snapshot.riskRows.map((row) => `- ${row.ticker}: ${row.title} - ${row.body}`) : ["- No urgent risk watch rows."]),
+    "",
+    "## Questions To Run",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.priority} | ${row.topic}: ${row.question}`),
+    "",
+    "## Product Note",
+    "",
+    "This morning briefing is a client-side triage workflow for product prototyping. Production should connect live market data, source refresh jobs, user portfolios, saved alerts, and server-side audit logs before using it for paid daily research workflows."
+  ].join("\n");
+  downloadTextFile(`citealpha-morning-briefing-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportBriefingBrief, "Exported");
+}
+
+function renderEarningsCallPrepRoom() {
+  if (!els.callPrepMetricGrid) return;
+  if (!state.callPrepConfig) state.callPrepConfig = loadCallPrepConfig();
+  syncCallPrepInputs();
+  const snapshot = buildEarningsCallPrepSnapshot();
+  state.currentCallPrep = snapshot;
+  els.callPrepMetricGrid.innerHTML = [
+    { label: "Prep score", value: `${snapshot.prepScore}/100`, sub: snapshot.prepLabel },
+    { label: "Call focus", value: snapshot.config.focus, sub: snapshot.config.event },
+    { label: "Evidence mix", value: snapshot.sourceAudit.balance, sub: `${snapshot.sourceCount} source${snapshot.sourceCount === 1 ? "" : "s"} active` },
+    { label: "Opening posture", value: snapshot.openingPosture, sub: snapshot.postureNote }
+  ].map((metric) => `
+    <div class="callprep-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.callPrepQuestionCount.textContent = String(snapshot.questionRows.length);
+  els.callPrepQuestionList.innerHTML = renderCallPrepQuestions(snapshot.questionRows);
+  els.callPrepReadoutCount.textContent = String(snapshot.readoutRows.length);
+  els.callPrepReadoutList.innerHTML = renderCallPrepReadouts(snapshot.readoutRows);
+  els.callPrepScoreCount.textContent = String(snapshot.scoreRows.length);
+  els.callPrepScoreList.innerHTML = renderCallPrepScoreRows(snapshot.scoreRows);
+}
+
+function buildEarningsCallPrepSnapshot() {
+  const config = normalizeCallPrepConfig(state.callPrepConfig || getDefaultCallPrepConfig());
+  const company = resolvePortfolioCompany(config.ticker);
+  const proxyTicker = company.proxyTicker || company.ticker || config.ticker;
+  const citations = getCallPrepCitations(company, config);
+  const sourceAudit = makeLightSourceAudit(citations);
+  const riskFactors = buildRiskFactors(citations, company);
+  const valuation = buildTearSheetValuation(company);
+  const sourceCount = countPortfolioSources(config.ticker, proxyTicker);
+  const quoteMove = getPortfolioMarketMove(config.ticker);
+  const riskScore = Math.max(1, Math.min(99, Math.round(Number(company.risk) || 58)));
+  const sentiment = Math.max(1, Math.min(99, Math.round(Number(company.sentiment) || (riskScore > 68 ? 46 : 62))));
+  const evidenceScore = Math.max(10, Math.min(100, Math.round(sourceAudit.quality + Math.min(12, citations.length * 2) + (sourceCount ? 8 : -8))));
+  const prepScore = Math.max(1, Math.min(100, Math.round(evidenceScore * 0.42 + Math.max(30, 100 - riskScore) * 0.18 + Math.min(100, citations.length * 12) * 0.18 + sentiment * 0.12 + (state.currentBriefing ? 10 : 4))));
+  const questionRows = buildCallPrepQuestionRows(config, company, riskFactors, valuation, citations);
+  const readoutRows = buildCallPrepReadoutRows(config, company, riskFactors, valuation, quoteMove);
+  const scoreRows = buildCallPrepScoreRows(config, company, riskFactors, citations, valuation);
+  const openingPosture = config.style === "Risk-first" || riskScore >= 70 ? "Challenge" : config.style === "Portfolio action" ? "Decision" : "Probe";
+  return {
+    config,
+    company,
+    proxyTicker,
+    citations,
+    sourceAudit,
+    riskFactors,
+    valuation,
+    sourceCount,
+    quoteMove,
+    riskScore,
+    sentiment,
+    evidenceScore,
+    prepScore,
+    prepLabel: prepScore >= 82 ? "Ready for call" : prepScore >= 65 ? "Good prep draft" : "Needs more source depth",
+    questionRows,
+    readoutRows,
+    scoreRows,
+    openingPosture,
+    postureNote: makeCallPrepPostureNote(config, company, riskScore, quoteMove)
+  };
+}
+
+function getCallPrepCitations(company, config) {
+  const tickerKeys = new Set([config.ticker, company.ticker, company.proxyTicker].filter(Boolean).map(normalizeTicker));
+  const current = state.currentCitations.filter((citation) => tickerKeys.has(citation.ticker));
+  if (current.length) return current.slice(0, 8);
+  return state.documents
+    .filter((doc) => state.enabledDocIds.has(doc.id) && tickerKeys.has(doc.ticker))
+    .flatMap((doc) => (doc.sections || []).slice(0, 2).map((section, index) => ({
+      citationId: `S${index + 1}`,
+      docId: doc.id,
+      ticker: doc.ticker,
+      company: doc.company || company.name || doc.ticker,
+      type: doc.type || "Source",
+      section: section.title || doc.period || "Source section",
+      text: section.text || ""
+    })))
+    .filter((citation) => citation.text)
+    .slice(0, 8);
+}
+
+function buildCallPrepQuestionRows(config, company, riskFactors, valuation, citations) {
+  const citationHint = citations.length ? "Ask management to reconcile this with the cited source stack." : "Flag that this needs a direct source import after the call.";
+  const rows = riskFactors.slice(0, 3).map((factor, index) => ({
+    priority: index === 0 || factor.severity === "High" ? "High" : "Watch",
+    className: index === 0 || factor.severity === "High" ? "high" : "watch",
+    topic: factor.title,
+    question: `On ${factor.title.toLowerCase()}, what specific metric or disclosure would prove $${company.ticker} is improving rather than just explaining the risk?`,
+    note: `${factor.body} ${citationHint}`
+  }));
+  rows.push({
+    priority: config.focus === "Valuation bridge" ? "High" : "Base",
+    className: config.focus === "Valuation bridge" ? "high" : "normal",
+    topic: "Valuation bridge",
+    question: `What call commentary would make the ${valuation.baseCase.label || "base"} valuation case for $${company.ticker} too conservative or too aggressive?`,
+    note: `Tie the answer to growth, margin, multiple, and discount-rate assumptions before changing position size.`
+  });
+  rows.push({
+    priority: config.style === "Portfolio action" ? "High" : "Base",
+    className: config.style === "Portfolio action" ? "high" : "normal",
+    topic: "Position action",
+    question: `After this ${config.event.toLowerCase()}, what would make $${company.ticker} a bigger, smaller, or unchanged position?`,
+    note: config.objective
+  });
+  return rows.slice(0, 6);
+}
+
+function buildCallPrepReadoutRows(config, company, riskFactors, valuation, quoteMove) {
+  const moveText = Number.isFinite(quoteMove) ? `${quoteMove >= 0 ? "+" : ""}${quoteMove.toFixed(1)}% quote move` : "no quote signal";
+  const focusMap = {
+    "Margins and demand": ["Order visibility", "Gross margin bridge", "Demand elasticity"],
+    "Risk factors": ["Risk-factor escalation", "Customer concentration", "Execution timing"],
+    "Cash flow": ["Working capital", "Capex cadence", "FCF conversion"],
+    "Valuation bridge": ["Long-term growth", "Terminal margin", "Multiple durability"]
+  };
+  const topics = focusMap[config.focus] || focusMap["Margins and demand"];
+  return topics.map((topic, index) => ({
+    level: index === 0 ? "High" : "Watch",
+    className: index === 0 ? "high" : "watch",
+    title: topic,
+    body: makeCallPrepReadoutBody(topic, company, riskFactors[index] || riskFactors[0], valuation, moveText)
+  })).concat([{
+    level: "Base",
+    className: "normal",
+    title: "Tone versus filing",
+    body: `Listen for whether management language is more confident than the source disclosures. CiteAlpha should treat optimism as a hypothesis until filings or transcript evidence support it.`
+  }]).slice(0, 5);
+}
+
+function makeCallPrepReadoutBody(topic, company, factor, valuation, moveText) {
+  if (/margin|fcf|cash|working capital/i.test(topic)) {
+    return `${company.ticker} needs evidence that margins and cash conversion are not being borrowed from future periods. Current source risk: ${factor.title.toLowerCase()}.`;
+  }
+  if (/growth|order|demand|customer/i.test(topic)) {
+    return `Watch whether demand language is backed by backlog, customer cadence, or pricing proof rather than broad market commentary. Quote context: ${moveText}.`;
+  }
+  if (/valuation|multiple|terminal/i.test(topic)) {
+    return `Map commentary to the base case at ${formatPerShare(valuation.baseCase.perShare)} and the bear/bull spread before changing the valuation lens.`;
+  }
+  return `Treat this as a thesis breakpoint if management gives numbers, timing, or customer examples that contradict the latest risk factor.`;
+}
+
+function buildCallPrepScoreRows(config, company, riskFactors, citations, valuation) {
+  const sourceLabel = citations.length >= 4 ? "Supported" : citations.length ? "Partial" : "Open";
+  return [
+    {
+      grade: "A",
+      className: "normal",
+      title: "Question answered with numbers",
+      body: `Management gives specific metrics tied to ${config.focus.toLowerCase()}, not just narrative comfort.`
+    },
+    {
+      grade: sourceLabel,
+      className: sourceLabel === "Supported" ? "normal" : "watch",
+      title: "Source reconciliation",
+      body: `${citations.length} citation${citations.length === 1 ? "" : "s"} available before the call. Update the evidence stack with transcript passages after results.`
+    },
+    {
+      grade: riskFactors[0]?.severity || "Risk",
+      className: riskFactors[0]?.severity === "High" ? "high" : "watch",
+      title: "Top risk movement",
+      body: `${riskFactors[0]?.title || "Risk factor"} should move lower only if management gives measurable proof, timing, and owner accountability.`
+    },
+    {
+      grade: formatPerShare(valuation.baseCase.perShare),
+      className: "normal",
+      title: "Valuation update gate",
+      body: `Only flex the base case when call evidence changes revenue growth, FCF margin, or terminal multiple assumptions.`
+    }
+  ];
+}
+
+function makeCallPrepPostureNote(config, company, riskScore, quoteMove) {
+  const moveText = Number.isFinite(quoteMove) ? `${quoteMove >= 0 ? "+" : ""}${quoteMove.toFixed(1)}% quote move` : "no live quote move";
+  if (config.style === "Risk-first" || riskScore >= 70) return `${company.ticker} starts with ${riskScore}/100 risk and ${moveText}. Pressure-test management first.`;
+  if (config.style === "Portfolio action") return `${company.ticker} prep should end with size, hold, or reduce decision criteria.`;
+  if (config.style === "Thesis update") return `${company.ticker} prep should separate true thesis changes from routine quarter noise.`;
+  return `${company.ticker} prep should ask concise questions, then score whether answers improve evidence quality.`;
+}
+
+function renderCallPrepQuestions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No questions yet</strong><span>Build call prep to generate a management Q&A queue.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="callprep-question-row ${escapeAttr(row.className || "normal")}" type="button" data-callprep-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)} | ${escapeHtml(row.topic)}</span>
+      <div>
+        <strong>${escapeHtml(row.question)}</strong>
+        <em>${escapeHtml(row.note)}</em>
+      </div>
+    </button>
+  `).join("");
+}
+
+function renderCallPrepReadouts(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No listening cues</strong><span>Run call prep to build the call read-through map.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="callprep-readout-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.level)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderCallPrepScoreRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No scorecard yet</strong><span>Build call prep to define post-call grading gates.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="callprep-score-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.grade)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function readCallPrepConfig() {
+  return normalizeCallPrepConfig({
+    ticker: els.callPrepTicker.value,
+    event: els.callPrepEvent.value,
+    style: els.callPrepStyle.value,
+    focus: els.callPrepFocus.value,
+    objective: els.callPrepObjective.value
+  });
+}
+
+function syncCallPrepInputs() {
+  if (!els.callPrepTicker) return;
+  const config = normalizeCallPrepConfig(state.callPrepConfig || getDefaultCallPrepConfig());
+  els.callPrepTicker.value = config.ticker;
+  els.callPrepEvent.value = config.event;
+  els.callPrepStyle.value = config.style;
+  els.callPrepFocus.value = config.focus;
+  els.callPrepObjective.value = config.objective;
+}
+
+function normalizeCallPrepConfig(config) {
+  const defaults = getDefaultCallPrepConfig();
+  return {
+    ticker: normalizeTicker(String(config.ticker || defaults.ticker).replace(/^\$/, "")) || defaults.ticker,
+    event: normalizeChoice(config.event, ["Next earnings call", "Post-results review", "Investor day", "Guidance reset"], defaults.event),
+    style: normalizeChoice(config.style, ["Management Q&A", "Risk-first", "Thesis update", "Portfolio action"], defaults.style),
+    focus: normalizeChoice(config.focus, ["Margins and demand", "Risk factors", "Cash flow", "Valuation bridge"], defaults.focus),
+    objective: String(config.objective || defaults.objective).slice(0, 190)
+  };
+}
+
+function getDefaultCallPrepConfig() {
+  return {
+    ticker: state.tickerFocus?.rawTicker || state.tickerFocus?.ticker || state.marketSettings?.ticker || "NVDA",
+    event: "Next earnings call",
+    style: "Management Q&A",
+    focus: "Margins and demand",
+    objective: "Prepare the sharpest questions and listening cues before management commentary changes the thesis."
+  };
+}
+
+function hydrateCallPrepFromBriefing() {
+  const briefing = state.currentBriefing || buildMorningBriefingSnapshot();
+  const topTicker = state.tickerFocus?.rawTicker || briefing.topTicker || state.marketSettings?.ticker || "NVDA";
+  const riskMode = briefing.highRiskCount > 1 || briefing.riskRows.some((row) => row.ticker === topTicker && row.level === "danger");
+  state.callPrepConfig = normalizeCallPrepConfig({
+    ...(state.callPrepConfig || getDefaultCallPrepConfig()),
+    ticker: topTicker,
+    event: briefing.config.horizon === "Next catalyst" ? "Guidance reset" : "Next earnings call",
+    style: briefing.config.mode === "Portfolio morning" ? "Portfolio action" : riskMode ? "Risk-first" : "Management Q&A",
+    focus: riskMode ? "Risk factors" : "Margins and demand",
+    objective: `Use the morning briefing to prepare call questions for $${topTicker}, focusing on evidence gaps, risk watch items, and post-call decision gates.`
+  });
+}
+
+function loadCallPrepConfig() {
+  return normalizeCallPrepConfig(loadJson(STORAGE_KEYS.callPrep, getDefaultCallPrepConfig()));
+}
+
+function saveCallPrepConfig() {
+  saveJson(STORAGE_KEYS.callPrep, normalizeCallPrepConfig(state.callPrepConfig || getDefaultCallPrepConfig()));
+}
+
+function exportEarningsCallPrep() {
+  const snapshot = state.currentCallPrep || buildEarningsCallPrepSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Earnings Call Prep",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Setup",
+    "",
+    `- Ticker: ${snapshot.config.ticker}`,
+    `- Event: ${snapshot.config.event}`,
+    `- Prep style: ${snapshot.config.style}`,
+    `- Focus: ${snapshot.config.focus}`,
+    `- Objective: ${snapshot.config.objective}`,
+    "",
+    "## Prep Scorecard",
+    "",
+    `- Prep score: ${snapshot.prepScore}/100`,
+    `- Evidence score: ${snapshot.evidenceScore}/100`,
+    `- Risk score: ${snapshot.riskScore}/100`,
+    `- Source mix: ${snapshot.sourceAudit.balance}`,
+    `- Opening posture: ${snapshot.openingPosture} - ${snapshot.postureNote}`,
+    "",
+    "## Management Questions",
+    "",
+    ...snapshot.questionRows.map((row) => `- ${row.priority} | ${row.topic}: ${row.question} (${row.note})`),
+    "",
+    "## Listen For",
+    "",
+    ...snapshot.readoutRows.map((row) => `- ${row.level} | ${row.title}: ${row.body}`),
+    "",
+    "## Post-Call Scorecard",
+    "",
+    ...snapshot.scoreRows.map((row) => `- ${row.grade} | ${row.title}: ${row.body}`),
+    "",
+    "## Product Note",
+    "",
+    "This earnings call prep room is a client-side workflow for product prototyping. Production should connect actual transcripts, event calendars, model updates, reviewer approvals, and immutable export logs before using it for live investment research."
+  ].join("\n");
+  downloadTextFile(`citealpha-earnings-call-prep-${snapshot.config.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportCallPrepBrief, "Exported");
+}
+
+function renderPostEarningsDebriefRoom() {
+  if (!els.debriefMetricGrid) return;
+  if (!state.debriefConfig) state.debriefConfig = loadDebriefConfig();
+  syncDebriefInputs();
+  const snapshot = buildPostEarningsDebriefSnapshot();
+  state.currentDebrief = snapshot;
+  els.debriefMetricGrid.innerHTML = [
+    { label: "Thesis delta", value: `${snapshot.thesisDelta}/100`, sub: snapshot.deltaLabel },
+    { label: "Tone read", value: snapshot.tone.label, sub: `${snapshot.tone.score}/100 from notes` },
+    { label: "Market move", value: `${snapshot.marketMove >= 0 ? "+" : ""}${snapshot.marketMove.toFixed(1)}%`, sub: snapshot.marketLabel },
+    { label: "Decision bias", value: snapshot.decisionBias, sub: snapshot.decisionNote }
+  ].map((metric) => `
+    <div class="debrief-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.debriefSurpriseCount.textContent = String(snapshot.surpriseRows.length);
+  els.debriefSurpriseList.innerHTML = renderDebriefSurprises(snapshot.surpriseRows);
+  els.debriefThesisCount.textContent = String(snapshot.thesisRows.length);
+  els.debriefThesisList.innerHTML = renderDebriefThesisRows(snapshot.thesisRows);
+  els.debriefActionCount.textContent = String(snapshot.actionRows.length);
+  els.debriefActionList.innerHTML = renderDebriefActions(snapshot.actionRows);
+}
+
+function buildPostEarningsDebriefSnapshot() {
+  const config = normalizeDebriefConfig(state.debriefConfig || getDefaultDebriefConfig());
+  const company = resolvePortfolioCompany(config.ticker);
+  const callPrep = state.currentCallPrep && state.currentCallPrep.config.ticker === config.ticker
+    ? state.currentCallPrep
+    : buildEarningsCallPrepSnapshotForTicker(config.ticker);
+  const citations = getCallPrepCitations(company, { ticker: config.ticker });
+  const sourceAudit = makeLightSourceAudit(citations);
+  const transcript = getDebriefTranscriptText(config, callPrep, citations);
+  const tone = scoreDebriefTone(transcript);
+  const marketMove = getDebriefMarketMove(config);
+  const riskFactors = buildRiskFactors(citations, company);
+  const valuation = buildTearSheetValuation(company);
+  const surpriseRows = buildDebriefSurpriseRows(config, company, callPrep, tone, marketMove, riskFactors, valuation);
+  const thesisRows = buildDebriefThesisRows(config, company, callPrep, tone, marketMove, sourceAudit, riskFactors);
+  const actionRows = buildDebriefActionRows(config, company, tone, marketMove, riskFactors, valuation);
+  const sourceSupport = Math.max(20, Math.min(100, sourceAudit.quality + Math.min(12, citations.length * 2)));
+  const movePressure = Math.min(28, Math.abs(marketMove) * 5);
+  const surprisePressure = surpriseRows.filter((row) => row.className === "negative" || row.className === "watch").length * 8;
+  const thesisDelta = Math.max(1, Math.min(100, Math.round(Math.abs(tone.score - 50) * 0.52 + movePressure + surprisePressure + Math.max(0, 72 - sourceSupport) * 0.22 + (config.mode === "Portfolio action" ? 8 : 2))));
+  const decisionBias = makeDebriefDecisionBias(config, tone, marketMove, thesisDelta);
+  return {
+    config,
+    company,
+    callPrep,
+    citations,
+    sourceAudit,
+    transcript,
+    tone,
+    marketMove,
+    riskFactors,
+    valuation,
+    surpriseRows,
+    thesisRows,
+    actionRows,
+    thesisDelta,
+    deltaLabel: thesisDelta >= 70 ? "Major review" : thesisDelta >= 42 ? "Meaningful update" : "Mostly intact",
+    marketLabel: Math.abs(marketMove) >= 5 ? "Large reaction" : Math.abs(marketMove) >= 2 ? "Moderate reaction" : "Quiet reaction",
+    decisionBias: decisionBias.label,
+    decisionNote: decisionBias.note
+  };
+}
+
+function buildEarningsCallPrepSnapshotForTicker(ticker) {
+  const previous = state.callPrepConfig;
+  state.callPrepConfig = normalizeCallPrepConfig({ ...(previous || getDefaultCallPrepConfig()), ticker });
+  const snapshot = buildEarningsCallPrepSnapshot();
+  state.callPrepConfig = previous;
+  return snapshot;
+}
+
+function getDebriefTranscriptText(config, callPrep, citations) {
+  const typed = String(config.transcript || "").trim();
+  if (typed) return typed;
+  const citationText = citations.map((citation) => citation.text).join(" ");
+  if (citationText.trim()) return citationText;
+  return [
+    callPrep.postureNote,
+    ...callPrep.readoutRows.map((row) => row.body),
+    ...callPrep.scoreRows.map((row) => row.body)
+  ].join(" ");
+}
+
+function scoreDebriefTone(text) {
+  const lower = String(text || "").toLowerCase();
+  const positiveHits = POSITIVE_TERMS.reduce((sum, term) => sum + (lower.includes(term.toLowerCase()) ? 1 : 0), 0);
+  const negativeHits = NEGATIVE_TERMS.reduce((sum, term) => sum + (lower.includes(term.toLowerCase()) ? 1 : 0), 0);
+  const score = Math.max(1, Math.min(99, Math.round(50 + positiveHits * 7 - negativeHits * 6)));
+  return {
+    score,
+    positiveHits,
+    negativeHits,
+    label: score >= 68 ? "Constructive" : score <= 42 ? "Cautious" : "Mixed"
+  };
+}
+
+function getDebriefMarketMove(config) {
+  const typed = Number(config.marketMove);
+  if (Number.isFinite(typed)) return typed;
+  const move = getPortfolioMarketMove(config.ticker);
+  return Number.isFinite(move) ? move : 0;
+}
+
+function buildDebriefSurpriseRows(config, company, callPrep, tone, marketMove, riskFactors, valuation) {
+  const rows = [
+    {
+      label: tone.score >= 68 ? "Positive" : tone.score <= 42 ? "Negative" : "Mixed",
+      className: tone.score >= 68 ? "normal" : tone.score <= 42 ? "negative" : "watch",
+      title: `${company.ticker} management tone versus prep`,
+      body: `${tone.positiveHits} constructive marker${tone.positiveHits === 1 ? "" : "s"} and ${tone.negativeHits} caution marker${tone.negativeHits === 1 ? "" : "s"} detected in the debrief notes.`
+    },
+    {
+      label: Math.abs(marketMove) >= 5 ? "Large" : Math.abs(marketMove) >= 2 ? "Medium" : "Small",
+      className: marketMove < -2 ? "negative" : Math.abs(marketMove) >= 2 ? "watch" : "normal",
+      title: "Price reaction versus evidence",
+      body: `${marketMove >= 0 ? "+" : ""}${marketMove.toFixed(1)}% market move should be reconciled with source-backed call commentary before updating conviction.`
+    },
+    {
+      label: riskFactors[0]?.severity || "Risk",
+      className: riskFactors[0]?.severity === "High" ? "negative" : "watch",
+      title: riskFactors[0]?.title || "Top risk check",
+      body: riskFactors[0]?.body || "No direct risk factor is available yet. Import the latest transcript or filing language."
+    },
+    {
+      label: config.mode === "Valuation update" ? "Model" : "Base",
+      className: config.mode === "Valuation update" ? "watch" : "normal",
+      title: "Valuation read-through",
+      body: `Base case sits near ${formatPerShare(valuation.baseCase.perShare)}. Change the model only if the debrief affects growth, FCF margin, or risk premium.`
+    }
+  ];
+  if (callPrep && callPrep.prepScore < 70) {
+    rows.push({
+      label: "Gap",
+      className: "watch",
+      title: "Prep coverage gap",
+      body: `Call prep was ${callPrep.prepScore}/100, so the debrief should prioritize missing source evidence before thesis changes.`
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function buildDebriefThesisRows(config, company, callPrep, tone, marketMove, sourceAudit, riskFactors) {
+  return [
+    {
+      label: tone.score >= 62 ? "Confirm" : tone.score <= 42 ? "Reopen" : "Watch",
+      className: tone.score <= 42 ? "negative" : tone.score < 62 ? "watch" : "normal",
+      title: "Core thesis",
+      body: tone.score >= 62
+        ? `${company.ticker} thesis is mostly supported by the call notes, but source citations still need updating.`
+        : `${company.ticker} thesis should be reopened where management language conflicts with the prior evidence stack.`
+    },
+    {
+      label: sourceAudit.coverageLabel,
+      className: sourceAudit.quality >= 70 ? "normal" : "watch",
+      title: "Source support",
+      body: `${sourceAudit.balance} source mix with ${sourceAudit.quality}/100 light audit quality. Add the actual transcript if this is still sample-based.`
+    },
+    {
+      label: Math.abs(marketMove) >= 3 ? "Move" : "Stable",
+      className: marketMove < -3 ? "negative" : Math.abs(marketMove) >= 3 ? "watch" : "normal",
+      title: "Market versus thesis",
+      body: Math.abs(marketMove) >= 3
+        ? `The ${marketMove >= 0 ? "positive" : "negative"} price move is big enough to ask whether the market found a new thesis variable.`
+        : "The price reaction is not large enough by itself to force a thesis reset."
+    },
+    {
+      label: config.mode,
+      className: config.mode === "Risk update" ? "negative" : "normal",
+      title: "Debrief lens",
+      body: `Mode is ${config.mode.toLowerCase()}; top risk to re-check is ${riskFactors[0]?.title || "source coverage"}.`
+    }
+  ];
+}
+
+function buildDebriefActionRows(config, company, tone, marketMove, riskFactors, valuation) {
+  const rows = [
+    {
+      priority: tone.score <= 42 ? "High" : "Medium",
+      className: tone.score <= 42 ? "high" : "watch",
+      title: "Transcript verification",
+      question: `Which exact transcript passages changed the $${company.ticker} thesis after the ${config.event.toLowerCase()}?`,
+      body: "Run this after importing the actual earnings call transcript or press release."
+    },
+    {
+      priority: "High",
+      className: riskFactors[0]?.severity === "High" ? "high" : "watch",
+      title: "Risk movement",
+      question: `Did $${company.ticker}'s ${riskFactors[0]?.title || "top risk"} improve, worsen, or stay unchanged after results?`,
+      body: riskFactors[0]?.body || "Use cited evidence to avoid narrative drift."
+    },
+    {
+      priority: Math.abs(marketMove) >= 3 ? "High" : "Medium",
+      className: Math.abs(marketMove) >= 3 ? "watch" : "normal",
+      title: "Market reaction",
+      question: `Was the ${marketMove >= 0 ? "+" : ""}${marketMove.toFixed(1)}% move in $${company.ticker} justified by source-backed changes or just sentiment?`,
+      body: "Separate actual thesis change from price action."
+    },
+    {
+      priority: config.mode === "Valuation update" ? "High" : "Medium",
+      className: config.mode === "Valuation update" ? "watch" : "normal",
+      title: "Model gate",
+      question: `Which valuation input should change first for $${company.ticker}: growth, FCF margin, multiple, or discount rate?`,
+      body: `Current base marker is ${formatPerShare(valuation.baseCase.perShare)} per share.`
+    }
+  ];
+  if (config.mode === "Portfolio action") {
+    rows.unshift({
+      priority: "High",
+      className: "high",
+      title: "Position decision",
+      question: `Should $${company.ticker} be increased, trimmed, or held after this debrief?`,
+      body: "Convert the debrief into a clean sizing decision."
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function makeDebriefDecisionBias(config, tone, marketMove, thesisDelta) {
+  if (config.mode === "Portfolio action" && thesisDelta >= 60) {
+    return { label: "Re-size", note: "Thesis delta is high enough to revisit position size." };
+  }
+  if (tone.score >= 68 && marketMove >= 0) {
+    return { label: "Lean in", note: "Tone and market reaction are both constructive." };
+  }
+  if (tone.score <= 42 || marketMove <= -4) {
+    return { label: "Review risk", note: "Debrief points to caution before adding exposure." };
+  }
+  return { label: "Hold thesis", note: "No major action until transcript citations are updated." };
+}
+
+function renderDebriefSurprises(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No surprises yet</strong><span>Build a debrief after results or paste transcript notes.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="debrief-surprise-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDebriefThesisRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No thesis rows</strong><span>The debrief has not been built yet.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="debrief-thesis-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDebriefActions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No actions</strong><span>Debrief actions will appear after scoring the event.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="debrief-action-row ${escapeAttr(row.className || "normal")}" type="button" data-debrief-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.question)} ${escapeHtml(row.body)}</em>
+      </div>
+    </button>
+  `).join("");
+}
+
+function readDebriefConfig() {
+  return normalizeDebriefConfig({
+    ticker: els.debriefTicker.value,
+    event: els.debriefEvent.value,
+    mode: els.debriefMode.value,
+    marketMove: els.debriefMarketMove.value,
+    transcript: els.debriefTranscript.value
+  });
+}
+
+function syncDebriefInputs() {
+  if (!els.debriefTicker) return;
+  const config = normalizeDebriefConfig(state.debriefConfig || getDefaultDebriefConfig());
+  els.debriefTicker.value = config.ticker;
+  els.debriefEvent.value = config.event;
+  els.debriefMode.value = config.mode;
+  els.debriefMarketMove.value = String(config.marketMove);
+  els.debriefTranscript.value = config.transcript;
+}
+
+function normalizeDebriefConfig(config) {
+  const defaults = getDefaultDebriefConfig();
+  const marketMove = Number(config.marketMove);
+  return {
+    ticker: normalizeTicker(String(config.ticker || defaults.ticker).replace(/^\$/, "")) || defaults.ticker,
+    event: normalizeChoice(config.event, ["Earnings call", "Quarterly results", "Guidance update", "Investor day"], defaults.event),
+    mode: normalizeChoice(config.mode, ["Thesis change", "Risk update", "Valuation update", "Portfolio action"], defaults.mode),
+    marketMove: Number.isFinite(marketMove) ? Math.max(-40, Math.min(40, marketMove)) : defaults.marketMove,
+    transcript: String(config.transcript || defaults.transcript).slice(0, 1200)
+  };
+}
+
+function getDefaultDebriefConfig() {
+  const ticker = state.callPrepConfig?.ticker || state.tickerFocus?.rawTicker || state.tickerFocus?.ticker || state.marketSettings?.ticker || "NVDA";
+  const move = getPortfolioMarketMove(ticker);
+  return {
+    ticker,
+    event: "Earnings call",
+    mode: "Thesis change",
+    marketMove: Number.isFinite(move) ? Number(move.toFixed(1)) : 2.1,
+    transcript: "Management said demand remains durable, gross margin is stabilizing, and customer concentration is being watched closely. Guidance implies disciplined capex and continued cash conversion, but supply timing and execution risk remain open questions."
+  };
+}
+
+function hydrateDebriefFromCallPrep() {
+  const callPrep = state.currentCallPrep || buildEarningsCallPrepSnapshot();
+  state.debriefConfig = normalizeDebriefConfig({
+    ...(state.debriefConfig || getDefaultDebriefConfig()),
+    ticker: callPrep.config.ticker,
+    event: callPrep.config.event === "Investor day" ? "Investor day" : "Earnings call",
+    mode: callPrep.config.style === "Portfolio action" ? "Portfolio action" : callPrep.config.focus === "Valuation bridge" ? "Valuation update" : "Thesis change",
+    marketMove: getDebriefMarketMove({ ticker: callPrep.config.ticker, marketMove: getPortfolioMarketMove(callPrep.config.ticker) }),
+    transcript: [
+      `Call prep posture: ${callPrep.openingPosture}.`,
+      callPrep.postureNote,
+      ...callPrep.readoutRows.slice(0, 3).map((row) => row.body)
+    ].join(" ")
+  });
+}
+
+function loadDebriefConfig() {
+  return normalizeDebriefConfig(loadJson(STORAGE_KEYS.debrief, getDefaultDebriefConfig()));
+}
+
+function saveDebriefConfig() {
+  saveJson(STORAGE_KEYS.debrief, normalizeDebriefConfig(state.debriefConfig || getDefaultDebriefConfig()));
+}
+
+function exportPostEarningsDebrief() {
+  const snapshot = state.currentDebrief || buildPostEarningsDebriefSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Post-Earnings Debrief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Event Setup",
+    "",
+    `- Ticker: ${snapshot.config.ticker}`,
+    `- Event: ${snapshot.config.event}`,
+    `- Mode: ${snapshot.config.mode}`,
+    `- Market move: ${snapshot.marketMove >= 0 ? "+" : ""}${snapshot.marketMove.toFixed(1)}%`,
+    "",
+    "## Debrief Scorecard",
+    "",
+    `- Thesis delta: ${snapshot.thesisDelta}/100 (${snapshot.deltaLabel})`,
+    `- Tone read: ${snapshot.tone.label} (${snapshot.tone.score}/100)`,
+    `- Source mix: ${snapshot.sourceAudit.balance}`,
+    `- Decision bias: ${snapshot.decisionBias} - ${snapshot.decisionNote}`,
+    "",
+    "## Surprise Map",
+    "",
+    ...snapshot.surpriseRows.map((row) => `- ${row.label} | ${row.title}: ${row.body}`),
+    "",
+    "## Thesis Changes",
+    "",
+    ...snapshot.thesisRows.map((row) => `- ${row.label} | ${row.title}: ${row.body}`),
+    "",
+    "## Follow-Up Actions",
+    "",
+    ...snapshot.actionRows.map((row) => `- ${row.priority} | ${row.title}: ${row.question} ${row.body}`),
+    "",
+    "## Product Note",
+    "",
+    "This post-earnings debrief room is a client-side workflow for product prototyping. Production should ingest actual transcripts, press releases, price moves, source versions, and model updates before using it for live investment research."
+  ].join("\n");
+  downloadTextFile(`citealpha-post-earnings-debrief-${snapshot.config.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportDebriefBrief, "Exported");
+}
+
+function renderGuidanceRevisionRoom() {
+  if (!els.revisionMetricGrid) return;
+  if (!state.revisionConfig) state.revisionConfig = loadRevisionConfig();
+  syncRevisionInputs();
+  const snapshot = buildGuidanceRevisionSnapshot();
+  state.currentRevision = snapshot;
+  els.revisionMetricGrid.innerHTML = [
+    { label: "Revision score", value: `${snapshot.revisionScore}/100`, sub: snapshot.revisionLabel },
+    { label: "Guide spread", value: `${snapshot.revenueSpread >= 0 ? "+" : ""}${roundOne(snapshot.revenueSpread)} pts`, sub: "Revenue guide vs consensus" },
+    { label: "Model impact", value: `${snapshot.modelImpact >= 0 ? "+" : ""}${roundOne(snapshot.modelImpact)}%`, sub: `${formatPerShare(snapshot.baseValue)} base marker` },
+    { label: "Bias", value: snapshot.revisionBias, sub: snapshot.biasNote }
+  ].map((metric) => `
+    <div class="revision-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.revisionBridgeCount.textContent = String(snapshot.bridgeRows.length);
+  els.revisionBridgeList.innerHTML = renderRevisionBridgeRows(snapshot.bridgeRows);
+  els.revisionEstimateCount.textContent = String(snapshot.estimateRows.length);
+  els.revisionEstimateList.innerHTML = renderRevisionEstimateRows(snapshot.estimateRows);
+  els.revisionActionCount.textContent = String(snapshot.actionRows.length);
+  els.revisionActionList.innerHTML = renderRevisionActions(snapshot.actionRows);
+}
+
+function buildGuidanceRevisionSnapshot() {
+  const config = normalizeRevisionConfig(state.revisionConfig || getDefaultRevisionConfig());
+  const company = resolvePortfolioCompany(config.ticker);
+  const debrief = state.currentDebrief && state.currentDebrief.config.ticker === config.ticker
+    ? state.currentDebrief
+    : buildPostEarningsDebriefSnapshotForTicker(config.ticker);
+  const valuation = buildTearSheetValuation(company);
+  const citations = getCallPrepCitations(company, { ticker: config.ticker });
+  const sourceAudit = makeLightSourceAudit(citations);
+  const revenueSpread = config.revenueGuide - config.consensus;
+  const marginSpread = config.marginGuide - config.priorModel;
+  const toneAdjustment = debrief.tone.score >= 68 ? 1.2 : debrief.tone.score <= 42 ? -1.4 : 0;
+  const evidenceDrag = sourceAudit.quality < 65 ? -1.1 : sourceAudit.quality >= 82 ? 0.8 : 0;
+  const modelImpact = Math.max(-35, Math.min(35, revenueSpread * 1.1 + marginSpread * 1.7 + toneAdjustment + evidenceDrag));
+  const baseValue = valuation.baseCase.perShare;
+  const revisedValue = Math.max(0, baseValue * (1 + modelImpact / 100));
+  const revisionScore = Math.max(1, Math.min(100, Math.round(50 + revenueSpread * 4.5 + marginSpread * 5 + toneAdjustment * 6 + evidenceDrag * 5 + (config.confidence === "High conviction" ? 8 : config.confidence === "Needs proof" ? -9 : 0))));
+  const bridgeRows = buildRevisionBridgeRows(config, company, debrief, sourceAudit, revenueSpread, marginSpread);
+  const estimateRows = buildRevisionEstimateRows(config, company, baseValue, revisedValue, modelImpact, debrief);
+  const actionRows = buildRevisionActionRows(config, company, debrief, revenueSpread, marginSpread, sourceAudit);
+  const bias = makeRevisionBias(config, revisionScore, modelImpact, debrief);
+  return {
+    config,
+    company,
+    debrief,
+    valuation,
+    citations,
+    sourceAudit,
+    revenueSpread,
+    marginSpread,
+    modelImpact,
+    baseValue,
+    revisedValue,
+    revisionScore,
+    revisionLabel: revisionScore >= 72 ? "Upgrade pressure" : revisionScore <= 42 ? "Cut or prove" : "Hold with watchpoints",
+    bridgeRows,
+    estimateRows,
+    actionRows,
+    revisionBias: bias.label,
+    biasNote: bias.note
+  };
+}
+
+function buildPostEarningsDebriefSnapshotForTicker(ticker) {
+  const previous = state.debriefConfig;
+  state.debriefConfig = normalizeDebriefConfig({ ...(previous || getDefaultDebriefConfig()), ticker });
+  const snapshot = buildPostEarningsDebriefSnapshot();
+  state.debriefConfig = previous;
+  return snapshot;
+}
+
+function buildRevisionBridgeRows(config, company, debrief, sourceAudit, revenueSpread, marginSpread) {
+  return [
+    {
+      label: revenueSpread > 1 ? "Above" : revenueSpread < -1 ? "Below" : "Inline",
+      className: revenueSpread < -1 ? "negative" : revenueSpread <= 1 ? "watch" : "normal",
+      title: "Revenue guide versus consensus",
+      body: `${roundOne(config.revenueGuide)}% guide versus ${roundOne(config.consensus)}% consensus for ${config.period}.`
+    },
+    {
+      label: marginSpread > 1 ? "Lift" : marginSpread < -1 ? "Cut" : "Hold",
+      className: marginSpread < -1 ? "negative" : Math.abs(marginSpread) <= 1 ? "watch" : "normal",
+      title: "FCF margin versus prior model",
+      body: `${roundOne(config.marginGuide)}% guided FCF margin versus ${roundOne(config.priorModel)}% prior model.`
+    },
+    {
+      label: debrief.tone.label,
+      className: debrief.tone.score <= 42 ? "negative" : debrief.tone.score < 62 ? "watch" : "normal",
+      title: "Debrief consistency",
+      body: `Post-earnings tone is ${debrief.tone.score}/100 with thesis delta ${debrief.thesisDelta}/100.`
+    },
+    {
+      label: sourceAudit.coverageLabel,
+      className: sourceAudit.quality < 65 ? "watch" : "normal",
+      title: "Source support",
+      body: `${sourceAudit.balance} source mix. ${company.ticker} still needs transcript-backed guidance language before production use.`
+    }
+  ];
+}
+
+function buildRevisionEstimateRows(config, company, baseValue, revisedValue, modelImpact, debrief) {
+  const growthDelta = config.revenueGuide - (Number(company.growth) || config.consensus);
+  const marginDelta = config.marginGuide - (Number(company.fcfMargin) || config.priorModel);
+  return [
+    {
+      label: `${growthDelta >= 0 ? "+" : ""}${roundOne(growthDelta)} pts`,
+      className: growthDelta < -1 ? "negative" : Math.abs(growthDelta) <= 1 ? "watch" : "normal",
+      title: "Revenue CAGR revision",
+      body: `Move the growth lens from ${roundOne(Number(company.growth) || config.consensus)}% toward ${roundOne(config.revenueGuide)}% only if transcript evidence supports it.`
+    },
+    {
+      label: `${marginDelta >= 0 ? "+" : ""}${roundOne(marginDelta)} pts`,
+      className: marginDelta < -1 ? "negative" : Math.abs(marginDelta) <= 1 ? "watch" : "normal",
+      title: "FCF margin revision",
+      body: `Margin guide implies ${roundOne(config.marginGuide)}% versus current company lens of ${roundOne(Number(company.fcfMargin) || config.priorModel)}%.`
+    },
+    {
+      label: `${modelImpact >= 0 ? "+" : ""}${roundOne(modelImpact)}%`,
+      className: modelImpact < -3 ? "negative" : Math.abs(modelImpact) <= 3 ? "watch" : "normal",
+      title: "Valuation bridge",
+      body: `Indicative base marker moves from ${formatPerShare(baseValue)} to ${formatPerShare(revisedValue)} before any multiple or risk-premium change.`
+    },
+    {
+      label: config.confidence,
+      className: config.confidence === "Needs proof" ? "watch" : "normal",
+      title: "Revision confidence",
+      body: `${debrief.decisionBias} debrief bias. ${config.note}`
+    }
+  ];
+}
+
+function buildRevisionActionRows(config, company, debrief, revenueSpread, marginSpread, sourceAudit) {
+  const rows = [
+    {
+      priority: Math.abs(revenueSpread) >= 2 ? "High" : "Medium",
+      className: Math.abs(revenueSpread) >= 2 ? "watch" : "normal",
+      title: "Revenue proof",
+      question: `Which transcript passages support moving $${company.ticker}'s revenue growth guide to ${roundOne(config.revenueGuide)}%?`,
+      body: "Tie the revision to demand, backlog, pricing, or customer cadence."
+    },
+    {
+      priority: Math.abs(marginSpread) >= 1.5 ? "High" : "Medium",
+      className: marginSpread < -1.5 ? "high" : Math.abs(marginSpread) >= 1.5 ? "watch" : "normal",
+      title: "Margin proof",
+      question: `What evidence supports revising $${company.ticker}'s FCF margin from ${roundOne(config.priorModel)}% to ${roundOne(config.marginGuide)}%?`,
+      body: "Separate operating leverage from one-time timing benefits."
+    },
+    {
+      priority: sourceAudit.quality < 65 ? "High" : "Medium",
+      className: sourceAudit.quality < 65 ? "high" : "normal",
+      title: "Source gap",
+      question: `Which filing, release, or earnings call section should I import before accepting the $${company.ticker} guidance revision?`,
+      body: `${sourceAudit.quality}/100 light source audit.`
+    },
+    {
+      priority: debrief.thesisDelta >= 60 ? "High" : "Medium",
+      className: debrief.thesisDelta >= 60 ? "watch" : "normal",
+      title: "Thesis reset",
+      question: `Does the $${company.ticker} guidance update change the thesis, or only the near-term model?`,
+      body: `Debrief thesis delta is ${debrief.thesisDelta}/100.`
+    }
+  ];
+  if (config.mode === "Portfolio sizing") {
+    rows.unshift({
+      priority: "High",
+      className: "high",
+      title: "Sizing gate",
+      question: `Should the $${company.ticker} position size change after this guidance revision?`,
+      body: "Convert the revision into buy, hold, trim, or wait criteria."
+    });
+  }
+  return rows.slice(0, 5);
+}
+
+function makeRevisionBias(config, revisionScore, modelImpact, debrief) {
+  if (config.confidence === "Needs proof") return { label: "Wait", note: "Management guide needs transcript proof before the model moves." };
+  if (revisionScore >= 72 && modelImpact > 2) return { label: "Upgrade", note: "Guidance and debrief both point toward a higher base case." };
+  if (revisionScore <= 42 || modelImpact < -3) return { label: "Downgrade", note: "Guide or tone weakens the current model." };
+  if (debrief.thesisDelta >= 60) return { label: "Review", note: "Thesis changed enough to require committee review." };
+  return { label: "Hold", note: "Keep the model mostly intact and watch the next source update." };
+}
+
+function renderRevisionBridgeRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No bridge yet</strong><span>Build a revision to map guidance to consensus and prior model.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="revision-bridge-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRevisionEstimateRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No estimates yet</strong><span>Guidance revisions will appear after scoring.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="revision-estimate-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRevisionActions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No actions</strong><span>Build a revision to generate model follow-ups.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="revision-action-row ${escapeAttr(row.className || "normal")}" type="button" data-revision-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.question)} ${escapeHtml(row.body)}</em>
+      </div>
+    </button>
+  `).join("");
+}
+
+function readRevisionConfig() {
+  return normalizeRevisionConfig({
+    ticker: els.revisionTicker.value,
+    period: els.revisionPeriod.value,
+    revenueGuide: els.revisionRevenueGuide.value,
+    consensus: els.revisionConsensus.value,
+    marginGuide: els.revisionMarginGuide.value,
+    priorModel: els.revisionPriorModel.value,
+    confidence: els.revisionConfidence.value,
+    mode: els.revisionMode.value,
+    note: els.revisionNote.value
+  });
+}
+
+function syncRevisionInputs() {
+  if (!els.revisionTicker) return;
+  const config = normalizeRevisionConfig(state.revisionConfig || getDefaultRevisionConfig());
+  els.revisionTicker.value = config.ticker;
+  els.revisionPeriod.value = config.period;
+  els.revisionRevenueGuide.value = String(config.revenueGuide);
+  els.revisionConsensus.value = String(config.consensus);
+  els.revisionMarginGuide.value = String(config.marginGuide);
+  els.revisionPriorModel.value = String(config.priorModel);
+  els.revisionConfidence.value = config.confidence;
+  els.revisionMode.value = config.mode;
+  els.revisionNote.value = config.note;
+}
+
+function normalizeRevisionConfig(config) {
+  const defaults = getDefaultRevisionConfig();
+  return {
+    ticker: normalizeTicker(String(config.ticker || defaults.ticker).replace(/^\$/, "")) || defaults.ticker,
+    period: String(config.period || defaults.period).slice(0, 32),
+    revenueGuide: clampRevisionNumber(config.revenueGuide, -30, 80, defaults.revenueGuide),
+    consensus: clampRevisionNumber(config.consensus, -30, 80, defaults.consensus),
+    marginGuide: clampRevisionNumber(config.marginGuide, -20, 60, defaults.marginGuide),
+    priorModel: clampRevisionNumber(config.priorModel, -20, 60, defaults.priorModel),
+    confidence: normalizeChoice(config.confidence, ["Balanced", "High conviction", "Needs proof"], defaults.confidence),
+    mode: normalizeChoice(config.mode, ["Base case update", "Bull case test", "Downside guardrail", "Portfolio sizing"], defaults.mode),
+    note: String(config.note || defaults.note).slice(0, 420)
+  };
+}
+
+function clampRevisionNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function getDefaultRevisionConfig() {
+  const ticker = state.debriefConfig?.ticker || state.callPrepConfig?.ticker || state.tickerFocus?.rawTicker || state.tickerFocus?.ticker || state.marketSettings?.ticker || "NVDA";
+  const company = resolvePortfolioCompany(ticker);
+  const baseGrowth = Number(company.growth) || 11;
+  const baseMargin = Number(company.fcfMargin) || 15;
+  return {
+    ticker,
+    period: "FY2026",
+    revenueGuide: Math.round((baseGrowth + 3) * 10) / 10,
+    consensus: Math.round(baseGrowth * 10) / 10,
+    marginGuide: Math.round((baseMargin + 2) * 10) / 10,
+    priorModel: Math.round(baseMargin * 10) / 10,
+    confidence: "Balanced",
+    mode: "Base case update",
+    note: "Guidance is above consensus on revenue and slightly ahead of the prior FCF margin model, but execution timing and customer concentration still need transcript support before upgrading the thesis."
+  };
+}
+
+function hydrateRevisionFromDebrief() {
+  const debrief = state.currentDebrief || buildPostEarningsDebriefSnapshot();
+  const company = debrief.company;
+  const toneLift = debrief.tone.score >= 68 ? 2 : debrief.tone.score <= 42 ? -2 : 0;
+  const marketLift = Math.max(-2, Math.min(2, debrief.marketMove / 2));
+  state.revisionConfig = normalizeRevisionConfig({
+    ...(state.revisionConfig || getDefaultRevisionConfig()),
+    ticker: debrief.config.ticker,
+    revenueGuide: (Number(company.growth) || 11) + toneLift + marketLift,
+    consensus: Number(company.growth) || 11,
+    marginGuide: (Number(company.fcfMargin) || 15) + (debrief.tone.score >= 68 ? 1.5 : debrief.tone.score <= 42 ? -1.5 : 0),
+    priorModel: Number(company.fcfMargin) || 15,
+    confidence: debrief.deltaLabel === "Mostly intact" ? "Balanced" : debrief.deltaLabel === "Major review" ? "Needs proof" : "Balanced",
+    mode: debrief.config.mode === "Portfolio action" ? "Portfolio sizing" : debrief.config.mode === "Valuation update" ? "Base case update" : "Base case update",
+    note: `Debrief bias: ${debrief.decisionBias}. ${debrief.decisionNote} Use transcript evidence before accepting any guidance-driven model revision.`
+  });
+}
+
+function loadRevisionConfig() {
+  return normalizeRevisionConfig(loadJson(STORAGE_KEYS.revision, getDefaultRevisionConfig()));
+}
+
+function saveRevisionConfig() {
+  saveJson(STORAGE_KEYS.revision, normalizeRevisionConfig(state.revisionConfig || getDefaultRevisionConfig()));
+}
+
+function exportGuidanceRevision() {
+  const snapshot = state.currentRevision || buildGuidanceRevisionSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Guidance Revision Brief",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Revision Setup",
+    "",
+    `- Ticker: ${snapshot.config.ticker}`,
+    `- Period: ${snapshot.config.period}`,
+    `- Mode: ${snapshot.config.mode}`,
+    `- Confidence: ${snapshot.config.confidence}`,
+    `- Note: ${snapshot.config.note}`,
+    "",
+    "## Scorecard",
+    "",
+    `- Revision score: ${snapshot.revisionScore}/100 (${snapshot.revisionLabel})`,
+    `- Revenue guide spread: ${snapshot.revenueSpread >= 0 ? "+" : ""}${roundOne(snapshot.revenueSpread)} pts`,
+    `- Margin guide spread: ${snapshot.marginSpread >= 0 ? "+" : ""}${roundOne(snapshot.marginSpread)} pts`,
+    `- Model impact: ${snapshot.modelImpact >= 0 ? "+" : ""}${roundOne(snapshot.modelImpact)}%`,
+    `- Base value marker: ${formatPerShare(snapshot.baseValue)} to ${formatPerShare(snapshot.revisedValue)}`,
+    `- Revision bias: ${snapshot.revisionBias} - ${snapshot.biasNote}`,
+    "",
+    "## Guidance Bridge",
+    "",
+    ...snapshot.bridgeRows.map((row) => `- ${row.label} | ${row.title}: ${row.body}`),
+    "",
+    "## Estimate Revisions",
+    "",
+    ...snapshot.estimateRows.map((row) => `- ${row.label} | ${row.title}: ${row.body}`),
+    "",
+    "## Model Actions",
+    "",
+    ...snapshot.actionRows.map((row) => `- ${row.priority} | ${row.title}: ${row.question} ${row.body}`),
+    "",
+    "## Product Note",
+    "",
+    "This guidance revision room is a client-side workflow for product prototyping. Production should connect company guidance, consensus estimates, transcript citations, model versioning, and reviewer approval logs before using it for live investment research."
+  ].join("\n");
+  downloadTextFile(`citealpha-guidance-revision-${snapshot.config.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportRevisionBrief, "Exported");
+}
+
+function renderModelVersionControlRoom() {
+  if (!els.modelControlMetricGrid) return;
+  if (!state.modelControlConfig) state.modelControlConfig = loadModelControlConfig();
+  syncModelControlInputs();
+  const snapshot = buildModelVersionControlSnapshot();
+  state.currentModelControl = snapshot;
+  els.modelControlMetricGrid.innerHTML = [
+    { label: "Audit score", value: `${snapshot.auditScore}/100`, sub: snapshot.auditLabel },
+    { label: "Value delta", value: `${snapshot.valueDeltaPct >= 0 ? "+" : ""}${roundOne(snapshot.valueDeltaPct)}%`, sub: `${formatPerShare(snapshot.priorValue)} to ${formatPerShare(snapshot.newValue)}` },
+    { label: "Gate status", value: snapshot.gateStatus, sub: snapshot.gateNote },
+    { label: "Version", value: snapshot.config.version, sub: snapshot.config.status }
+  ].map((metric) => `
+    <div class="modelctl-metric">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.modelControlDeltaCount.textContent = String(snapshot.deltaRows.length);
+  els.modelControlDeltaList.innerHTML = renderModelControlDeltas(snapshot.deltaRows);
+  els.modelControlGateCount.textContent = String(snapshot.gateRows.length);
+  els.modelControlGateList.innerHTML = renderModelControlGates(snapshot.gateRows);
+  els.modelControlActionCount.textContent = String(snapshot.actionRows.length);
+  els.modelControlActionList.innerHTML = renderModelControlActions(snapshot.actionRows);
+}
+
+function buildModelVersionControlSnapshot() {
+  const config = normalizeModelControlConfig(state.modelControlConfig || getDefaultModelControlConfig());
+  const company = resolvePortfolioCompany(config.ticker);
+  const revision = state.currentRevision && state.currentRevision.config.ticker === config.ticker
+    ? state.currentRevision
+    : buildGuidanceRevisionSnapshotForTicker(config.ticker);
+  const valuation = buildTearSheetValuation(company);
+  const priorCase = valuation.baseCase || computeValuationCase(company, {
+    growth: Number(company.growth) || 10,
+    margin: Number(company.fcfMargin) || 10,
+    multiple: Number(company.multiple) || 16,
+    discount: 10
+  }, 5);
+  const newCase = computeValuationCase(company, {
+    growth: config.growth,
+    margin: config.margin,
+    multiple: config.multiple,
+    discount: config.discount
+  }, 5);
+  const priorValue = priorCase.perShare || 0;
+  const newValue = newCase.perShare || 0;
+  const valueDelta = newValue - priorValue;
+  const valueDeltaPct = priorValue ? (valueDelta / priorValue) * 100 : 0;
+  const citations = getCallPrepCitations(company, { ticker: config.ticker });
+  const sourceAudit = makeLightSourceAudit(citations);
+  const deltaRows = buildModelControlDeltaRows(config, company, priorCase, valueDeltaPct);
+  const gateRows = buildModelControlGateRows(config, revision, sourceAudit, deltaRows, valueDeltaPct);
+  const actionRows = buildModelControlActionRows(config, company, revision, deltaRows, gateRows, valueDeltaPct);
+  const blockedCount = gateRows.filter((row) => row.className === "blocked").length;
+  const watchCount = gateRows.filter((row) => row.className === "watch").length;
+  const deltaPressure = Math.min(30, Math.abs(valueDeltaPct) * 0.8 + deltaRows.filter((row) => row.material).length * 5);
+  const auditScore = Math.max(1, Math.min(100, Math.round(sourceAudit.quality * 0.32 + revision.revisionScore * 0.24 + Math.max(20, 100 - deltaPressure) * 0.22 + (config.status === "Approved" ? 12 : config.status === "Ready for review" ? 8 : config.status === "Blocked" ? -8 : 2) - blockedCount * 10 - watchCount * 3)));
+  const gateStatus = blockedCount ? "Blocked" : watchCount >= 2 ? "Review" : config.status === "Approved" ? "Approved" : "Ready";
+  return {
+    config,
+    company,
+    revision,
+    valuation,
+    priorCase,
+    newCase,
+    priorValue,
+    newValue,
+    valueDelta,
+    valueDeltaPct,
+    citations,
+    sourceAudit,
+    deltaRows,
+    gateRows,
+    actionRows,
+    auditScore,
+    auditLabel: auditScore >= 82 ? "Clean version trail" : auditScore >= 65 ? "Reviewable model change" : "Needs audit support",
+    gateStatus,
+    gateNote: blockedCount ? `${blockedCount} blocked gate${blockedCount === 1 ? "" : "s"}` : watchCount ? `${watchCount} review gate${watchCount === 1 ? "" : "s"}` : "No critical blockers"
+  };
+}
+
+function buildGuidanceRevisionSnapshotForTicker(ticker) {
+  const previous = state.revisionConfig;
+  state.revisionConfig = normalizeRevisionConfig({ ...(previous || getDefaultRevisionConfig()), ticker });
+  const snapshot = buildGuidanceRevisionSnapshot();
+  state.revisionConfig = previous;
+  return snapshot;
+}
+
+function buildModelControlDeltaRows(config, company, priorCase, valueDeltaPct) {
+  const rows = [
+    {
+      key: "Revenue CAGR",
+      current: Number(priorCase.growth) || Number(company.growth) || 0,
+      next: config.growth,
+      unit: "pts",
+      question: `Which source evidence supports moving $${company.ticker} revenue CAGR to ${roundOne(config.growth)}%?`
+    },
+    {
+      key: "FCF margin",
+      current: Number(priorCase.margin) || Number(company.fcfMargin) || 0,
+      next: config.margin,
+      unit: "pts",
+      question: `What evidence supports $${company.ticker} sustaining ${roundOne(config.margin)}% FCF margin?`
+    },
+    {
+      key: "Terminal multiple",
+      current: Number(priorCase.multiple) || Number(company.multiple) || 0,
+      next: config.multiple,
+      unit: "x",
+      question: `What durability evidence justifies a ${roundOne(config.multiple)}x terminal multiple for $${company.ticker}?`
+    },
+    {
+      key: "Discount rate",
+      current: Number(priorCase.discount) || 10,
+      next: config.discount,
+      unit: "pts",
+      question: `Did $${company.ticker}'s risk profile change enough to justify a ${roundOne(config.discount)}% discount rate?`
+    }
+  ];
+  return rows.map((row) => {
+    const delta = row.next - row.current;
+    const material = Math.abs(delta) >= (row.key === "Terminal multiple" ? 1 : 1.5);
+    const valueClass = row.key === "Discount rate"
+      ? delta > 0.5 ? "negative" : delta < -0.5 ? "normal" : "watch"
+      : delta < -1 ? "negative" : delta > 1 ? "normal" : "watch";
+    return {
+      ...row,
+      delta,
+      material,
+      className: material ? valueClass : "watch",
+      label: `${delta >= 0 ? "+" : ""}${roundOne(delta)} ${row.unit}`,
+      title: row.key,
+      body: `${roundOne(row.current)} to ${roundOne(row.next)}. Model value delta now reads ${valueDeltaPct >= 0 ? "+" : ""}${roundOne(valueDeltaPct)}%.`
+    };
+  });
+}
+
+function buildModelControlGateRows(config, revision, sourceAudit, deltaRows, valueDeltaPct) {
+  const materialCount = deltaRows.filter((row) => row.material).length;
+  return [
+    {
+      label: sourceAudit.quality >= 75 ? "Pass" : "Review",
+      className: sourceAudit.quality >= 75 ? "normal" : "watch",
+      title: "Source evidence",
+      body: `${sourceAudit.quality}/100 source audit with ${sourceAudit.balance} mix.`
+    },
+    {
+      label: revision.revisionScore >= 65 ? "Pass" : "Watch",
+      className: revision.revisionScore >= 65 ? "normal" : "watch",
+      title: "Guidance revision link",
+      body: `Revision score is ${revision.revisionScore}/100 with ${revision.revisionBias} bias.`
+    },
+    {
+      label: Math.abs(valueDeltaPct) >= 15 ? "Review" : "Pass",
+      className: Math.abs(valueDeltaPct) >= 25 ? "blocked" : Math.abs(valueDeltaPct) >= 15 ? "watch" : "normal",
+      title: "Valuation impact",
+      body: `${valueDeltaPct >= 0 ? "+" : ""}${roundOne(valueDeltaPct)}% value delta versus prior base case.`
+    },
+    {
+      label: materialCount >= 3 ? "Review" : "Pass",
+      className: materialCount >= 4 ? "blocked" : materialCount >= 3 ? "watch" : "normal",
+      title: "Assumption breadth",
+      body: `${materialCount} material assumption change${materialCount === 1 ? "" : "s"} in this version.`
+    },
+    {
+      label: config.status,
+      className: config.status === "Blocked" ? "blocked" : config.status === "Draft" ? "watch" : "normal",
+      title: "Approval state",
+      body: `${config.owner} owns ${config.version}. Rationale: ${config.rationale}`
+    }
+  ];
+}
+
+function buildModelControlActionRows(config, company, revision, deltaRows, gateRows, valueDeltaPct) {
+  const rows = deltaRows.filter((row) => row.material).slice(0, 3).map((row) => ({
+    priority: row.className === "negative" ? "High" : "Medium",
+    className: row.className === "negative" ? "high" : "watch",
+    title: `${row.title} support`,
+    question: row.question,
+    body: row.body
+  }));
+  const blocked = gateRows.find((row) => row.className === "blocked");
+  if (blocked) {
+    rows.unshift({
+      priority: "High",
+      className: "high",
+      title: "Blocked approval gate",
+      question: `What evidence is needed to clear the ${blocked.title.toLowerCase()} gate for $${company.ticker}?`,
+      body: blocked.body
+    });
+  }
+  rows.push({
+    priority: Math.abs(valueDeltaPct) >= 15 ? "High" : "Medium",
+    className: Math.abs(valueDeltaPct) >= 15 ? "watch" : "normal",
+    title: "Committee checkpoint",
+    question: `Should ${config.version} for $${company.ticker} go to committee before replacing the active model?`,
+    body: `Revision bias is ${revision.revisionBias}; value delta is ${valueDeltaPct >= 0 ? "+" : ""}${roundOne(valueDeltaPct)}%.`
+  });
+  rows.push({
+    priority: "Medium",
+    className: "normal",
+    title: "Version log",
+    question: `What changed between the prior $${company.ticker} model and ${config.version}?`,
+    body: "Use this question to produce a concise model-change audit note."
+  });
+  return rows.slice(0, 5);
+}
+
+function renderModelControlDeltas(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No deltas yet</strong><span>Lock a model version to compare assumptions.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="modelctl-delta-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderModelControlGates(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No gates yet</strong><span>Model approval gates will appear after the version is scored.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="modelctl-gate-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderModelControlActions(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No actions</strong><span>Audit actions will appear after version scoring.</span></div>`;
+  }
+  return rows.map((row) => `
+    <button class="modelctl-action-row ${escapeAttr(row.className || "normal")}" type="button" data-modelctl-question="${escapeAttr(row.question)}">
+      <span>${escapeHtml(row.priority)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.question)} ${escapeHtml(row.body)}</em>
+      </div>
+    </button>
+  `).join("");
+}
+
+function readModelControlConfig() {
+  return normalizeModelControlConfig({
+    ticker: els.modelControlTicker.value,
+    version: els.modelControlVersion.value,
+    owner: els.modelControlOwner.value,
+    status: els.modelControlStatus.value,
+    growth: els.modelControlGrowth.value,
+    margin: els.modelControlMargin.value,
+    multiple: els.modelControlMultiple.value,
+    discount: els.modelControlDiscount.value,
+    rationale: els.modelControlRationale.value
+  });
+}
+
+function syncModelControlInputs() {
+  if (!els.modelControlTicker) return;
+  const config = normalizeModelControlConfig(state.modelControlConfig || getDefaultModelControlConfig());
+  els.modelControlTicker.value = config.ticker;
+  els.modelControlVersion.value = config.version;
+  els.modelControlOwner.value = config.owner;
+  els.modelControlStatus.value = config.status;
+  els.modelControlGrowth.value = String(config.growth);
+  els.modelControlMargin.value = String(config.margin);
+  els.modelControlMultiple.value = String(config.multiple);
+  els.modelControlDiscount.value = String(config.discount);
+  els.modelControlRationale.value = config.rationale;
+}
+
+function normalizeModelControlConfig(config) {
+  const defaults = getDefaultModelControlConfig();
+  return {
+    ticker: normalizeTicker(String(config.ticker || defaults.ticker).replace(/^\$/, "")) || defaults.ticker,
+    version: String(config.version || defaults.version).slice(0, 48),
+    owner: String(config.owner || defaults.owner).slice(0, 48),
+    status: normalizeChoice(config.status, ["Draft", "Ready for review", "Approved", "Blocked"], defaults.status),
+    growth: clampRevisionNumber(config.growth, -30, 80, defaults.growth),
+    margin: clampRevisionNumber(config.margin, -20, 60, defaults.margin),
+    multiple: clampRevisionNumber(config.multiple, 2, 60, defaults.multiple),
+    discount: clampRevisionNumber(config.discount, 2, 30, defaults.discount),
+    rationale: String(config.rationale || defaults.rationale).slice(0, 520)
+  };
+}
+
+function getDefaultModelControlConfig() {
+  const ticker = state.revisionConfig?.ticker || state.debriefConfig?.ticker || state.callPrepConfig?.ticker || state.tickerFocus?.rawTicker || state.tickerFocus?.ticker || state.marketSettings?.ticker || "NVDA";
+  const company = resolvePortfolioCompany(ticker);
+  return {
+    ticker,
+    version: "v1.1 post-guide",
+    owner: "Research desk",
+    status: "Draft",
+    growth: Math.round((Number(company.growth) || 11) * 10) / 10,
+    margin: Math.round((Number(company.fcfMargin) || 15) * 10) / 10,
+    multiple: Math.round((Number(company.multiple) || 18) * 10) / 10,
+    discount: 10,
+    rationale: "Version captures post-guidance revenue and FCF margin revisions while keeping the terminal multiple and discount rate unchanged until transcript citations are reviewed."
+  };
+}
+
+function hydrateModelControlFromRevision() {
+  const revision = state.currentRevision || buildGuidanceRevisionSnapshot();
+  const company = revision.company;
+  state.modelControlConfig = normalizeModelControlConfig({
+    ...(state.modelControlConfig || getDefaultModelControlConfig()),
+    ticker: revision.config.ticker,
+    version: `${revision.config.period} ${revision.revisionBias.toLowerCase()} case`,
+    owner: "Research desk",
+    status: revision.revisionBias === "Upgrade" && revision.revisionScore >= 78 ? "Ready for review" : revision.revisionBias === "Downgrade" ? "Ready for review" : "Draft",
+    growth: revision.config.revenueGuide,
+    margin: revision.config.marginGuide,
+    multiple: Number(company.multiple) || 18,
+    discount: revision.revisionBias === "Downgrade" ? 10.5 : 10,
+    rationale: `Pulled from Guidance Revision: ${revision.revisionBias}. ${revision.biasNote} ${revision.config.note}`
+  });
+}
+
+function loadModelControlConfig() {
+  return normalizeModelControlConfig(loadJson(STORAGE_KEYS.modelControl, getDefaultModelControlConfig()));
+}
+
+function saveModelControlConfig() {
+  saveJson(STORAGE_KEYS.modelControl, normalizeModelControlConfig(state.modelControlConfig || getDefaultModelControlConfig()));
+}
+
+function exportModelVersionControl() {
+  const snapshot = state.currentModelControl || buildModelVersionControlSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  const content = [
+    "# CiteAlpha Model Version Control Log",
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    "## Version Setup",
+    "",
+    `- Ticker: ${snapshot.config.ticker}`,
+    `- Version: ${snapshot.config.version}`,
+    `- Owner: ${snapshot.config.owner}`,
+    `- Status: ${snapshot.config.status}`,
+    `- Rationale: ${snapshot.config.rationale}`,
+    "",
+    "## Audit Scorecard",
+    "",
+    `- Audit score: ${snapshot.auditScore}/100 (${snapshot.auditLabel})`,
+    `- Gate status: ${snapshot.gateStatus} - ${snapshot.gateNote}`,
+    `- Prior value: ${formatPerShare(snapshot.priorValue)}`,
+    `- New value: ${formatPerShare(snapshot.newValue)}`,
+    `- Value delta: ${snapshot.valueDeltaPct >= 0 ? "+" : ""}${roundOne(snapshot.valueDeltaPct)}%`,
+    `- Source mix: ${snapshot.sourceAudit.balance}`,
+    "",
+    "## Assumption Deltas",
+    "",
+    ...snapshot.deltaRows.map((row) => `- ${row.title}: ${roundOne(row.current)} to ${roundOne(row.next)} (${row.label}) - ${row.body}`),
+    "",
+    "## Approval Gates",
+    "",
+    ...snapshot.gateRows.map((row) => `- ${row.label} | ${row.title}: ${row.body}`),
+    "",
+    "## Audit Actions",
+    "",
+    ...snapshot.actionRows.map((row) => `- ${row.priority} | ${row.title}: ${row.question} ${row.body}`),
+    "",
+    "## Product Note",
+    "",
+    "This model version control room is a client-side workflow for product prototyping. Production should persist immutable model versions, reviewer approvals, source references, and export logs before using it for live investment research."
+  ].join("\n");
+  downloadTextFile(`citealpha-model-version-control-${snapshot.config.ticker.toLowerCase()}-${date}.md`, content, "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportModelControlBrief, "Exported");
 }
 
 function exportFounderBrief() {
@@ -7893,6 +12954,17 @@ function addUploadedDocs(docs, options = {}) {
   renderMarketStatusRail();
   renderValuationOptions();
   renderLaunchOps();
+  renderFilingChangeMonitor();
+  renderValuationMatrix();
+  renderResearchTearSheet();
+  renderThesisDebateRoom();
+  renderResearchDossierBuilder();
+  renderThesisTimelineAuditTrail();
+  renderMorningBriefingRoom();
+  renderEarningsCallPrepRoom();
+  renderPostEarningsDebriefRoom();
+  renderGuidanceRevisionRoom();
+  renderModelVersionControlRoom();
   drawSignalMap();
 }
 

@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260509-13" />
+    <link rel="manifest" href="site.webmanifest?v=20260509-25" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -53,7 +53,7 @@
       @media (max-width: 900px) { .topbar, .terminal-layout { grid-template-columns: 1fr; } }
     </style>
     <link rel="stylesheet" href="styles.css?v=20260509-09" />
-    <link rel="stylesheet" href="launch.css?v=20260509-13" />
+    <link rel="stylesheet" href="launch.css?v=20260509-25" />
   </head>
   <body>
     <div class="app-shell">
@@ -1343,11 +1343,909 @@ CASH 5</textarea>
         </div>
       </section>
 
+      <section class="launch-section change-section" aria-labelledby="changeTitle" id="filing-change">
+        <div class="change-header">
+          <div class="section-heading">
+            <span>Filing monitor</span>
+            <h2 id="changeTitle">Filing change monitor.</h2>
+            <p>Compare prior and current filing language, surface new risk themes, and turn the changes into research questions.</p>
+          </div>
+          <button class="secondary-button small" id="exportChangeBrief" type="button">Export change memo</button>
+        </div>
+        <div class="change-grid">
+          <form class="change-form" id="changeForm">
+            <label>
+              Ticker
+              <input id="changeTicker" type="text" maxlength="8" value="NVDA" />
+            </label>
+            <label>
+              Prior period
+              <input id="changePriorPeriod" type="text" value="FY2024 10-K" />
+            </label>
+            <label>
+              Current period
+              <input id="changeCurrentPeriod" type="text" value="FY2025 10-K" />
+            </label>
+            <label>
+              Materiality bar
+              <select id="changeMateriality">
+                <option>Balanced</option>
+                <option>Strict</option>
+                <option>Early warning</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Prior filing language
+              <textarea id="changePriorText" rows="5"></textarea>
+            </label>
+            <label class="wide-field">
+              Current filing language
+              <textarea id="changeCurrentText" rows="5"></textarea>
+            </label>
+            <div class="change-actions">
+              <button class="primary-button" type="submit">Run change scan</button>
+              <button class="secondary-button" id="useImportsChange" type="button">Use latest imports</button>
+              <button class="secondary-button" id="resetChangeMonitor" type="button">Reset monitor</button>
+            </div>
+          </form>
+          <article class="change-summary">
+            <div class="change-metric-grid" id="changeMetricGrid"></div>
+          </article>
+        </div>
+        <div class="change-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>New or expanded risks</span>
+              <strong id="changeAddedCount">0</strong>
+            </div>
+            <div id="changeAddedList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Softened or removed</span>
+              <strong id="changeReducedCount">0</strong>
+            </div>
+            <div id="changeReducedList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Follow-up queue</span>
+              <strong id="changeQuestionCount">0</strong>
+            </div>
+            <div id="changeQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section matrix-section" aria-labelledby="matrixTitle" id="valuation-matrix">
+        <div class="matrix-header">
+          <div class="section-heading">
+            <span>Valuation</span>
+            <h2 id="matrixTitle">Valuation sensitivity matrix.</h2>
+            <p>Translate filing evidence into bull/base/bear valuation cases, driver deltas, and model questions before changing the thesis.</p>
+          </div>
+          <button class="secondary-button small" id="exportMatrixBrief" type="button">Export valuation memo</button>
+        </div>
+        <div class="matrix-grid">
+          <form class="matrix-form" id="matrixForm">
+            <label>
+              Target
+              <select id="matrixTicker"></select>
+            </label>
+            <label>
+              Revenue CAGR %
+              <input id="matrixGrowth" type="number" min="-10" max="60" value="18" />
+            </label>
+            <label>
+              FCF margin %
+              <input id="matrixMargin" type="number" min="-10" max="45" value="18" />
+            </label>
+            <label>
+              Terminal multiple
+              <input id="matrixMultiple" type="number" min="4" max="60" value="20" />
+            </label>
+            <label>
+              Discount rate %
+              <input id="matrixDiscount" type="number" min="4" max="20" value="10" />
+            </label>
+            <label>
+              Case spread
+              <select id="matrixSpread">
+                <option>Balanced</option>
+                <option>Wide</option>
+                <option>Tight</option>
+              </select>
+            </label>
+            <label>
+              Evidence bar
+              <select id="matrixEvidenceBar">
+                <option>Balanced</option>
+                <option>Strict</option>
+                <option>Exploratory</option>
+              </select>
+            </label>
+            <label>
+              Horizon
+              <select id="matrixHorizon">
+                <option>5 years</option>
+                <option>3 years</option>
+                <option>7 years</option>
+              </select>
+            </label>
+            <div class="matrix-actions">
+              <button class="primary-button" type="submit">Run matrix</button>
+              <button class="secondary-button" id="useValuationLens" type="button">Use valuation lens</button>
+              <button class="secondary-button" id="resetMatrix" type="button">Reset matrix</button>
+            </div>
+          </form>
+          <article class="matrix-summary">
+            <div class="matrix-metric-grid" id="matrixMetricGrid"></div>
+          </article>
+        </div>
+        <div class="matrix-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Case grid</span>
+              <strong id="matrixCaseCount">3 cases</strong>
+            </div>
+            <div id="matrixCaseList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Driver sensitivity</span>
+              <strong id="matrixDriverLabel">0</strong>
+            </div>
+            <div id="matrixDriverList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Model questions</span>
+              <strong id="matrixQuestionCount">0</strong>
+            </div>
+            <div id="matrixQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section tear-section" aria-labelledby="tearTitle" id="tear-sheet">
+        <div class="tear-header">
+          <div class="section-heading">
+            <span>Tear sheet</span>
+            <h2 id="tearTitle">Research tear sheet studio.</h2>
+            <p>Turn one company into a compact, source-aware decision snapshot with stance, valuation range, risks, and next research actions.</p>
+          </div>
+          <button class="secondary-button small" id="exportTearSheet" type="button">Export tear sheet</button>
+        </div>
+        <div class="tear-grid">
+          <form class="tear-form" id="tearForm">
+            <label>
+              Company
+              <select id="tearTicker"></select>
+            </label>
+            <label>
+              Stance
+              <select id="tearStance">
+                <option>Auto</option>
+                <option>Constructive</option>
+                <option>Watch</option>
+                <option>Avoid</option>
+              </select>
+            </label>
+            <label>
+              Conviction
+              <select id="tearConviction">
+                <option>Medium</option>
+                <option>High</option>
+                <option>Low</option>
+              </select>
+            </label>
+            <label>
+              Horizon
+              <select id="tearHorizon">
+                <option>12 months</option>
+                <option>3-5 years</option>
+                <option>Next earnings</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Decision note
+              <input id="tearDecisionNote" type="text" value="Source-backed watchlist candidate pending live filing refresh." />
+            </label>
+            <div class="tear-actions">
+              <button class="primary-button" type="submit">Build tear sheet</button>
+              <button class="secondary-button" id="useCurrentTear" type="button">Use current research</button>
+              <button class="secondary-button" id="resetTearSheet" type="button">Reset sheet</button>
+            </div>
+          </form>
+          <article class="tear-summary">
+            <div class="tear-metric-grid" id="tearMetricGrid"></div>
+          </article>
+        </div>
+        <div class="tear-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Thesis snapshot</span>
+              <strong id="tearThesisCount">0</strong>
+            </div>
+            <div id="tearThesisList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Valuation and risk</span>
+              <strong id="tearRiskLabel">0</strong>
+            </div>
+            <div id="tearValuationList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Next actions</span>
+              <strong id="tearActionCount">0</strong>
+            </div>
+            <div id="tearActionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section debate-section" aria-labelledby="debateTitle" id="debate-room">
+        <div class="debate-header">
+          <div class="section-heading">
+            <span>Debate</span>
+            <h2 id="debateTitle">Thesis debate room.</h2>
+            <p>Pressure-test a company with bull evidence, bear evidence, rebuttals, and hard questions before it reaches a decision memo.</p>
+          </div>
+          <button class="secondary-button small" id="exportDebateBrief" type="button">Export debate memo</button>
+        </div>
+        <div class="debate-grid">
+          <form class="debate-form" id="debateForm">
+            <label>
+              Company
+              <select id="debateTicker"></select>
+            </label>
+            <label>
+              Debate mode
+              <select id="debateMode">
+                <option>Balanced</option>
+                <option>Bear case</option>
+                <option>Bull case</option>
+                <option>IC prep</option>
+              </select>
+            </label>
+            <label>
+              Evidence bar
+              <select id="debateEvidenceBar">
+                <option>Balanced</option>
+                <option>Strict</option>
+                <option>Exploratory</option>
+              </select>
+            </label>
+            <label>
+              Horizon
+              <select id="debateHorizon">
+                <option>12 months</option>
+                <option>3-5 years</option>
+                <option>Next earnings</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Thesis to challenge
+              <input id="debateThesis" type="text" value="The company has enough evidence-backed upside to stay on the active research list." />
+            </label>
+            <div class="debate-actions">
+              <button class="primary-button" type="submit">Run debate</button>
+              <button class="secondary-button" id="useTearSheetDebate" type="button">Use tear sheet</button>
+              <button class="secondary-button" id="resetDebate" type="button">Reset debate</button>
+            </div>
+          </form>
+          <article class="debate-summary">
+            <div class="debate-metric-grid" id="debateMetricGrid"></div>
+          </article>
+        </div>
+        <div class="debate-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Bull case</span>
+              <strong id="debateBullScore">0</strong>
+            </div>
+            <div id="debateBullList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Bear case</span>
+              <strong id="debateBearScore">0</strong>
+            </div>
+            <div id="debateBearList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Rebuttal and questions</span>
+              <strong id="debateQuestionCount">0</strong>
+            </div>
+            <div id="debateQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section dossier-section" aria-labelledby="dossierTitle" id="dossier-builder">
+        <div class="dossier-header">
+          <div class="section-heading">
+            <span>Dossier</span>
+            <h2 id="dossierTitle">Research dossier builder.</h2>
+            <p>Assemble the active answer, tear sheet, debate, valuation, risk, and evidence checks into a launch-ready research packet.</p>
+          </div>
+          <button class="secondary-button small" id="exportDossierBrief" type="button">Export dossier</button>
+        </div>
+        <div class="dossier-grid">
+          <form class="dossier-form" id="dossierForm">
+            <label>
+              Company
+              <select id="dossierTicker"></select>
+            </label>
+            <label>
+              Audience
+              <select id="dossierAudience">
+                <option>Investment committee</option>
+                <option>Retail subscriber</option>
+                <option>Founder demo</option>
+                <option>Compliance review</option>
+              </select>
+            </label>
+            <label>
+              Packet style
+              <select id="dossierStyle">
+                <option>Full dossier</option>
+                <option>One-page memo</option>
+                <option>Board pack</option>
+                <option>Sales demo</option>
+              </select>
+            </label>
+            <label>
+              Evidence bar
+              <select id="dossierEvidenceBar">
+                <option>Decision-ready</option>
+                <option>Balanced</option>
+                <option>Fast draft</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Packet objective
+              <input id="dossierObjective" type="text" value="Prepare a source-linked research packet that can be reviewed, exported, and shared without losing the evidence trail." />
+            </label>
+            <div class="dossier-actions">
+              <button class="primary-button" type="submit">Build dossier</button>
+              <button class="secondary-button" id="useActiveDossier" type="button">Use active research</button>
+              <button class="secondary-button" id="resetDossier" type="button">Reset dossier</button>
+            </div>
+          </form>
+          <article class="dossier-summary">
+            <div class="dossier-metric-grid" id="dossierMetricGrid"></div>
+          </article>
+        </div>
+        <div class="dossier-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Packet sections</span>
+              <strong id="dossierSectionCount">0</strong>
+            </div>
+            <div id="dossierSectionList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Release checklist</span>
+              <strong id="dossierChecklistScore">0%</strong>
+            </div>
+            <div id="dossierChecklist"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Close-the-pack queue</span>
+              <strong id="dossierQueueCount">0</strong>
+            </div>
+            <div id="dossierQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section timeline-section" aria-labelledby="timelineTitle" id="thesis-timeline">
+        <div class="timeline-header">
+          <div class="section-heading">
+            <span>Timeline</span>
+            <h2 id="timelineTitle">Thesis timeline & audit trail.</h2>
+            <p>Track how the thesis changed across filings, calls, answers, valuation work, debate pressure, and dossier readiness.</p>
+          </div>
+          <button class="secondary-button small" id="exportTimelineBrief" type="button">Export timeline</button>
+        </div>
+        <div class="timeline-grid">
+          <form class="timeline-form" id="timelineForm">
+            <label>
+              Company
+              <select id="timelineTicker"></select>
+            </label>
+            <label>
+              Timeline lens
+              <select id="timelineLens">
+                <option>Thesis evolution</option>
+                <option>Risk movement</option>
+                <option>Evidence history</option>
+                <option>Committee narrative</option>
+              </select>
+            </label>
+            <label>
+              Lookback
+              <select id="timelineLookback">
+                <option>All available</option>
+                <option>Last 90 days</option>
+                <option>Last 12 months</option>
+                <option>Current session</option>
+              </select>
+            </label>
+            <label>
+              Source scope
+              <select id="timelineScope">
+                <option>All research artifacts</option>
+                <option>Filings and calls</option>
+                <option>Decisions and exports</option>
+                <option>Current answer only</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Audit objective
+              <input id="timelineObjective" type="text" value="Show the thesis path, key evidence changes, unresolved risks, and next audit questions before sharing the research packet." />
+            </label>
+            <div class="timeline-actions">
+              <button class="primary-button" type="submit">Build timeline</button>
+              <button class="secondary-button" id="useDossierTimeline" type="button">Use dossier</button>
+              <button class="secondary-button" id="resetTimeline" type="button">Reset timeline</button>
+            </div>
+          </form>
+          <article class="timeline-summary">
+            <div class="timeline-metric-grid" id="timelineMetricGrid"></div>
+          </article>
+        </div>
+        <div class="timeline-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Thesis trail</span>
+              <strong id="timelineEventCount">0</strong>
+            </div>
+            <div id="timelineEventList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Inflection map</span>
+              <strong id="timelineInflectionCount">0</strong>
+            </div>
+            <div id="timelineInflectionList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Audit questions</span>
+              <strong id="timelineQuestionCount">0</strong>
+            </div>
+            <div id="timelineQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section briefing-section" aria-labelledby="briefingTitle" id="morning-briefing">
+        <div class="briefing-header">
+          <div class="section-heading">
+            <span>Briefing</span>
+            <h2 id="briefingTitle">Morning briefing room.</h2>
+            <p>Convert the research workspace into a daily agenda: top tickers, risk watch, evidence gaps, and questions to run first.</p>
+          </div>
+          <button class="secondary-button small" id="exportBriefingBrief" type="button">Export briefing</button>
+        </div>
+        <div class="briefing-grid">
+          <form class="briefing-form" id="briefingForm">
+            <label>
+              Universe
+              <input id="briefingUniverse" type="text" value="NVDA, AAPL, TSLA, MSFT, NSCP" />
+            </label>
+            <label>
+              Briefing mode
+              <select id="briefingMode">
+                <option>Research triage</option>
+                <option>Portfolio morning</option>
+                <option>Risk watch</option>
+                <option>Launch demo</option>
+              </select>
+            </label>
+            <label>
+              Urgency filter
+              <select id="briefingUrgency">
+                <option>Balanced</option>
+                <option>High-conviction only</option>
+                <option>Catch-up</option>
+              </select>
+            </label>
+            <label>
+              Session horizon
+              <select id="briefingHorizon">
+                <option>Today</option>
+                <option>This week</option>
+                <option>Next catalyst</option>
+                <option>Pre-market</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Briefing objective
+              <input id="briefingObjective" type="text" value="Prioritize what to read, what to ask, and which evidence gaps to close before the next investment decision." />
+            </label>
+            <div class="briefing-actions">
+              <button class="primary-button" type="submit">Build briefing</button>
+              <button class="secondary-button" id="useWorkspaceBriefing" type="button">Use workspace</button>
+              <button class="secondary-button" id="resetBriefing" type="button">Reset briefing</button>
+            </div>
+          </form>
+          <article class="briefing-summary">
+            <div class="briefing-metric-grid" id="briefingMetricGrid"></div>
+          </article>
+        </div>
+        <div class="briefing-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Research agenda</span>
+              <strong id="briefingAgendaCount">0</strong>
+            </div>
+            <div id="briefingAgendaList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Risk watch</span>
+              <strong id="briefingRiskCount">0</strong>
+            </div>
+            <div id="briefingRiskList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Questions to run</span>
+              <strong id="briefingQuestionCount">0</strong>
+            </div>
+            <div id="briefingQuestionQueue"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section callprep-section" aria-labelledby="callPrepTitle" id="earnings-call-prep">
+        <div class="callprep-header">
+          <div class="section-heading">
+            <span>Earnings prep</span>
+            <h2 id="callPrepTitle">Earnings call prep room.</h2>
+            <p>Turn the current evidence stack into management questions, red-flag listens, expected read-throughs, and a post-call scorecard.</p>
+          </div>
+          <button class="secondary-button small" id="exportCallPrepBrief" type="button">Export call prep</button>
+        </div>
+        <div class="callprep-grid">
+          <form class="callprep-form" id="callPrepForm">
+            <label>
+              Ticker
+              <input id="callPrepTicker" type="text" value="NVDA" />
+            </label>
+            <label>
+              Event
+              <select id="callPrepEvent">
+                <option>Next earnings call</option>
+                <option>Post-results review</option>
+                <option>Investor day</option>
+                <option>Guidance reset</option>
+              </select>
+            </label>
+            <label>
+              Prep style
+              <select id="callPrepStyle">
+                <option>Management Q&A</option>
+                <option>Risk-first</option>
+                <option>Thesis update</option>
+                <option>Portfolio action</option>
+              </select>
+            </label>
+            <label>
+              Focus
+              <select id="callPrepFocus">
+                <option>Margins and demand</option>
+                <option>Risk factors</option>
+                <option>Cash flow</option>
+                <option>Valuation bridge</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Call objective
+              <input id="callPrepObjective" type="text" value="Prepare the sharpest questions and listening cues before management commentary changes the thesis." />
+            </label>
+            <div class="callprep-actions">
+              <button class="primary-button" type="submit">Build call prep</button>
+              <button class="secondary-button" id="useBriefingCallPrep" type="button">Use briefing</button>
+              <button class="secondary-button" id="resetCallPrep" type="button">Reset prep</button>
+            </div>
+          </form>
+          <article class="callprep-summary">
+            <div class="callprep-metric-grid" id="callPrepMetricGrid"></div>
+          </article>
+        </div>
+        <div class="callprep-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Management questions</span>
+              <strong id="callPrepQuestionCount">0</strong>
+            </div>
+            <div id="callPrepQuestionList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Listen for</span>
+              <strong id="callPrepReadoutCount">0</strong>
+            </div>
+            <div id="callPrepReadoutList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Post-call scorecard</span>
+              <strong id="callPrepScoreCount">0</strong>
+            </div>
+            <div id="callPrepScoreList"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section debrief-section" aria-labelledby="debriefTitle" id="post-earnings-debrief">
+        <div class="debrief-header">
+          <div class="section-heading">
+            <span>Debrief</span>
+            <h2 id="debriefTitle">Post-earnings debrief room.</h2>
+            <p>Score what changed after results: thesis surprise, source support, market reaction, and the next questions to run.</p>
+          </div>
+          <button class="secondary-button small" id="exportDebriefBrief" type="button">Export debrief</button>
+        </div>
+        <div class="debrief-grid">
+          <form class="debrief-form" id="debriefForm">
+            <label>
+              Ticker
+              <input id="debriefTicker" type="text" value="NVDA" />
+            </label>
+            <label>
+              Event
+              <select id="debriefEvent">
+                <option>Earnings call</option>
+                <option>Quarterly results</option>
+                <option>Guidance update</option>
+                <option>Investor day</option>
+              </select>
+            </label>
+            <label>
+              Debrief mode
+              <select id="debriefMode">
+                <option>Thesis change</option>
+                <option>Risk update</option>
+                <option>Valuation update</option>
+                <option>Portfolio action</option>
+              </select>
+            </label>
+            <label>
+              Market move %
+              <input id="debriefMarketMove" type="number" value="2.1" step="0.1" />
+            </label>
+            <label class="wide-field">
+              Transcript or result notes
+              <textarea id="debriefTranscript" rows="4">Management said demand remains durable, gross margin is stabilizing, and customer concentration is being watched closely. Guidance implies disciplined capex and continued cash conversion, but supply timing and execution risk remain open questions.</textarea>
+            </label>
+            <div class="debrief-actions">
+              <button class="primary-button" type="submit">Build debrief</button>
+              <button class="secondary-button" id="useCallPrepDebrief" type="button">Use call prep</button>
+              <button class="secondary-button" id="resetDebrief" type="button">Reset debrief</button>
+            </div>
+          </form>
+          <article class="debrief-summary">
+            <div class="debrief-metric-grid" id="debriefMetricGrid"></div>
+          </article>
+        </div>
+        <div class="debrief-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Surprise map</span>
+              <strong id="debriefSurpriseCount">0</strong>
+            </div>
+            <div id="debriefSurpriseList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Thesis changes</span>
+              <strong id="debriefThesisCount">0</strong>
+            </div>
+            <div id="debriefThesisList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Follow-up actions</span>
+              <strong id="debriefActionCount">0</strong>
+            </div>
+            <div id="debriefActionList"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section revision-section" aria-labelledby="revisionTitle" id="guidance-revision">
+        <div class="revision-header">
+          <div class="section-heading">
+            <span>Guidance</span>
+            <h2 id="revisionTitle">Guidance revision room.</h2>
+            <p>Translate guidance, consensus gaps, and debrief notes into estimate revisions, model impact, and the next diligence queue.</p>
+          </div>
+          <button class="secondary-button small" id="exportRevisionBrief" type="button">Export revision</button>
+        </div>
+        <div class="revision-grid">
+          <form class="revision-form" id="revisionForm">
+            <label>
+              Ticker
+              <input id="revisionTicker" type="text" value="NVDA" />
+            </label>
+            <label>
+              Period
+              <input id="revisionPeriod" type="text" value="FY2026" />
+            </label>
+            <label>
+              Revenue guide %
+              <input id="revisionRevenueGuide" type="number" value="14" step="0.5" />
+            </label>
+            <label>
+              Consensus %
+              <input id="revisionConsensus" type="number" value="11" step="0.5" />
+            </label>
+            <label>
+              FCF margin guide %
+              <input id="revisionMarginGuide" type="number" value="17" step="0.5" />
+            </label>
+            <label>
+              Prior model %
+              <input id="revisionPriorModel" type="number" value="15" step="0.5" />
+            </label>
+            <label>
+              Confidence
+              <select id="revisionConfidence">
+                <option>Balanced</option>
+                <option>High conviction</option>
+                <option>Needs proof</option>
+              </select>
+            </label>
+            <label>
+              Revision mode
+              <select id="revisionMode">
+                <option>Base case update</option>
+                <option>Bull case test</option>
+                <option>Downside guardrail</option>
+                <option>Portfolio sizing</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Revision note
+              <textarea id="revisionNote" rows="3">Guidance is above consensus on revenue and slightly ahead of the prior FCF margin model, but execution timing and customer concentration still need transcript support before upgrading the thesis.</textarea>
+            </label>
+            <div class="revision-actions">
+              <button class="primary-button" type="submit">Build revision</button>
+              <button class="secondary-button" id="useDebriefRevision" type="button">Use debrief</button>
+              <button class="secondary-button" id="resetRevision" type="button">Reset revision</button>
+            </div>
+          </form>
+          <article class="revision-summary">
+            <div class="revision-metric-grid" id="revisionMetricGrid"></div>
+          </article>
+        </div>
+        <div class="revision-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Guidance bridge</span>
+              <strong id="revisionBridgeCount">0</strong>
+            </div>
+            <div id="revisionBridgeList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Estimate revisions</span>
+              <strong id="revisionEstimateCount">0</strong>
+            </div>
+            <div id="revisionEstimateList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Model actions</span>
+              <strong id="revisionActionCount">0</strong>
+            </div>
+            <div id="revisionActionList"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section modelctl-section" aria-labelledby="modelControlTitle" id="model-version-control">
+        <div class="modelctl-header">
+          <div class="section-heading">
+            <span>Model control</span>
+            <h2 id="modelControlTitle">Model version control room.</h2>
+            <p>Lock every forecast change with assumption deltas, valuation impact, approval gates, and an exportable model audit trail.</p>
+          </div>
+          <button class="secondary-button small" id="exportModelControlBrief" type="button">Export model log</button>
+        </div>
+        <div class="modelctl-grid">
+          <form class="modelctl-form" id="modelControlForm">
+            <label>
+              Ticker
+              <input id="modelControlTicker" type="text" value="NVDA" />
+            </label>
+            <label>
+              Version
+              <input id="modelControlVersion" type="text" value="v1.1 post-guide" />
+            </label>
+            <label>
+              Owner
+              <input id="modelControlOwner" type="text" value="Research desk" />
+            </label>
+            <label>
+              Approval status
+              <select id="modelControlStatus">
+                <option>Draft</option>
+                <option>Ready for review</option>
+                <option>Approved</option>
+                <option>Blocked</option>
+              </select>
+            </label>
+            <label>
+              Revenue CAGR %
+              <input id="modelControlGrowth" type="number" value="14" step="0.5" />
+            </label>
+            <label>
+              FCF margin %
+              <input id="modelControlMargin" type="number" value="17" step="0.5" />
+            </label>
+            <label>
+              Terminal multiple
+              <input id="modelControlMultiple" type="number" value="21" step="0.5" />
+            </label>
+            <label>
+              Discount rate %
+              <input id="modelControlDiscount" type="number" value="10" step="0.25" />
+            </label>
+            <label class="wide-field">
+              Change rationale
+              <textarea id="modelControlRationale" rows="3">Version captures post-guidance revenue and FCF margin revisions while keeping the terminal multiple and discount rate unchanged until transcript citations are reviewed.</textarea>
+            </label>
+            <div class="modelctl-actions">
+              <button class="primary-button" type="submit">Lock model version</button>
+              <button class="secondary-button" id="useRevisionModelControl" type="button">Use revision</button>
+              <button class="secondary-button" id="resetModelControl" type="button">Reset model</button>
+            </div>
+          </form>
+          <article class="modelctl-summary">
+            <div class="modelctl-metric-grid" id="modelControlMetricGrid"></div>
+          </article>
+        </div>
+        <div class="modelctl-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Assumption deltas</span>
+              <strong id="modelControlDeltaCount">0</strong>
+            </div>
+            <div id="modelControlDeltaList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Approval gates</span>
+              <strong id="modelControlGateCount">0</strong>
+            </div>
+            <div id="modelControlGateList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Audit actions</span>
+              <strong id="modelControlActionCount">0</strong>
+            </div>
+            <div id="modelControlActionList"></div>
+          </article>
+        </div>
+      </section>
+
       <footer class="disclosure">
         Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
       </footer>
     </div>
 
-    <script src="app.js?v=20260509-13" defer></script>
+    <script src="app.js?v=20260509-25" defer></script>
   </body>
 </html>

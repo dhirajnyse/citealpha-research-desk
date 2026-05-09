@@ -71,6 +71,18 @@ V41 adds a Compliance & Audit Center with research-only policy controls, advice-
 V42 adds an Evidence Trace & Claim Inspector with claim-level support scoring, weak-claim review, filing-call tension flags, source lineage mapping, and trace pack export.
 V43 adds a Peer Benchmark & Thesis Screener with target-vs-peer factor ranking, margin/risk/value gaps, evidence-hit counts, diligence question generation, and peer brief export.
 V44 adds a Scenario Stress Test Lab with rate, demand, margin, and inflation shocks, company break-risk ranking, weighted portfolio impact, action questions, and stress memo export.
+V45 tightens peer benchmark integrity by removing target-vs-self comparisons, showing the active benchmark peer, and generating diligence questions against a real peer or peer group fallback.
+V46 adds a Filing Change Monitor that compares prior and current filing language, scores materiality, surfaces expanded or softened risk themes, and exports a change memo.
+V47 adds a Valuation Sensitivity Matrix with bull/base/bear cases, driver sensitivity, evidence-fit scoring, model question generation, and valuation memo export.
+V48 adds a Research Tear Sheet Studio that turns a company into a compact stance, valuation range, risk, evidence, thesis, and next-action snapshot with export.
+V49 adds a Thesis Debate Room with bull and bear scoring, rebuttals, hard follow-up questions, tear-sheet hydration, and debate memo export.
+V50 adds a Research Dossier Builder that assembles the active answer, tear sheet, thesis debate, valuation, risk, evidence checks, release checklist, and close-the-pack questions into an exportable packet.
+V51 adds a Thesis Timeline & Audit Trail that turns sources, answers, saved notes, valuation work, debate outcomes, and dossier gaps into a chronological thesis history with inflection points, audit questions, and export.
+V52 adds a Morning Briefing Room that ranks the daily research agenda, risk watch, evidence gaps, and first questions to run across a ticker universe, portfolio, timeline, and dossier context.
+V53 adds an Earnings Call Prep Room that converts the research stack into management questions, expected read-throughs, red-flag listens, a post-call scorecard, and an exportable call prep memo.
+V54 adds a Post-Earnings Debrief Room that scores thesis delta, tone, market reaction, surprise drivers, thesis changes, follow-up actions, and an exportable debrief memo after results or transcript notes.
+V55 adds a Guidance Revision Room that converts management guidance and consensus gaps into estimate revisions, indicative model impact, diligence questions, and an exportable revision brief.
+V56 adds a Model Version Control Room that locks forecast changes with assumption deltas, valuation impact, approval gates, audit actions, and an exportable model change log.
 
 ## Notes
 
