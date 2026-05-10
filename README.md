@@ -95,6 +95,33 @@ V65 adds a Pilot Feedback & Conversion Tracker that scores post-demo buying inte
 V66 adds a Pilot Cohort Command Center that turns feedback signals into launch cohorts, invite metrics, outreach prompts, experiment rules, saved cohort snapshots, and an exportable cohort plan.
 V67 adds a Pilot Outreach & Reply Room that turns cohorts into copy-ready email, WhatsApp, LinkedIn, or community scripts, scores replies, triages objections, saves reply logs, and exports an outreach brief.
 V68 adds a Pilot Activation & Retention Room that converts interested replies into first-session plans, aha moments, retention-risk checks, saved onboarding sessions, and exportable activation plans.
+V69 adds a Deployment Doctor that scans the live GitHub Pages build for file-shift uploads, wrong content types, cache-busting readiness, repair actions, and an exportable deployment checklist before the next release goes public.
+V70 adds Navigation Comfort with a floating bottom-right back-to-top arrow, smooth scrolling, automatic show/hide behavior, mobile sizing, and print-safe hiding for the now-large product workspace.
+V71 adds a Workspace Command Palette with a floating search button, Ctrl/Command + K shortcut, searchable room list, smooth section jumps, and mobile-friendly quick navigation across the full product workspace.
+V72 adds a First-Run Product Tour with a top-bar Guide button, step-by-step product walkthrough, highlighted workspace targets, progress tracking, keyboard navigation, and mobile-friendly onboarding for new pilot users.
+V73 adds an Evidence Reader Drawer so every citation chip and evidence card can open a full source passage with relevance score, metadata, tone read, risk tags, copy citation, and follow-up question controls.
+V74 adds an Evidence Gap Radar inside each answer, scoring missing filings, call transcripts, valuation support, data posture, source depth, and risk specificity, with next-source guidance and one-click follow-up questions.
+V75 adds an Answer Delta Monitor that compares each new analysis with the prior answer, showing confidence shifts, source-audit movement, evidence-gap changes, citation churn, thesis shifts, and one-click follow-up questions.
+V76 adds a Counter-Evidence Challenge inside each answer, surfacing bear-case or mitigating passages, contradiction pressure, top challenge citations, and one-click disconfirming follow-up questions before export.
+V77 adds an Export Readiness Gate inside each answer, combining confidence, citations, source quality, evidence gaps, counter-evidence pressure, security posture, and answer stability into a pass/watch/block export decision.
+V78 adds a Claim Ledger inside each answer, breaking the brief into auditable claims with support/review/challenge status, citation links, claim-level questions, and export-gate scoring tied to unresolved claims.
+V79 adds a Citation Reliability Matrix inside each answer, scoring every retrieved citation by source type, specificity, thesis relevance, sample/live posture, and replacement need, with export readiness tied to the reliability floor.
+V80 adds a Source Upgrade Planner inside each answer, converting weak citation scores and evidence gaps into a ranked action queue for replacement sources, source mix upgrades, real-data posture, and export readiness.
+V81 adds a Reviewer Handoff Queue inside each answer, turning weak citations, source gaps, claim issues, and counter-evidence into reviewer lanes with priorities, SLAs, citation links, and export-gate impact.
+V82 adds a Decision Memo Composer inside each answer, converting the research controls into a committee-style memo with decision stance, thesis, evidence, risks, review status, next action, and export-gate scoring.
+V83 adds a Board Pack Builder inside each answer, turning the current research answer into a board or investment-committee packet with cover read, decision slide, thesis, risk watch, evidence appendix, reviewer page, and export-gate scoring.
+V84 adds a Committee Q&A Simulator inside each answer, anticipating skeptical IC questions, preparing source-linked answer angles, assigning reviewer ownership, scoring Q&A readiness, and feeding that score into export readiness.
+V85 adds a Briefing Script Coach inside each answer, converting the research output into a timed spoken briefing with opener, thesis, evidence, risk response, close, rehearsal checks, follow-up prompts, and export-gate scoring.
+V86 adds a Follow-Up Pack Composer inside each answer, turning the briefing into a shareable follow-up with subject line, key point, evidence, caveat, next ask, delivery checks, follow-up prompts, and export-gate scoring.
+V87 adds a Reply Objection Handler inside each answer, anticipating follow-up replies and objections, drafting source-aware responses, preserving caveats, suggesting next asks, and feeding reply readiness into export-gate scoring.
+V88 adds a Research Action Plan Builder inside each answer, turning reply handling into concrete next research work with verification, source, monitor, reply, delivery, and learning actions, owner/due metadata, clickable next questions, and export-gate scoring.
+V89 adds a Research Ticket Queue inside each answer, converting action-plan rows into execution tickets with owners, due timing, acceptance criteria, citation links, one-click prompts, and export-gate scoring.
+V90 adds a Launch Readiness Room inside each answer, scoring pilot-demo readiness with proof strength, objection pressure, buyer pushback replies, demo checklist gates, one-click prompts, and export-gate integration.
+V91 adds a Pilot Conversion Room inside each answer, mapping the current research workflow to a buyer segment, SaaS plan, trial success metric, close ask, objections, one-click sales prompts, and export-gate scoring.
+V92 adds a Pilot Activation Room inside each answer, turning conversion into a 7-day onboarding plan with activation score, retention-risk signal, source setup, repeat-workflow milestones, health signals, one-click prompts, and export-gate scoring.
+V93 adds a Pilot Feedback Loop Room inside each answer, capturing pilot learning with renewal-risk scoring, feedback questions, product-request triage, backlog signals, advocacy prompts, and export-gate scoring.
+V94 adds a Pilot Renewal & Expansion Room inside each answer, converting pilot learning into renewal score, expansion signal, churn-save play, payment proof, upgrade route, revenue prompts, and export-gate scoring.
+V95 adds a Customer Proof & ROI Room inside each answer, translating research quality into time saved, terminal-cost avoided, payback multiple, proof asset, customer ask prompts, and export-gate scoring.
 
 ## Notes
 

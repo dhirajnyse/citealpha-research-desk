@@ -14,7 +14,7 @@
     <link rel="canonical" href="https://dhirajnyse.github.io/citealpha-research-desk/" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-    <link rel="manifest" href="site.webmanifest?v=20260509-38" />
+    <link rel="manifest" href="site.webmanifest?v=20260510-13" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CiteAlpha" />
     <meta property="og:title" content="CiteAlpha | Ask filings. See the evidence." />
@@ -53,7 +53,7 @@
       @media (max-width: 900px) { .topbar, .terminal-layout { grid-template-columns: 1fr; } }
     </style>
     <link rel="stylesheet" href="styles.css?v=20260509-09" />
-    <link rel="stylesheet" href="launch.css?v=20260509-38" />
+    <link rel="stylesheet" href="launch.css?v=20260510-13" />
   </head>
   <body>
     <div class="app-shell">
@@ -72,6 +72,9 @@
           <span class="status-pill">Valuation lens</span>
         </div>
         <div class="top-actions">
+          <button class="icon-button guide-button" id="startProductTour" type="button" title="Start guided product tour" aria-label="Start guided product tour">
+            <span aria-hidden="true">Guide</span>
+          </button>
           <button class="icon-button" id="copyBrief" type="button" title="Copy current brief" aria-label="Copy current brief">
             <span aria-hidden="true">Copy</span>
           </button>
@@ -816,6 +819,77 @@
               <strong id="pilotActivationSessionCount">0</strong>
             </div>
             <div id="pilotActivationSessionList"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="launch-section deployment-section" aria-labelledby="deploymentDoctorTitle" id="deployment-doctor">
+        <div class="deployment-header">
+          <div class="section-heading">
+            <span>Deploy doctor</span>
+            <h2 id="deploymentDoctorTitle">Deployment doctor.</h2>
+            <p>Run a preflight on the live GitHub Pages build, catch file-shift uploads, verify cache-busting, and produce a clean repair checklist before users see a broken page.</p>
+          </div>
+          <button class="secondary-button small" id="exportDeploymentDoctorBrief" type="button">Export deploy report</button>
+        </div>
+        <div class="deployment-grid">
+          <form class="deployment-form" id="deploymentDoctorForm">
+            <label>
+              Release label
+              <input id="deploymentReleaseLabel" type="text" value="CiteAlpha V95" />
+            </label>
+            <label>
+              Environment
+              <select id="deploymentEnvironment">
+                <option>GitHub Pages</option>
+                <option>Local preview</option>
+                <option>Manual upload</option>
+              </select>
+            </label>
+            <label>
+              Cache tag
+              <input id="deploymentCacheTag" type="text" value="20260510-13" />
+            </label>
+            <label class="wide-field">
+              Public URL
+              <input id="deploymentPublicUrl" type="url" value="https://dhirajnyse.github.io/citealpha-research-desk/" />
+            </label>
+            <label class="wide-field">
+              Release note
+              <textarea id="deploymentNote" rows="2">Before every GitHub upload, scan the page and confirm index.html is HTML, app.js is JavaScript, CSS files are CSS, assets are nested under assets/, and version tags changed.</textarea>
+            </label>
+            <div class="deployment-actions">
+              <button class="primary-button" type="submit">Run deploy scan</button>
+              <button class="secondary-button" id="useCurrentDeploymentUrl" type="button">Use current URL</button>
+              <button class="secondary-button" id="copyDeploymentChecklist" type="button">Copy checklist</button>
+              <button class="secondary-button" id="resetDeploymentDoctor" type="button">Reset</button>
+            </div>
+          </form>
+          <article class="deployment-summary">
+            <div class="deployment-metric-grid" id="deploymentDoctorMetricGrid"></div>
+          </article>
+        </div>
+        <div class="deployment-workspace">
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>File health</span>
+              <strong id="deploymentFileCount">0</strong>
+            </div>
+            <div id="deploymentFileList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Repair queue</span>
+              <strong id="deploymentRepairCount">0</strong>
+            </div>
+            <div id="deploymentRepairList"></div>
+          </article>
+          <article class="ops-card">
+            <div class="ops-card-heading">
+              <span>Upload checklist</span>
+              <strong id="deploymentChecklistCount">0</strong>
+            </div>
+            <div id="deploymentChecklistList"></div>
           </article>
         </div>
       </section>
@@ -3508,8 +3582,78 @@ CASH 5</textarea>
       <footer class="disclosure">
         Synthetic sample corpus for product prototyping. Import source documents before using the workflow for live investment research. CiteAlpha is research software, not investment advice.
       </footer>
+
+      <button class="workspace-command-trigger" id="workspaceCommandTrigger" type="button" aria-label="Open workspace command palette" title="Open workspace command palette">
+        <span aria-hidden="true"></span>
+      </button>
+      <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" title="Back to top" aria-hidden="true" tabindex="-1">
+        <span aria-hidden="true"></span>
+      </button>
+
+      <div class="product-tour-layer" id="productTourLayer" aria-hidden="true">
+        <div class="product-tour-scrim" data-tour-close></div>
+        <section class="product-tour-card" role="dialog" aria-modal="true" aria-labelledby="productTourTitle">
+          <div class="product-tour-head">
+            <div>
+              <span id="productTourStepLabel">Step 1 of 8</span>
+              <h2 id="productTourTitle">CiteAlpha guided tour</h2>
+            </div>
+            <button class="text-button" id="productTourClose" type="button">Close</button>
+          </div>
+          <div class="product-tour-progress" aria-hidden="true">
+            <span id="productTourProgressBar"></span>
+          </div>
+          <p id="productTourBody">Follow the path from first impression to first cited answer.</p>
+          <div class="product-tour-checklist" id="productTourChecklist"></div>
+          <div class="product-tour-actions">
+            <button class="secondary-button" id="productTourBack" type="button">Back</button>
+            <button class="secondary-button" id="productTourJump" type="button">Show me</button>
+            <button class="primary-button" id="productTourNext" type="button">Next</button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="evidence-reader" id="evidenceReader" aria-hidden="true" aria-labelledby="evidenceReaderTitle">
+        <div class="evidence-reader-scrim" data-evidence-close></div>
+        <section class="evidence-reader-panel" role="dialog" aria-modal="true">
+          <div class="evidence-reader-head">
+            <div>
+              <span id="evidenceReaderKicker">Evidence reader</span>
+              <h2 id="evidenceReaderTitle">Source passage</h2>
+            </div>
+            <button class="text-button" id="evidenceReaderClose" type="button">Close</button>
+          </div>
+          <div class="evidence-reader-body" id="evidenceReaderBody">
+            <p>Select a citation chip or evidence card to inspect the passage.</p>
+          </div>
+          <div class="evidence-reader-actions">
+            <button class="secondary-button" id="evidenceReaderPrev" type="button">Prev</button>
+            <button class="secondary-button" id="evidenceReaderCopy" type="button">Copy cite</button>
+            <button class="secondary-button" id="evidenceReaderUseQuestion" type="button">Ask follow-up</button>
+            <button class="primary-button" id="evidenceReaderNext" type="button">Next</button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="workspace-command-modal" id="workspaceCommandModal" aria-hidden="true">
+        <div class="workspace-command-backdrop" data-command-close></div>
+        <section class="workspace-command-panel" role="dialog" aria-modal="true" aria-labelledby="workspaceCommandTitle">
+          <div class="workspace-command-head">
+            <div>
+              <span>Quick jump</span>
+              <h2 id="workspaceCommandTitle">Workspace command palette</h2>
+            </div>
+            <button class="text-button" id="workspaceCommandClose" type="button">Close</button>
+          </div>
+          <label class="workspace-command-search">
+            <span>Search rooms, workflows, exports, or tools</span>
+            <input id="workspaceCommandSearch" type="search" placeholder="Try: deployment, portfolio, pricing, risk, PDF" autocomplete="off" />
+          </label>
+          <div class="workspace-command-list" id="workspaceCommandList"></div>
+        </section>
+      </div>
     </div>
 
-    <script src="app.js?v=20260509-38" defer></script>
+    <script src="app.js?v=20260510-13" defer></script>
   </body>
 </html>

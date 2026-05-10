@@ -43,7 +43,9 @@ const STORAGE_KEYS = {
   pilotOutreach: "citealpha-pilot-outreach-reply-room-v1",
   pilotOutreachReplies: "citealpha-pilot-outreach-replies-v1",
   pilotActivation: "citealpha-pilot-activation-retention-room-v1",
-  pilotActivationSessions: "citealpha-pilot-activation-sessions-v1"
+  pilotActivationSessions: "citealpha-pilot-activation-sessions-v1",
+  deploymentDoctor: "citealpha-deployment-doctor-v1",
+  productTour: "citealpha-product-tour-v1"
 };
 
 const WAITLIST_ENDPOINT = "https://formsubmit.co/ajax/dhirajnyse@gmail.com";
@@ -110,6 +112,221 @@ const SECURITY_BASELINE = [
   "Source passages are evidence, not AI instructions",
   "Live-provider keys stay in the browser session",
   "Static prototype avoids server-side data storage"
+];
+
+const DEPLOYMENT_DOCTOR_FILES = [
+  {
+    path: "index.html",
+    label: "HTML shell",
+    type: "html",
+    minBytes: 90000,
+    required: true,
+    markers: ["<!doctype html", "id=\"desk\"", "app.js?v="],
+    antiMarkers: ["\"use strict\"", "const STORAGE_KEYS"],
+    repair: "Upload the real index.html from the version folder to repository root."
+  },
+  {
+    path: "app.js",
+    label: "Application script",
+    type: "javascript",
+    minBytes: 650000,
+    required: true,
+    markers: ["\"use strict\"", "const STORAGE_KEYS", "renderPilotActivationRetentionRoom"],
+    antiMarkers: ["<!doctype html", "<section class=\"launch-section"],
+    repair: "Upload the real app.js from the version folder to repository root."
+  },
+  {
+    path: "launch.css",
+    label: "Launch CSS",
+    type: "css",
+    minBytes: 100000,
+    required: true,
+    markers: [".launch-section", ".activation-section", ".navigator-section"],
+    antiMarkers: ["<!doctype html", "\"use strict\""],
+    repair: "Upload launch.css from the version folder and bump its cache tag in index.html."
+  },
+  {
+    path: "styles.css",
+    label: "Core CSS",
+    type: "css",
+    minBytes: 25000,
+    required: true,
+    markers: [":root", ".terminal-layout", ".answer-panel"],
+    antiMarkers: ["<!doctype html", "\"use strict\"", "\"name\": \"CiteAlpha\""],
+    repair: "Restore styles.css from the version folder or the last known good release."
+  },
+  {
+    path: "site.webmanifest",
+    label: "Web manifest",
+    type: "json",
+    minBytes: 250,
+    required: true,
+    markers: ["\"name\": \"CiteAlpha\"", "\"start_url\""],
+    antiMarkers: ["User-agent", "# CiteAlpha", "MIT License"],
+    repair: "Upload site.webmanifest from the version folder."
+  },
+  {
+    path: "robots.txt",
+    label: "Robots policy",
+    type: "text",
+    minBytes: 10,
+    required: true,
+    markers: ["User-agent", "Allow:"],
+    antiMarkers: ["# CiteAlpha", "MIT License", "\"name\": \"CiteAlpha\""],
+    repair: "Upload robots.txt from the version folder."
+  },
+  {
+    path: "README.md",
+    label: "Repository README",
+    type: "markdown",
+    minBytes: 9000,
+    required: false,
+    markers: ["# CiteAlpha", "V68 adds", "Export workflow"],
+    antiMarkers: ["MIT License", "User-agent"],
+    repair: "Upload README.md so the repository explains the current release."
+  },
+  {
+    path: "LICENSE",
+    label: "License",
+    type: "text",
+    minBytes: 800,
+    required: false,
+    markers: ["MIT License", "Permission is hereby granted"],
+    antiMarkers: ["# CiteAlpha", ".launch-section"],
+    repair: "Upload LICENSE from the version folder."
+  },
+  {
+    path: "assets/citealpha-logo.svg",
+    label: "Brand logo",
+    type: "svg",
+    minBytes: 2000,
+    required: true,
+    markers: ["<svg", "CiteAlpha 3D logo"],
+    antiMarkers: ["PNG", "MIT License"],
+    repair: "Keep logo files nested inside assets/ instead of the repo root."
+  },
+  {
+    path: "assets/favicon.svg",
+    label: "Favicon",
+    type: "svg",
+    minBytes: 800,
+    required: true,
+    markers: ["<svg", "CiteAlpha favicon"],
+    antiMarkers: ["# CiteAlpha", "MIT License"],
+    repair: "Upload favicon.svg inside assets/."
+  }
+];
+
+const DEPLOYMENT_UPLOAD_CHECKLIST = [
+  "Extract the version zip first; do not upload the zip file itself.",
+  "Upload the files inside the version folder to the repository root.",
+  "Keep assets nested under assets/ and avoid dragging the asset files to root by accident.",
+  "Confirm index.html starts with <!doctype html> before committing.",
+  "Confirm app.js starts with \"use strict\" and is not empty.",
+  "Confirm launch.css and styles.css are CSS files, not HTML or JavaScript.",
+  "Bump the app.js and launch.css query tags in index.html for every release.",
+  "Commit to main, wait for GitHub Pages, then reopen with a fresh ?v= tag."
+];
+
+const WORKSPACE_COMMAND_KEYWORDS = {
+  "guided-navigator": "start onboarding route first question shortcut",
+  "pilot-demo-concierge": "demo call proof objection close script",
+  "pilot-feedback-tracker": "feedback conversion buying intent learning",
+  "pilot-cohort-command-center": "cohort invites launch group experiment",
+  "pilot-outreach-reply-room": "email whatsapp linkedin reply objection",
+  "pilot-activation-retention-room": "activation onboarding retention payment aha",
+  "deployment-doctor": "github pages deploy upload cache broken raw code repair",
+  desk: "ask filings run analysis citations evidence rag answer",
+  pricing: "plans subscription starter pro analyst money",
+  waitlist: "join email pilot queue leads",
+  roadmap: "launch path next mvp release",
+  ops: "operations founder metrics readiness launch",
+  portfolio: "holdings exposure risk queue position",
+  committee: "investment committee IC decision memo",
+  alerts: "catalyst alerts triggers calendar",
+  revenue: "MRR ARR subscription checkout paywall",
+  pipeline: "SEC transcripts vector store backend API",
+  evals: "quality eval hallucination regression faithfulness",
+  compliance: "audit disclosure policy advice risk",
+  trace: "claim evidence source lineage inspector",
+  peers: "benchmark thesis screener peer compare",
+  stress: "scenario rates margin demand inflation",
+  "filing-change": "change monitor filing diff materiality",
+  "valuation-matrix": "valuation sensitivity bull base bear",
+  "tear-sheet": "one page company snapshot thesis",
+  "debate-room": "bull bear thesis debate rebuttal",
+  "dossier-builder": "packet dossier release checklist",
+  "thesis-timeline": "timeline audit trail history",
+  "morning-briefing": "daily briefing agenda",
+  "earnings-call-prep": "call prep management questions",
+  "post-earnings-debrief": "earnings debrief surprise thesis delta",
+  "guidance-revision": "guidance estimate revision consensus",
+  "model-version-control": "model changes assumptions version",
+  "ic-approval-room": "approval reviewer committee conditions",
+  "portfolio-action-room": "position sizing action plan",
+  "autonomous-research-queue": "research queue tasks automation",
+  "research-sla-scheduler": "sla schedule due windows",
+  "research-outcome-loop": "outcome learning drift",
+  "research-memory-vault": "memory rules patterns reuse"
+};
+
+const PRODUCT_TOUR_STEPS = [
+  {
+    target: ".launch-hero",
+    kicker: "Positioning",
+    title: "Start with the promise",
+    body: "The hero tells a new visitor what CiteAlpha does before they meet the larger workspace: ask filings, see cited evidence, then move into a valuation lens.",
+    checks: ["Clear value prop", "Pilot CTA visible", "Example cited answer"]
+  },
+  {
+    target: "#guided-navigator",
+    kicker: "Guided start",
+    title: "Choose a first research route",
+    body: "The Research Navigator converts a user goal into a short path. It is the easiest way to guide a retail investor from curiosity to a first answer.",
+    checks: ["Objective", "Ticker", "First question"]
+  },
+  {
+    target: "#desk",
+    kicker: "Research desk",
+    title: "Ask one strong question",
+    body: "This is the core product loop. Pick a template, type a question, scan for risks, then run analysis to generate the cited answer.",
+    checks: ["Question templates", "Scan filing", "Run analysis"]
+  },
+  {
+    target: "#answerPanel",
+    kicker: "Answer",
+    title: "Read the answer like a memo",
+    body: "The answer area shows the thesis, source audit, sentiment, bottom line, and citations. This is where CiteAlpha starts to feel like a research desk.",
+    checks: ["Bottom line", "Source audit", "Citation chips"]
+  },
+  {
+    target: ".file-drop",
+    kicker: "Source intake",
+    title: "Switch from sample data to your data",
+    body: "The Import Center lets a user add filings, transcripts, and notes. Demo packs keep the product usable before a live SEC or transcript API is connected.",
+    checks: ["Upload text", "Demo packs", "Import quality"]
+  },
+  {
+    target: "#portfolio",
+    kicker: "Portfolio",
+    title: "Turn answers into a research queue",
+    body: "The portfolio workspace ranks holdings by exposure, risk, source coverage, and next questions so the product moves beyond one-off Q&A.",
+    checks: ["Holdings", "Priority ranking", "Ask queue"]
+  },
+  {
+    target: "#evals",
+    kicker: "Trust",
+    title: "Prove the answer is reliable",
+    body: "The evaluation lab, compliance center, trace inspector, and deployment doctor are the trust layer that matters before real users pay.",
+    checks: ["Faithfulness", "Citation minimum", "Human review"]
+  },
+  {
+    target: ".top-actions",
+    kicker: "Export",
+    title: "Finish with a shareable brief",
+    body: "After the first answer, users can copy, save, export PDF, export Markdown, or continue into deeper rooms from the command palette.",
+    checks: ["Copy", "Save", "PDF or Markdown"]
+  }
 ];
 
 const SAMPLE_COMPANIES = [
@@ -673,6 +890,23 @@ const NEGATIVE_TERMS = [
   "working capital"
 ];
 
+const RISK_TERMS = [
+  ...NEGATIVE_TERMS,
+  "customer concentration",
+  "export controls",
+  "foundry",
+  "capacity",
+  "supply commitment",
+  "refinancing",
+  "permitting",
+  "interconnection",
+  "shrink",
+  "liquidity",
+  "inventory",
+  "qualification",
+  "regulatory"
+];
+
 const state = {
   documents: [],
   activeTickers: new Set(SAMPLE_COMPANIES.map((company) => company.ticker)),
@@ -751,6 +985,8 @@ const state = {
   pilotActivationConfig: null,
   currentPilotActivation: null,
   pilotActivationSessions: [],
+  deploymentDoctorConfig: null,
+  currentDeploymentDoctor: null,
   marketSettings: { provider: "demo", ticker: "NVDA", apiKey: "" },
   marketQuote: null,
   marketStatus: { level: "idle", message: "Demo quote ready" },
@@ -759,6 +995,12 @@ const state = {
   lastBrief: null,
   lastAnswerModel: null,
   currentCitations: [],
+  evidenceReaderOpen: false,
+  evidenceReaderCitationId: null,
+  productTourOpen: false,
+  productTourStep: 0,
+  productTourSeen: false,
+  workspaceCommandOpen: false,
   isRunning: false
 };
 
@@ -812,6 +1054,8 @@ function init() {
   state.pilotOutreachReplies = loadPilotOutreachReplies();
   state.pilotActivationConfig = loadPilotActivationConfig();
   state.pilotActivationSessions = loadPilotActivationSessions();
+  state.deploymentDoctorConfig = loadDeploymentDoctorConfig();
+  state.productTourSeen = Boolean(loadJson(STORAGE_KEYS.productTour, { seen: false }).seen);
   state.marketSettings = loadMarketSettings();
   state.documents = [...state.uploadedDocs, ...SAMPLE_DOCS];
   state.documents.forEach((doc) => state.enabledDocIds.add(doc.id));
@@ -864,7 +1108,9 @@ function init() {
   renderPilotCohortCommandCenter();
   renderPilotOutreachReplyRoom();
   renderPilotActivationRetentionRoom();
+  renderDeploymentDoctor();
   bindEvents();
+  updateBackToTopVisibility();
   updateValuationFromCompany();
   updateValuation();
   renderMarketQuoteCard();
@@ -1552,6 +1798,49 @@ function cacheElements() {
   els.pilotActivationRiskList = document.querySelector("#pilotActivationRiskList");
   els.pilotActivationSessionCount = document.querySelector("#pilotActivationSessionCount");
   els.pilotActivationSessionList = document.querySelector("#pilotActivationSessionList");
+  els.deploymentDoctorForm = document.querySelector("#deploymentDoctorForm");
+  els.deploymentReleaseLabel = document.querySelector("#deploymentReleaseLabel");
+  els.deploymentEnvironment = document.querySelector("#deploymentEnvironment");
+  els.deploymentCacheTag = document.querySelector("#deploymentCacheTag");
+  els.deploymentPublicUrl = document.querySelector("#deploymentPublicUrl");
+  els.deploymentNote = document.querySelector("#deploymentNote");
+  els.useCurrentDeploymentUrl = document.querySelector("#useCurrentDeploymentUrl");
+  els.copyDeploymentChecklist = document.querySelector("#copyDeploymentChecklist");
+  els.resetDeploymentDoctor = document.querySelector("#resetDeploymentDoctor");
+  els.exportDeploymentDoctorBrief = document.querySelector("#exportDeploymentDoctorBrief");
+  els.deploymentDoctorMetricGrid = document.querySelector("#deploymentDoctorMetricGrid");
+  els.deploymentFileCount = document.querySelector("#deploymentFileCount");
+  els.deploymentFileList = document.querySelector("#deploymentFileList");
+  els.deploymentRepairCount = document.querySelector("#deploymentRepairCount");
+  els.deploymentRepairList = document.querySelector("#deploymentRepairList");
+  els.deploymentChecklistCount = document.querySelector("#deploymentChecklistCount");
+  els.deploymentChecklistList = document.querySelector("#deploymentChecklistList");
+  els.startProductTour = document.querySelector("#startProductTour");
+  els.productTourLayer = document.querySelector("#productTourLayer");
+  els.productTourClose = document.querySelector("#productTourClose");
+  els.productTourStepLabel = document.querySelector("#productTourStepLabel");
+  els.productTourTitle = document.querySelector("#productTourTitle");
+  els.productTourBody = document.querySelector("#productTourBody");
+  els.productTourChecklist = document.querySelector("#productTourChecklist");
+  els.productTourProgressBar = document.querySelector("#productTourProgressBar");
+  els.productTourBack = document.querySelector("#productTourBack");
+  els.productTourJump = document.querySelector("#productTourJump");
+  els.productTourNext = document.querySelector("#productTourNext");
+  els.evidenceReader = document.querySelector("#evidenceReader");
+  els.evidenceReaderClose = document.querySelector("#evidenceReaderClose");
+  els.evidenceReaderKicker = document.querySelector("#evidenceReaderKicker");
+  els.evidenceReaderTitle = document.querySelector("#evidenceReaderTitle");
+  els.evidenceReaderBody = document.querySelector("#evidenceReaderBody");
+  els.evidenceReaderPrev = document.querySelector("#evidenceReaderPrev");
+  els.evidenceReaderNext = document.querySelector("#evidenceReaderNext");
+  els.evidenceReaderCopy = document.querySelector("#evidenceReaderCopy");
+  els.evidenceReaderUseQuestion = document.querySelector("#evidenceReaderUseQuestion");
+  els.workspaceCommandTrigger = document.querySelector("#workspaceCommandTrigger");
+  els.workspaceCommandModal = document.querySelector("#workspaceCommandModal");
+  els.workspaceCommandSearch = document.querySelector("#workspaceCommandSearch");
+  els.workspaceCommandList = document.querySelector("#workspaceCommandList");
+  els.workspaceCommandClose = document.querySelector("#workspaceCommandClose");
+  els.backToTop = document.querySelector("#backToTop");
 }
 
 function bindEvents() {
@@ -3390,6 +3679,160 @@ function bindEvents() {
     });
   }
 
+  if (els.deploymentDoctorForm) {
+    els.deploymentDoctorForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      runDeploymentDoctorScan();
+    });
+  }
+
+  if (els.useCurrentDeploymentUrl) {
+    els.useCurrentDeploymentUrl.addEventListener("click", () => {
+      state.deploymentDoctorConfig = {
+        ...readDeploymentDoctorConfig(),
+        publicUrl: window.location.href.split("#")[0]
+      };
+      saveDeploymentDoctorConfig();
+      syncDeploymentDoctorInputs();
+      renderDeploymentDoctor();
+      flashButtonLabel(els.useCurrentDeploymentUrl, "Loaded");
+    });
+  }
+
+  if (els.copyDeploymentChecklist) {
+    els.copyDeploymentChecklist.addEventListener("click", () => {
+      copyTextToClipboard(buildDeploymentChecklistText(state.currentDeploymentDoctor || buildDeploymentDoctorSnapshot()));
+      flashButtonLabel(els.copyDeploymentChecklist, "Copied");
+    });
+  }
+
+  if (els.resetDeploymentDoctor) {
+    els.resetDeploymentDoctor.addEventListener("click", () => {
+      state.deploymentDoctorConfig = getDefaultDeploymentDoctorConfig();
+      state.currentDeploymentDoctor = null;
+      saveDeploymentDoctorConfig();
+      syncDeploymentDoctorInputs();
+      renderDeploymentDoctor();
+      flashButtonLabel(els.resetDeploymentDoctor, "Reset");
+    });
+  }
+
+  if (els.exportDeploymentDoctorBrief) {
+    els.exportDeploymentDoctorBrief.addEventListener("click", exportDeploymentDoctorBrief);
+  }
+
+  if (els.startProductTour) {
+    els.startProductTour.addEventListener("click", () => openProductTour(0));
+  }
+
+  if (els.productTourClose) {
+    els.productTourClose.addEventListener("click", closeProductTour);
+  }
+
+  if (els.productTourLayer) {
+    els.productTourLayer.addEventListener("click", (event) => {
+      if (event.target.closest("[data-tour-close]")) closeProductTour();
+    });
+  }
+
+  if (els.productTourBack) {
+    els.productTourBack.addEventListener("click", () => moveProductTour(-1));
+  }
+
+  if (els.productTourJump) {
+    els.productTourJump.addEventListener("click", () => jumpToProductTourTarget({ scroll: true }));
+  }
+
+  if (els.productTourNext) {
+    els.productTourNext.addEventListener("click", () => moveProductTour(1));
+  }
+
+  if (els.evidenceReaderClose) {
+    els.evidenceReaderClose.addEventListener("click", closeEvidenceReader);
+  }
+
+  if (els.evidenceReader) {
+    els.evidenceReader.addEventListener("click", (event) => {
+      if (event.target.closest("[data-evidence-close]")) closeEvidenceReader();
+    });
+  }
+
+  if (els.evidenceReaderPrev) {
+    els.evidenceReaderPrev.addEventListener("click", () => moveEvidenceReader(-1));
+  }
+
+  if (els.evidenceReaderNext) {
+    els.evidenceReaderNext.addEventListener("click", () => moveEvidenceReader(1));
+  }
+
+  if (els.evidenceReaderCopy) {
+    els.evidenceReaderCopy.addEventListener("click", () => {
+      const citation = getEvidenceReaderCitation();
+      if (!citation) return;
+      copyTextToClipboard(formatEvidenceReaderCitation(citation));
+      flashButtonLabel(els.evidenceReaderCopy, "Copied");
+    });
+  }
+
+  if (els.evidenceReaderUseQuestion) {
+    els.evidenceReaderUseQuestion.addEventListener("click", () => {
+      const citation = getEvidenceReaderCitation();
+      if (!citation) return;
+      const question = `What should I verify next from ${citation.citationId} in $${citation.ticker}?`;
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      closeEvidenceReader();
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  }
+
+  if (els.workspaceCommandTrigger) {
+    els.workspaceCommandTrigger.addEventListener("click", () => openWorkspaceCommandPalette());
+  }
+
+  if (els.workspaceCommandClose) {
+    els.workspaceCommandClose.addEventListener("click", closeWorkspaceCommandPalette);
+  }
+
+  if (els.workspaceCommandModal) {
+    els.workspaceCommandModal.addEventListener("click", (event) => {
+      if (event.target.closest("[data-command-close]")) closeWorkspaceCommandPalette();
+    });
+  }
+
+  if (els.workspaceCommandSearch) {
+    els.workspaceCommandSearch.addEventListener("input", () => renderWorkspaceCommandList());
+    els.workspaceCommandSearch.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const first = els.workspaceCommandList?.querySelector("[data-command-target]");
+      if (!first) return;
+      event.preventDefault();
+      jumpToWorkspaceCommandTarget(first.dataset.commandTarget);
+    });
+  }
+
+  if (els.workspaceCommandList) {
+    els.workspaceCommandList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-command-target]");
+      if (!button) return;
+      jumpToWorkspaceCommandTarget(button.dataset.commandTarget);
+    });
+  }
+
+  document.addEventListener("keydown", handleWorkspaceCommandKeydown);
+
+  if (els.backToTop) {
+    els.backToTop.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+    window.addEventListener("resize", updateBackToTopVisibility, { passive: true });
+  }
+
   if (els.peerQuestionQueue) {
     els.peerQuestionQueue.addEventListener("click", (event) => {
       const button = event.target.closest("[data-peer-question]");
@@ -4035,7 +4478,8 @@ function runAnalysis(question) {
   state.currentCitations = citations;
 
   const intent = detectIntent(retrievalQuestion);
-  const answerModel = buildAnswerModel(question, citations, intent, tickerFocus);
+  const previousAnswerModel = state.lastAnswerModel;
+  const answerModel = buildAnswerModel(question, citations, intent, tickerFocus, previousAnswerModel);
   state.lastBrief = answerModel.plainText;
   state.lastAnswerModel = answerModel;
   renderAnswer(answerModel);
@@ -4107,7 +4551,7 @@ function renderNoHits(question) {
   renderPortfolioActionRoom();
 }
 
-function buildAnswerModel(question, citations, intent, tickerFocus = null) {
+function buildAnswerModel(question, citations, intent, tickerFocus = null, previousAnswerModel = null) {
   const compareMode = isCompareQuestion(question, citations);
   const grouped = groupCitationsByTicker(citations);
   const rankedCompanies = rankCompaniesForQuestion(question, grouped, intent);
@@ -4118,12 +4562,34 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
   const focusNotice = makeTickerFocusNotice(tickerFocus);
   const sourceTrust = makeSourceTrust(citations);
   const sourceAudit = makeSourceAudit(citations, rankedCompanies);
+  const citationMatrix = makeCitationReliabilityMatrix(question, citations, intent, sourceTrust, sourceAudit, tickerFocus);
+  const gapRadar = makeEvidenceGapRadar(question, citations, rankedCompanies, intent, sourceAudit, sourceTrust, tickerFocus);
+  const sourceUpgrade = makeSourceUpgradePlanner(question, citations, intent, sourceTrust, sourceAudit, citationMatrix, gapRadar, tickerFocus);
+  const deltaMonitor = makeAnswerDeltaMonitor(previousAnswerModel, question, citations, confidence, headline, sourceAudit, gapRadar, intent, tickerFocus);
+  const counterChallenge = makeCounterEvidenceChallenge(question, citations, rankedCompanies, intent, sourceAudit, tickerFocus);
+  const valuationRead = makeValuationRead(rankedCompanies[0], intent);
+  const claimLedger = makeClaimLedger(question, citations, rankedCompanies, intent, thesis, valuationRead, sourceTrust, sourceAudit, gapRadar, counterChallenge, tickerFocus);
+  const reviewerQueue = makeReviewerHandoffQueue(question, citations, intent, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, tickerFocus);
+  const decisionMemo = makeDecisionMemoComposer(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, tickerFocus);
+  const boardPack = makeBoardPackBuilder(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, tickerFocus);
+  const committeeQa = makeCommitteeQaSimulator(question, citations, intent, confidence, valuationRead, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, tickerFocus);
+  const briefingScript = makeBriefingScriptCoach(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, tickerFocus);
+  const followUpPack = makeFollowUpPackComposer(question, citations, intent, confidence, headline, thesis, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, tickerFocus);
+  const replyObjections = makeReplyObjectionHandler(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, tickerFocus);
+  const actionPlan = makeResearchActionPlanBuilder(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, replyObjections, tickerFocus);
+  const ticketQueue = makeResearchTicketQueue(question, citations, intent, confidence, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, reviewerQueue, actionPlan, tickerFocus);
+  const launchReadiness = makeLaunchReadinessRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, actionPlan, ticketQueue, tickerFocus);
+  const pilotConversion = makePilotConversionRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, actionPlan, ticketQueue, launchReadiness, tickerFocus);
+  const pilotActivation = makePilotActivationRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, ticketQueue, launchReadiness, pilotConversion, tickerFocus);
+  const pilotFeedbackLoop = makePilotFeedbackLoopRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, reviewerQueue, ticketQueue, launchReadiness, pilotConversion, pilotActivation, tickerFocus);
+  const pilotRenewal = makePilotRenewalExpansionRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, reviewerQueue, ticketQueue, pilotConversion, pilotActivation, pilotFeedbackLoop, tickerFocus);
+  const customerProof = makeCustomerProofRoiRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, ticketQueue, pilotConversion, pilotActivation, pilotFeedbackLoop, pilotRenewal, tickerFocus);
+  const exportGate = makeExportReadinessGate(question, citations, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, deltaMonitor, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, replyObjections, actionPlan, ticketQueue, launchReadiness, pilotConversion, pilotActivation, pilotFeedbackLoop, pilotRenewal, customerProof, intent, tickerFocus);
   const evidenceBullets = citations.slice(0, state.answerDepth === "brief" ? 3 : 5).map((citation, index) => {
     return `<li>${makeEvidenceSentence(citation, intent)} ${citationLink(index)}</li>`;
   }).join("");
   const riskFactorSection = intent.id === "risk" ? makeRiskFactorSection(citations, rankedCompanies) : "";
   const watchItems = makeWatchItems(citations, rankedCompanies, intent);
-  const valuationRead = makeValuationRead(rankedCompanies[0], intent);
   const debate = makeDebate(citations, rankedCompanies);
   const table = makeCompanyTable(rankedCompanies);
   const copilot = makeAnalystCopilot(question, citations, rankedCompanies, intent, sourceAudit, toneMeter);
@@ -4197,6 +4663,28 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
       ${focusNotice}
       ${toneMeter.html}
       ${sourceAudit.html}
+      ${citationMatrix.html}
+      ${sourceUpgrade.html}
+      ${gapRadar.html}
+      ${deltaMonitor.html}
+      ${counterChallenge.html}
+      ${claimLedger.html}
+      ${reviewerQueue.html}
+      ${decisionMemo.html}
+      ${boardPack.html}
+      ${committeeQa.html}
+      ${briefingScript.html}
+      ${followUpPack.html}
+      ${replyObjections.html}
+      ${actionPlan.html}
+      ${ticketQueue.html}
+      ${launchReadiness.html}
+      ${pilotConversion.html}
+      ${pilotActivation.html}
+      ${pilotFeedbackLoop.html}
+      ${pilotRenewal.html}
+      ${customerProof.html}
+      ${exportGate.html}
       ${copilot.html}
       ${sections.join("")}
     </div>
@@ -4208,6 +4696,28 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     tickerFocus ? `Ticker focus: ${tickerFocus.rawTicker}${tickerFocus.isAlias ? ` maps to ${tickerFocus.ticker} (${tickerFocus.note})` : ""}` : "",
     sourceTrust.plainText,
     sourceAudit.plainText,
+    citationMatrix.plainText,
+    sourceUpgrade.plainText,
+    gapRadar.plainText,
+    deltaMonitor.plainText,
+    counterChallenge.plainText,
+    claimLedger.plainText,
+    reviewerQueue.plainText,
+    decisionMemo.plainText,
+    boardPack.plainText,
+    committeeQa.plainText,
+    briefingScript.plainText,
+    followUpPack.plainText,
+    replyObjections.plainText,
+    actionPlan.plainText,
+    ticketQueue.plainText,
+    launchReadiness.plainText,
+    pilotConversion.plainText,
+    pilotActivation.plainText,
+    pilotFeedbackLoop.plainText,
+    pilotRenewal.plainText,
+    customerProof.plainText,
+    exportGate.plainText,
     copilot.plainText,
     stripHtml(headline),
     stripHtml(thesis),
@@ -4230,6 +4740,7 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     html,
     plainText,
     citations,
+    question,
     confidence,
     headline: stripHtml(headline),
     intentId: intent.id,
@@ -4238,6 +4749,28 @@ function buildAnswerModel(question, citations, intent, tickerFocus = null) {
     tonePercent: toneMeter.percent,
     sourceTrust,
     sourceAudit,
+    citationMatrix,
+    sourceUpgrade,
+    gapRadar,
+    deltaMonitor,
+    counterChallenge,
+    claimLedger,
+    reviewerQueue,
+    decisionMemo,
+    boardPack,
+    committeeQa,
+    briefingScript,
+    followUpPack,
+    replyObjections,
+    actionPlan,
+    ticketQueue,
+    launchReadiness,
+    pilotConversion,
+    pilotActivation,
+    pilotFeedbackLoop,
+    pilotRenewal,
+    customerProof,
+    exportGate,
     copilot,
     tickerFocus
   };
@@ -4362,6 +4895,3422 @@ function makeSourceAudit(citations, rankedCompanies) {
       </section>
     `
   };
+}
+
+function makeCitationReliabilityMatrix(question, citations, intent, sourceTrust, sourceAudit, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const rows = citations.slice(0, 6).map((citation, index) => scoreCitationReliability(citation, index, intent));
+  const average = Math.round(rows.reduce((sum, row) => sum + row.score, 0) / Math.max(rows.length, 1));
+  const floor = rows.length ? Math.min(...rows.map((row) => row.score)) : 0;
+  const weakRows = rows.filter((row) => row.status !== "strong");
+  const sampleRows = rows.filter((row) => row.sourceKind === "sample").length;
+  const className = floor < 58 ? "replace" : weakRows.length ? "review" : "strong";
+  const status = className === "strong" ? "Citation stack reliable" : className === "replace" ? "Replace weak citation" : "Review citation quality";
+  const questions = makeCitationReliabilityQuestions(ticker, rows, question, intent);
+  const summary = className === "strong"
+    ? `${ticker} has a reliable citation stack with no citation below ${floor}/100.`
+    : className === "replace"
+      ? `${ticker} has at least one weak citation below 58/100. Replace that source before treating the answer as export-ready.`
+      : `${ticker} has ${weakRows.length} citation${weakRows.length === 1 ? "" : "s"} that need reviewer attention before export.`;
+
+  return {
+    status,
+    className,
+    average,
+    floor,
+    weakCount: weakRows.length,
+    sampleCount: sampleRows,
+    rows,
+    questions,
+    plainText: `Citation reliability matrix: ${status}. Average ${average}/100, floor ${floor}/100, sample citations ${sampleRows}, review citations ${weakRows.length}.`,
+    html: `
+      <section class="citation-matrix-card ${escapeAttr(className)}" aria-label="Citation reliability matrix">
+        <div class="citation-matrix-heading">
+          <div>
+            <span>Citation Reliability Matrix</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${average}/100</em>
+        </div>
+        <p class="citation-matrix-summary">${escapeHtml(summary)}</p>
+        <div class="citation-matrix-stats">
+          <span><b>${floor}</b> floor</span>
+          <span><b>${weakRows.length}</b> review</span>
+          <span><b>${sampleRows}</b> sample</span>
+          <span><b>${sourceAudit.coverageLabel}</b> coverage</span>
+        </div>
+        <div class="citation-matrix-list">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <div class="citation-matrix-score">
+                ${makeMatrixCitationLink(row.citation)}
+                <strong>${row.score}</strong>
+              </div>
+              <div>
+                <span>${escapeHtml(row.label)}</span>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="citation-matrix-actions">
+          ${questions.map((item) => `<button type="button" data-citation-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function scoreCitationReliability(citation, index, intent) {
+  const sourceKind = getSourceKind(citation);
+  const sourceScore = sourceKind === "sec-live" ? 95 : sourceKind === "uploaded" ? 88 : sourceKind === "sec-mock" ? 76 : 58;
+  const text = String(citation.text || "");
+  const lower = text.toLowerCase();
+  const metrics = extractMetrics(text).length;
+  const termHits = [
+    ...intent.terms,
+    ...RISK_TERMS,
+    ...POSITIVE_TERMS,
+    ...NEGATIVE_TERMS
+  ].filter((term) => lower.includes(String(term).toLowerCase())).length;
+  const specificScore = Math.min(18, metrics * 4 + Math.min(10, termHits));
+  const typeScore = /filing|10-k|10-q|earnings|call|model|valuation/i.test(`${citation.type} ${citation.section}`) ? 8 : 2;
+  const rankPenalty = index > 3 ? 5 : index > 1 ? 2 : 0;
+  const score = Math.max(35, Math.min(99, Math.round(sourceScore * 0.62 + Math.min(25, citation.score || 0) * 0.7 + specificScore + typeScore - rankPenalty)));
+  const status = score >= 82 ? "strong" : score >= 62 ? "review" : "replace";
+  const sourceLabel = sourceKind === "sample" ? "Sample" : sourceKind === "uploaded" ? "Your data" : sourceKind === "sec-live" ? "SEC live" : "SEC mock";
+  const label = status === "strong" ? "Strong" : status === "replace" ? "Replace" : "Review";
+  const title = `${citation.type} / ${citation.section}`;
+  const note = `${sourceLabel}; ${metrics} metric${metrics === 1 ? "" : "s"}; ${termHits} thesis-term hit${termHits === 1 ? "" : "s"}. ${snippet(citation.text, 92)}`;
+  return {
+    citation,
+    sourceKind,
+    score,
+    status,
+    label,
+    title,
+    note
+  };
+}
+
+function makeMatrixCitationLink(citation) {
+  const citationId = citation?.citationId || "C?";
+  return `<a class="citation-link" href="#evidence-${escapeAttr(citationId)}" data-citation-id="${escapeAttr(citationId)}" title="Open ${escapeAttr(citationId)} in the evidence reader">${escapeHtml(citationId)}</a>`;
+}
+
+function makeCitationReliabilityQuestions(ticker, rows, question, intent) {
+  const weak = rows.find((row) => row.status === "replace") || rows.find((row) => row.status === "review") || rows[rows.length - 1];
+  const anchor = weak?.citation?.citationId || "the weakest citation";
+  const base = [
+    `Why is ${anchor} the weakest citation for $${ticker}?`,
+    `What source would replace ${anchor} in the $${ticker} answer?`,
+    `Audit citation reliability for: ${snippet(question, 78)}`
+  ];
+  if (intent.id === "risk") {
+    base[1] = `Which filing passage would strengthen ${anchor} for the $${ticker} risk answer?`;
+  }
+  if (intent.id === "valuation") {
+    base[1] = `Which model or valuation source should replace ${anchor} for $${ticker}?`;
+  }
+  return base;
+}
+
+function makeSourceUpgradePlanner(question, citations, intent, sourceTrust, sourceAudit, citationMatrix, gapRadar, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const weakest = citationMatrix.rows.find((row) => row.status === "replace") || citationMatrix.rows.find((row) => row.status === "review");
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared|management/i.test(`${citation.type} ${citation.section}`)).length;
+  const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  const trustedCount = (sourceTrust.live || 0) + (sourceTrust.mock || 0) + (sourceTrust.imported || 0);
+  const gapRows = (gapRadar.rows || []).filter((row) => row.status === "gap");
+  const reviewRows = (gapRadar.rows || []).filter((row) => row.status === "watch");
+  const actions = [];
+
+  if (weakest) {
+    actions.push({
+      status: weakest.status === "replace" ? "block" : "review",
+      label: weakest.status === "replace" ? "Replace" : "Review",
+      title: `Upgrade ${weakest.citation.citationId}`,
+      body: `${weakest.citation.citationId} is ${weakest.score}/100. Replace it with a more specific filing, call, or model passage before export.`,
+      question: `What source would replace ${weakest.citation.citationId} in the $${ticker} answer?`,
+      citation: weakest.citation
+    });
+  }
+
+  actions.push({
+    status: gapRows.length ? "block" : reviewRows.length ? "review" : "ready",
+    label: gapRows.length ? "Load" : reviewRows.length ? "Verify" : "Ready",
+    title: gapRadar.nextSource.title,
+    body: gapRadar.nextSource.note,
+    question: `${gapRadar.nextSource.title}: what should I import next for $${ticker}?`
+  });
+
+  actions.push({
+    status: trustedCount ? "ready" : "block",
+    label: trustedCount ? "Ready" : "Import",
+    title: trustedCount ? "Real-source posture" : "Move beyond sample data",
+    body: trustedCount ? `${trustedCount} imported/live/SEC-labeled citation${trustedCount === 1 ? "" : "s"} are in use.` : "The answer still depends on sample sources. Load a filing or transcript pack before presenting it as a live research output.",
+    question: trustedCount ? `Which imported source supports the $${ticker} answer best?` : `What filing or transcript pack should I load first for $${ticker}?`
+  });
+
+  const missingMix = [
+    filingCount ? "" : "filing",
+    callCount ? "" : "call",
+    modelCount || intent.id === "risk" ? "" : "model"
+  ].filter(Boolean);
+  actions.push({
+    status: missingMix.length >= 2 ? "block" : missingMix.length ? "review" : "ready",
+    label: missingMix.length ? "Mix" : "Ready",
+    title: missingMix.length ? `Add ${missingMix.join(" + ")}` : "Source mix balanced",
+    body: missingMix.length ? `Current answer has ${filingCount} filing, ${callCount} call, and ${modelCount} model source hits.` : "The answer includes a balanced filing/call/model style source mix for this use case.",
+    question: missingMix.length ? `Which ${missingMix[0]} source should I add for $${ticker}?` : `Which source type matters most for the $${ticker} answer?`
+  });
+
+  const blockCount = actions.filter((action) => action.status === "block").length;
+  const reviewCount = actions.filter((action) => action.status === "review").length;
+  const readiness = Math.max(1, Math.min(100, Math.round(
+    citationMatrix.average * 0.32 +
+    gapRadar.readiness * 0.32 +
+    sourceAudit.quality * 0.2 +
+    (trustedCount ? 100 : 48) * 0.16 -
+    blockCount * 8 -
+    reviewCount * 3
+  )));
+  const className = blockCount ? "block" : reviewCount ? "review" : "ready";
+  const status = className === "ready" ? "Source plan clear" : className === "block" ? "Source upgrade required" : "Source upgrade review";
+  const summary = className === "ready"
+    ? `${ticker} has no blocking source upgrade before export. Keep the plan as a reviewer checklist.`
+    : `${ticker} needs ${blockCount || reviewCount} source upgrade item${(blockCount || reviewCount) === 1 ? "" : "s"} before the answer should be treated as finished.`;
+  const questions = actions.slice(0, 3).map((action) => action.question);
+
+  return {
+    status,
+    className,
+    readiness,
+    blockCount,
+    reviewCount,
+    actions,
+    questions,
+    plainText: `Source upgrade planner: ${status} (${readiness}/100). Blocks: ${blockCount}. Reviews: ${reviewCount}.`,
+    html: `
+      <section class="source-upgrade-card ${escapeAttr(className)}" aria-label="Source upgrade planner">
+        <div class="source-upgrade-heading">
+          <div>
+            <span>Source Upgrade Planner</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${readiness}/100</em>
+        </div>
+        <p class="source-upgrade-summary">${escapeHtml(summary)}</p>
+        <div class="source-upgrade-stats">
+          <span><b>${blockCount}</b> blocks</span>
+          <span><b>${reviewCount}</b> review</span>
+          <span><b>${trustedCount}</b> live/user</span>
+          <span><b>${citationMatrix.floor}</b> cite floor</span>
+        </div>
+        <div class="source-upgrade-list">
+          ${actions.map((action) => `
+            <article class="${escapeAttr(action.status)}">
+              <span>${escapeHtml(action.label)}</span>
+              <div>
+                <strong>${escapeHtml(action.title)}</strong>
+                <p>${escapeHtml(action.body)}</p>
+                ${action.citation ? `<div class="source-upgrade-cite">${makeMatrixCitationLink(action.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="source-upgrade-actions">
+          ${questions.map((item) => `<button type="button" data-source-upgrade-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeEvidenceGapRadar(question, citations, rankedCompanies, intent, sourceAudit, sourceTrust, tickerFocus) {
+  const focus = tickerFocus?.company || rankedCompanies[0] || getCompany(state.selectedTicker);
+  const ticker = focus ? focus.ticker : (citations[0]?.ticker || state.selectedTicker || "Desk");
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared|management/i.test(`${citation.type} ${citation.section}`)).length;
+  const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  const trustedCount = citations.filter(isPriorityCitation).length;
+  const docCount = new Set(citations.map((citation) => citation.docId)).size;
+  const tickerCount = new Set(citations.map((citation) => citation.ticker)).size;
+  const riskCitationCount = citations.filter((citation) => RISK_TERMS.some((term) => String(citation.text || "").toLowerCase().includes(term))).length;
+  const topScore = citations[0] ? citations[0].score : 0;
+
+  const rows = [
+    {
+      label: "Filing base",
+      status: filingCount ? "ready" : "gap",
+      value: filingCount ? `${filingCount} filing hit${filingCount === 1 ? "" : "s"}` : "Missing",
+      note: filingCount ? "The answer has filing support." : "Import the latest 10-K or 10-Q risk/MD&A section."
+    },
+    {
+      label: "Management voice",
+      status: callCount ? "ready" : "watch",
+      value: callCount ? `${callCount} call hit${callCount === 1 ? "" : "s"}` : "Thin",
+      note: callCount ? "Call language is represented." : "Add transcript Q&A before leaning on management tone."
+    },
+    {
+      label: "Valuation bridge",
+      status: modelCount || intent.id === "valuation" ? (modelCount ? "ready" : "watch") : "watch",
+      value: modelCount ? `${modelCount} model hit${modelCount === 1 ? "" : "s"}` : "Open",
+      note: modelCount ? "A model or valuation note is in the stack." : "Tie the answer to one scenario or sensitivity."
+    },
+    {
+      label: "Real-data posture",
+      status: trustedCount ? "ready" : "gap",
+      value: trustedCount ? `${trustedCount} user/live` : "Sample",
+      note: trustedCount ? "Non-sample sources are prioritized." : "Replace demo sources with imported filings or transcripts."
+    },
+    {
+      label: "Coverage depth",
+      status: docCount >= 3 ? "ready" : docCount >= 2 ? "watch" : "gap",
+      value: `${docCount} source${docCount === 1 ? "" : "s"}`,
+      note: docCount >= 3 ? "The answer has decent source spread." : "Add another source type before committee use."
+    },
+    {
+      label: "Risk specificity",
+      status: intent.id !== "risk" ? "watch" : riskCitationCount >= 3 ? "ready" : "gap",
+      value: `${riskCitationCount} risk hit${riskCitationCount === 1 ? "" : "s"}`,
+      note: intent.id === "risk" ? "Each risk should map to a distinct citation." : "Run a risk-specific follow-up if this becomes actionable."
+    }
+  ];
+
+  const gapCount = rows.filter((row) => row.status === "gap").length;
+  const watchCount = rows.filter((row) => row.status === "watch").length;
+  const readiness = Math.max(25, Math.min(99, Math.round((sourceAudit.quality || 50) + topScore * 0.7 + trustedCount * 4 + filingCount * 3 + callCount * 3 + modelCount * 3 - gapCount * 11 - watchCount * 4)));
+  const label = gapCount ? "Needs source work" : watchCount ? "Review before export" : "Evidence-ready";
+  const className = gapCount ? "gap" : watchCount ? "watch" : "ready";
+  const nextSource = chooseNextSourceGap({ filingCount, callCount, modelCount, trustedCount, intent, sourceTrust });
+  const questions = makeEvidenceGapQuestions(ticker, intent, rows, question);
+
+  return {
+    readiness,
+    label,
+    rows,
+    nextSource,
+    questions,
+    plainText: `Evidence gap radar: ${readiness}/100 (${label}). Next source: ${nextSource.title}. ${nextSource.note}`,
+    html: `
+      <section class="evidence-gap-card ${escapeAttr(className)}" aria-label="Evidence gap radar">
+        <div class="evidence-gap-heading">
+          <div>
+            <span>Evidence Gap Radar</span>
+            <strong>${escapeHtml(label)}</strong>
+          </div>
+          <em>${readiness}/100</em>
+        </div>
+        <div class="evidence-gap-track" aria-hidden="true"><b style="width: ${readiness}%"></b></div>
+        <div class="evidence-gap-grid">
+          ${rows.map((row) => `
+            <article class="evidence-gap-row ${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.status)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)} - ${escapeHtml(row.value)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="evidence-gap-next">
+          <div>
+            <span>Next source to load</span>
+            <strong>${escapeHtml(nextSource.title)}</strong>
+            <p>${escapeHtml(nextSource.note)}</p>
+          </div>
+          <div class="evidence-gap-questions">
+            ${questions.map((item) => `<button type="button" data-gap-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+          </div>
+        </div>
+      </section>
+    `
+  };
+}
+
+function chooseNextSourceGap(context) {
+  if (!context.trustedCount) {
+    return {
+      title: "Imported filing or transcript pack",
+      note: "The current answer still depends on sample material. Load one real source pack to upgrade trust."
+    };
+  }
+  if (!context.filingCount) {
+    return {
+      title: "Latest 10-K / 10-Q risk and MD&A sections",
+      note: "The answer needs filing-language support before it should anchor a memo."
+    };
+  }
+  if (!context.callCount) {
+    return {
+      title: "Latest earnings call transcript",
+      note: "Management tone and Q&A are thin, so add transcript passages before leaning on tone."
+    };
+  }
+  if (!context.modelCount && context.intent.id !== "risk") {
+    return {
+      title: "Valuation model note",
+      note: "Tie the answer to a scenario, sensitivity, or model assumption before exporting."
+    };
+  }
+  return {
+    title: "One contradictory source",
+    note: "The base stack is acceptable. Add a source that could disprove the conclusion."
+  };
+}
+
+function makeEvidenceGapQuestions(ticker, intent, rows, originalQuestion) {
+  const gap = rows.find((row) => row.status === "gap") || rows.find((row) => row.status === "watch") || rows[0];
+  const base = [
+    `What evidence is missing before trusting this $${ticker} answer?`,
+    `Which citation is weakest in the $${ticker} answer?`
+  ];
+  if (intent.id === "risk") {
+    base.push(`Which $${ticker} risk factor needs a separate filing citation?`);
+  } else if (intent.id === "valuation") {
+    base.push(`Which $${ticker} valuation assumption lacks source support?`);
+  } else {
+    base.push(`What source would change the answer to: ${snippet(originalQuestion, 80)}`);
+  }
+  if (gap) base[0] = `${gap.label}: what source should I import next for $${ticker}?`;
+  return base.slice(0, 3);
+}
+
+function makeAnswerDeltaMonitor(previous, question, citations, confidence, headline, sourceAudit, gapRadar, intent, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const currentTop = citations[0] ? `${citations[0].citationId} ${citations[0].type} / ${citations[0].section}` : "No citation";
+  const currentSourceScore = sourceAudit.quality || 0;
+  const currentGapScore = gapRadar.readiness || 0;
+  const currentCitationCount = citations.length;
+  const baseQuestions = [
+    `Why did the ${intent.label.toLowerCase()} answer change for $${ticker}?`,
+    `Which citation moved the $${ticker} answer most?`,
+    `What source would confirm this $${ticker} answer before export?`
+  ];
+
+  if (!previous) {
+    const baselineRows = [
+      { label: "Confidence", value: `${confidence}%`, note: "Baseline for this browser session." },
+      { label: "Citation mix", value: `${currentCitationCount} citations`, note: currentTop },
+      { label: "Evidence gap", value: `${currentGapScore}/100`, note: gapRadar.label || "Evidence posture recorded." }
+    ];
+    return {
+      status: "Baseline created",
+      className: "baseline",
+      plainText: `Answer delta monitor: baseline created at ${confidence}% confidence with ${currentCitationCount} citations.`,
+      html: `
+        <section class="answer-delta-card baseline" aria-label="Answer delta monitor">
+          <div class="answer-delta-heading">
+            <div>
+              <span>Answer Delta Monitor</span>
+              <strong>Baseline created</strong>
+            </div>
+            <em>First run</em>
+          </div>
+          <div class="answer-delta-grid">
+            ${baselineRows.map((row) => `
+              <article>
+                <span>${escapeHtml(row.label)}</span>
+                <strong>${escapeHtml(row.value)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </article>
+            `).join("")}
+          </div>
+          <div class="answer-delta-question-row">
+            ${baseQuestions.map((item) => `<button type="button" data-delta-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+          </div>
+        </section>
+      `
+    };
+  }
+
+  const previousCitations = Array.isArray(previous.citations) ? previous.citations : [];
+  const previousIds = new Set(previousCitations.map((citation) => citation.id || `${citation.docId}:${citation.section}:${snippet(citation.text, 60)}`));
+  const currentIds = new Set(citations.map((citation) => citation.id || `${citation.docId}:${citation.section}:${snippet(citation.text, 60)}`));
+  const reused = citations.filter((citation) => previousIds.has(citation.id || `${citation.docId}:${citation.section}:${snippet(citation.text, 60)}`)).length;
+  const added = citations.filter((citation) => !previousIds.has(citation.id || `${citation.docId}:${citation.section}:${snippet(citation.text, 60)}`)).length;
+  const dropped = previousCitations.filter((citation) => !currentIds.has(citation.id || `${citation.docId}:${citation.section}:${snippet(citation.text, 60)}`)).length;
+  const previousTop = previousCitations[0] ? `${previousCitations[0].citationId} ${previousCitations[0].type} / ${previousCitations[0].section}` : "No prior citation";
+  const confidenceDelta = Math.round(confidence - (Number(previous.confidence) || 0));
+  const sourceDelta = Math.round(currentSourceScore - (Number(previous.sourceAudit?.quality) || 0));
+  const gapDelta = Math.round(currentGapScore - (Number(previous.gapRadar?.readiness) || 0));
+  const citationDelta = currentCitationCount - previousCitations.length;
+  const deltaScore = Math.round(confidenceDelta * 0.45 + sourceDelta * 0.28 + gapDelta * 0.22 + citationDelta * 2);
+  const className = deltaScore >= 5 ? "stronger" : deltaScore <= -5 ? "weaker" : added >= 3 || dropped >= 3 ? "changed" : "stable";
+  const status = className === "stronger" ? "Evidence strengthened" : className === "weaker" ? "Evidence weakened" : className === "changed" ? "Answer changed" : "Mostly stable";
+  const metricRows = [
+    { label: "Confidence", value: formatSignedDelta(confidenceDelta, " pts"), note: `${confidence}% now vs ${previous.confidence || 0}% prior` },
+    { label: "Source audit", value: formatSignedDelta(sourceDelta, " pts"), note: `${currentSourceScore}/100 source quality` },
+    { label: "Gap radar", value: formatSignedDelta(gapDelta, " pts"), note: `${currentGapScore}/100 evidence readiness` },
+    { label: "Citation churn", value: `${added} new / ${dropped} dropped`, note: `${reused} citation${reused === 1 ? "" : "s"} carried over` }
+  ];
+  const thesisChanged = normalizeDeltaText(previous.headline) !== normalizeDeltaText(stripHtml(headline));
+  const rows = [
+    {
+      label: "Thesis",
+      value: thesisChanged ? "Changed wording" : "Same direction",
+      note: thesisChanged ? `Prior: ${snippet(previous.headline || "No prior headline", 120)}` : "Headline direction did not materially move."
+    },
+    {
+      label: "Top source",
+      value: currentTop === previousTop ? "Same anchor" : "New anchor",
+      note: `${previousTop} -> ${currentTop}`
+    },
+    {
+      label: "Question path",
+      value: previous.intentLabel === intent.label ? "Same intent" : "New intent",
+      note: `${previous.intentLabel || "Prior answer"} -> ${intent.label}`
+    }
+  ];
+
+  return {
+    status,
+    className,
+    confidenceDelta,
+    sourceDelta,
+    gapDelta,
+    added,
+    dropped,
+    reused,
+    plainText: `Answer delta monitor: ${status}. Confidence ${formatSignedDelta(confidenceDelta, " pts")}; source audit ${formatSignedDelta(sourceDelta, " pts")}; gap radar ${formatSignedDelta(gapDelta, " pts")}; citations ${added} new / ${dropped} dropped.`,
+    html: `
+      <section class="answer-delta-card ${escapeAttr(className)}" aria-label="Answer delta monitor">
+        <div class="answer-delta-heading">
+          <div>
+            <span>Answer Delta Monitor</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${formatSignedDelta(deltaScore, "")}</em>
+        </div>
+        <div class="answer-delta-grid">
+          ${metricRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(row.value)}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="answer-delta-list">
+          ${rows.map((row) => `
+            <div>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(row.value)}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </div>
+          `).join("")}
+        </div>
+        <div class="answer-delta-question-row">
+          ${baseQuestions.map((item) => `<button type="button" data-delta-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function formatSignedDelta(value, suffix = "") {
+  const number = Number(value) || 0;
+  const sign = number > 0 ? "+" : "";
+  return `${sign}${number}${suffix}`;
+}
+
+function normalizeDeltaText(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function makeCounterEvidenceChallenge(question, citations, rankedCompanies, intent, sourceAudit, tickerFocus) {
+  const focusCompany = tickerFocus?.company || rankedCompanies[0] || getCompany(state.selectedTicker);
+  const ticker = focusCompany?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const mode = getCounterEvidenceMode(intent);
+  const rows = citations
+    .map((citation, index) => scoreCounterEvidenceCitation(citation, index, ticker, intent, mode))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+  const top = rows[0];
+  const rawScore = rows.reduce((sum, row, index) => sum + row.score * (index === 0 ? 1 : 0.58), 0);
+  const challengeScore = Math.max(12, Math.min(100, Math.round(rawScore + (sourceAudit.sampleCount ? 6 : 0))));
+  const className = challengeScore >= 70 ? "high" : challengeScore >= 45 ? "watch" : "clear";
+  const status = className === "high" ? "Challenge before export" : className === "watch" ? "Review counter-case" : "No major contradiction";
+  const summary = top
+    ? `${mode.summary} The strongest check is ${top.citation.citationId}, which flags ${top.terms.length ? top.terms.join(", ") : top.label.toLowerCase()}.`
+    : `${mode.emptySummary} Run one disconfirming-source search before using this as a final view.`;
+  const questions = makeCounterEvidenceQuestions(ticker, intent, top, question);
+  const metricRows = [
+    { label: "Challenge score", value: `${challengeScore}/100`, note: className === "clear" ? "Low contradiction in retrieved stack." : "Do not export without reading the challenge rows." },
+    { label: mode.metricLabel, value: rows.length ? `${rows.length} hit${rows.length === 1 ? "" : "s"}` : "Light", note: rows.length ? "Counter passages found in the retrieved stack." : "No clear challenge passage retrieved." },
+    { label: "Top challenge", value: top ? top.citation.citationId : "Open", note: top ? snippet(top.citation.text, 82) : "Import a contrary filing or call passage." }
+  ];
+
+  return {
+    status,
+    className,
+    challengeScore,
+    rows,
+    questions,
+    plainText: `Counter-evidence challenge: ${status} (${challengeScore}/100). ${top ? `${top.citation.citationId}: ${snippet(top.citation.text, 180)}` : "No strong contradiction found in retrieved citations."}`,
+    html: `
+      <section class="counter-evidence-card ${escapeAttr(className)}" aria-label="Counter-evidence challenge">
+        <div class="counter-evidence-heading">
+          <div>
+            <span>Counter-Evidence Challenge</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${challengeScore}/100</em>
+        </div>
+        <p class="counter-evidence-summary">${escapeHtml(summary)}</p>
+        <div class="counter-evidence-grid">
+          ${metricRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(row.value)}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="counter-evidence-list">
+          ${(rows.length ? rows : makeCounterEvidenceFallbackRows(citations, mode)).map((row) => `
+            <article>
+              <div>
+                <span>${escapeHtml(row.label)}</span>
+                ${makeCounterCitationLink(row)}
+              </div>
+              <strong>${escapeHtml(row.title)}</strong>
+              <p>${escapeHtml(snippet(row.citation.text, 170))}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="counter-evidence-question-row">
+          ${questions.map((item) => `<button type="button" data-counter-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function getCounterEvidenceMode(intent) {
+  if (intent.id === "risk") {
+    return {
+      label: "Mitigant",
+      metricLabel: "Mitigant checks",
+      summary: "This tests whether the risk case is overstated.",
+      emptySummary: "The retrieved stack does not contain many explicit risk mitigants.",
+      terms: ["manageable", "adequate", "net cash", "flexibility", "strong", "base demand", "limited", "self-fund", "provided flexibility", "visibility"]
+    };
+  }
+  if (intent.id === "valuation") {
+    return {
+      label: "Valuation check",
+      metricLabel: "Valuation checks",
+      summary: "This tests whether the valuation read-through is too generous.",
+      emptySummary: "The retrieved stack does not contain a strong valuation challenge.",
+      terms: ["multiple", "discount", "sensitivity", "bear", "downside", "debt", "margin", "cash", "risk", "pressure"]
+    };
+  }
+  if (intent.id === "rates" || intent.id === "cash") {
+    return {
+      label: "Stress signal",
+      metricLabel: "Stress checks",
+      summary: "This tests whether rate or cash pressure could change the answer.",
+      emptySummary: "The retrieved stack has limited stress evidence.",
+      terms: ["debt", "interest", "refinancing", "working capital", "cash", "liquidity", "capex", "negative", "financing", "inventory"]
+    };
+  }
+  return {
+    label: "Bear evidence",
+    metricLabel: "Bear checks",
+    summary: "This tests whether the bullish or quality view is too clean.",
+    emptySummary: "The retrieved stack does not show a major bear-case passage.",
+    terms: ["risk", "pressure", "headwind", "delay", "volatile", "weak", "slower", "decline", "competition", "inflation", "shrink", "cancellation"]
+  };
+}
+
+function scoreCounterEvidenceCitation(citation, index, ticker, intent, mode) {
+  const text = String(citation.text || "");
+  const lower = text.toLowerCase();
+  const terms = mode.terms.filter((term) => lower.includes(term.toLowerCase())).slice(0, 5);
+  const riskHits = intent.id === "risk"
+    ? POSITIVE_TERMS.filter((term) => lower.includes(term.toLowerCase())).slice(0, 4)
+    : NEGATIVE_TERMS.filter((term) => lower.includes(term.toLowerCase())).slice(0, 4);
+  const companyOffset = citation.ticker && ticker && citation.ticker !== ticker ? 8 : 0;
+  const hitCount = terms.length + riskHits.length + (companyOffset ? 1 : 0);
+  const score = hitCount
+    ? Math.round(terms.length * 16 + riskHits.length * 6 + companyOffset + Math.min(18, Number(citation.score) || 0) * 0.35 - index * 2)
+    : 0;
+  return {
+    citation,
+    score: Math.max(0, score),
+    terms: (terms.length ? terms : riskHits).slice(0, 4),
+    label: mode.label,
+    title: `${citation.citationId} - ${citation.ticker} ${citation.type} / ${citation.section}`
+  };
+}
+
+function makeCounterEvidenceFallbackRows(citations, mode) {
+  return citations.slice(0, 2).map((citation) => ({
+    citation,
+    score: 0,
+    terms: [mode.label.toLowerCase()],
+    label: "Manual check",
+    title: `${citation.citationId} - read for disconfirming evidence`
+  }));
+}
+
+function makeCounterCitationLink(row) {
+  const citation = row.citation || {};
+  const citationId = citation.citationId || "C?";
+  return `<a class="citation-link" href="#evidence-${escapeAttr(citationId)}" data-citation-id="${escapeAttr(citationId)}" title="Open ${escapeAttr(citationId)} in the evidence reader">${escapeHtml(citationId)}</a>`;
+}
+
+function makeCounterEvidenceQuestions(ticker, intent, top, originalQuestion) {
+  const anchor = top?.citation?.citationId || "the weakest citation";
+  if (intent.id === "risk") {
+    return [
+      `Which $${ticker} risk is most mitigated by ${anchor}?`,
+      `What would make the $${ticker} risk case worse despite the mitigants?`,
+      `Which filing source should I import to verify $${ticker} risk severity?`
+    ];
+  }
+  if (intent.id === "valuation") {
+    return [
+      `What valuation assumption would ${anchor} challenge first?`,
+      `What bear-case multiple should I test for $${ticker}?`,
+      `Which source would disprove the $${ticker} valuation read-through?`
+    ];
+  }
+  return [
+    `What would disprove the $${ticker} answer?`,
+    `Which passage weakens the answer most: ${anchor}?`,
+    `What source would change the answer to: ${snippet(originalQuestion, 72)}`
+  ];
+}
+
+function makeClaimLedger(question, citations, rankedCompanies, intent, thesis, valuationRead, sourceTrust, sourceAudit, gapRadar, counterChallenge, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || rankedCompanies[0]?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const filingCount = citations.filter((citation) => /filing|10-k|10-q/i.test(citation.type)).length;
+  const callCount = citations.filter((citation) => /call|q&a|prepared|management/i.test(`${citation.type} ${citation.section}`)).length;
+  const modelCount = citations.filter((citation) => /model|valuation/i.test(citation.type)).length;
+  const liveOrImported = (sourceTrust.live || 0) + (sourceTrust.mock || 0) + (sourceTrust.imported || 0);
+  const rows = [
+    {
+      label: "Core thesis",
+      status: citations.length >= 3 && sourceAudit.quality >= 70 ? "supported" : "review",
+      claim: stripHtml(thesis),
+      citations: citations.slice(0, 2),
+      note: citations.length >= 3 ? "Primary conclusion has multiple retrieved citations." : "Needs at least three citations before relying on the thesis."
+    },
+    {
+      label: "Source bridge",
+      status: filingCount && (callCount || modelCount) ? "supported" : filingCount ? "review" : "challenge",
+      claim: `${ticker} answer connects ${filingCount || 0} filing, ${callCount || 0} call, and ${modelCount || 0} model source${filingCount + callCount + modelCount === 1 ? "" : "s"}.`,
+      citations: citations.filter((citation) => /filing|10-k|10-q|call|model|valuation/i.test(`${citation.type} ${citation.section}`)).slice(0, 3),
+      note: filingCount && (callCount || modelCount) ? "Filing evidence is triangulated with another source type." : "Add one more source type to reduce single-source dependence."
+    },
+    {
+      label: "Counter-case",
+      status: counterChallenge.challengeScore >= 72 ? "challenge" : counterChallenge.challengeScore >= 45 ? "review" : "supported",
+      claim: counterChallenge.status,
+      citations: (counterChallenge.rows || []).map((row) => row.citation).filter(Boolean).slice(0, 2),
+      note: counterChallenge.challengeScore >= 72 ? "Strong contrary or mitigating passage requires review." : "Counter-evidence pressure is visible and bounded."
+    },
+    {
+      label: "Valuation read-through",
+      status: modelCount || intent.id === "valuation" ? (modelCount ? "supported" : "review") : "review",
+      claim: stripHtml(valuationRead),
+      citations: citations.filter((citation) => /model|valuation|multiple|discount|cash/i.test(`${citation.type} ${citation.section} ${citation.text}`)).slice(0, 2),
+      note: modelCount ? "A model or valuation source is tied to the read-through." : "Valuation language should be supported by a model source before committee use."
+    },
+    {
+      label: "Data disclosure",
+      status: liveOrImported ? "supported" : "review",
+      claim: liveOrImported ? `${ticker} answer uses ${liveOrImported} imported/live/SEC-labeled citation${liveOrImported === 1 ? "" : "s"}.` : `${ticker} answer still depends on sample data.`,
+      citations: citations.slice(0, 1),
+      note: liveOrImported ? "Disclosure can say user or live-source material is in the stack." : "Export should clearly disclose that sample data is being used."
+    }
+  ];
+  const supportCount = rows.filter((row) => row.status === "supported").length;
+  const reviewCount = rows.filter((row) => row.status === "review").length;
+  const challengeCount = rows.filter((row) => row.status === "challenge").length;
+  const ledgerScore = Math.max(1, Math.min(100, Math.round((supportCount * 100 + reviewCount * 66 + challengeCount * 32) / Math.max(rows.length, 1))));
+  const className = challengeCount ? "challenge" : reviewCount ? "review" : "ready";
+  const status = challengeCount ? "Claims need challenge review" : reviewCount ? "Claims need review" : "Claims tied to evidence";
+  const questions = makeClaimLedgerQuestions(ticker, rows, question, intent);
+
+  return {
+    status,
+    className,
+    ledgerScore,
+    supportCount,
+    reviewCount,
+    challengeCount,
+    rows,
+    questions,
+    plainText: `Claim ledger: ${status} (${ledgerScore}/100). Supported: ${supportCount}. Review: ${reviewCount}. Challenge: ${challengeCount}.`,
+    html: `
+      <section class="claim-ledger-card ${escapeAttr(className)}" aria-label="Claim ledger">
+        <div class="claim-ledger-heading">
+          <div>
+            <span>Claim Ledger</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${ledgerScore}/100</em>
+        </div>
+        <div class="claim-ledger-stats">
+          <span><b>${supportCount}</b> supported</span>
+          <span><b>${reviewCount}</b> review</span>
+          <span><b>${challengeCount}</b> challenge</span>
+        </div>
+        <div class="claim-ledger-list">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.status)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                <p>${escapeHtml(snippet(row.claim, 190))}</p>
+                <em>${escapeHtml(row.note)}</em>
+                <div class="claim-ledger-cites">${makeClaimCitationLinks(row.citations)}</div>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="claim-ledger-actions">
+          ${questions.map((item) => `<button type="button" data-claim-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeClaimCitationLinks(citations) {
+  const rows = (citations || []).filter(Boolean);
+  if (!rows.length) return `<span>No direct citation</span>`;
+  return rows.map((citation) => {
+    const citationId = citation.citationId || "C?";
+    return `<a class="citation-link" href="#evidence-${escapeAttr(citationId)}" data-citation-id="${escapeAttr(citationId)}" title="Open ${escapeAttr(citationId)} in the evidence reader">${escapeHtml(citationId)}</a>`;
+  }).join("");
+}
+
+function makeClaimLedgerQuestions(ticker, rows, question, intent) {
+  const weak = rows.find((row) => row.status === "challenge") || rows.find((row) => row.status === "review") || rows[0];
+  const weakLabel = weak ? weak.label.toLowerCase() : "claim";
+  const questions = [
+    `Which claim is weakest in the $${ticker} answer?`,
+    `What source would upgrade the ${weakLabel} claim for $${ticker}?`,
+    `Audit every claim behind: ${snippet(question, 78)}`
+  ];
+  if (intent.id === "risk") {
+    questions[1] = `Which $${ticker} risk claim needs the strongest separate citation?`;
+  }
+  return questions;
+}
+
+function makeReviewerHandoffQueue(question, citations, intent, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const tasks = [];
+  const weakCitation = citationMatrix.rows.find((row) => row.status === "replace") || citationMatrix.rows.find((row) => row.status === "review");
+  if (weakCitation) {
+    tasks.push(makeReviewerTask({
+      lane: "Evidence",
+      priority: weakCitation.status === "replace" ? "high" : "medium",
+      title: `Review ${weakCitation.citation.citationId} reliability`,
+      detail: `${weakCitation.citation.citationId} scored ${weakCitation.score}/100. Replace or confirm this citation before export.`,
+      question: `Why is ${weakCitation.citation.citationId} weak, and what should replace it for $${ticker}?`,
+      citation: weakCitation.citation
+    }));
+  }
+
+  (sourceUpgrade.actions || [])
+    .filter((action) => action.status !== "ready")
+    .slice(0, 3)
+    .forEach((action) => {
+      tasks.push(makeReviewerTask({
+        lane: "Source",
+        priority: action.status === "block" ? "high" : "medium",
+        title: action.title,
+        detail: action.body,
+        question: action.question,
+        citation: action.citation
+      }));
+    });
+
+  (claimLedger.rows || [])
+    .filter((row) => row.status !== "supported")
+    .slice(0, 3)
+    .forEach((row) => {
+      tasks.push(makeReviewerTask({
+        lane: row.status === "challenge" ? "Research lead" : "Analyst",
+        priority: row.status === "challenge" ? "high" : "medium",
+        title: `Verify ${row.label.toLowerCase()} claim`,
+        detail: row.note,
+        question: `What evidence would upgrade the ${row.label.toLowerCase()} claim for $${ticker}?`,
+        citation: row.citations?.[0]
+      }));
+    });
+
+  if ((gapRadar.rows || []).some((row) => row.status === "gap")) {
+    tasks.push(makeReviewerTask({
+      lane: "Source",
+      priority: "high",
+      title: gapRadar.nextSource.title,
+      detail: gapRadar.nextSource.note,
+      question: `${gapRadar.nextSource.title}: what should I import for $${ticker}?`
+    }));
+  }
+
+  if (counterChallenge.challengeScore >= 45) {
+    tasks.push(makeReviewerTask({
+      lane: "Red team",
+      priority: counterChallenge.challengeScore >= 72 ? "high" : "medium",
+      title: counterChallenge.status,
+      detail: `Counter-evidence pressure is ${counterChallenge.challengeScore}/100.`,
+      question: `What would disprove the current $${ticker} answer?`,
+      citation: counterChallenge.rows?.[0]?.citation
+    }));
+  }
+
+  if (!tasks.length) {
+    tasks.push(makeReviewerTask({
+      lane: "Research lead",
+      priority: "low",
+      title: "Final read-through",
+      detail: "No blocking review item detected. Confirm disclosure, citations, and export format.",
+      question: `Draft a final reviewer note for the $${ticker} answer.`
+    }));
+  }
+
+  const uniqueTasks = dedupeReviewerTasks(tasks).slice(0, 7);
+  const highCount = uniqueTasks.filter((task) => task.priority === "high").length;
+  const mediumCount = uniqueTasks.filter((task) => task.priority === "medium").length;
+  const lanes = Array.from(new Set(uniqueTasks.map((task) => task.lane)));
+  const queueScore = Math.max(1, Math.min(100, Math.round(100 - highCount * 16 - mediumCount * 7 + (uniqueTasks.length <= 2 ? 5 : 0))));
+  const className = highCount ? "blocked" : mediumCount ? "review" : "ready";
+  const status = className === "ready" ? "Reviewer handoff ready" : className === "blocked" ? "Reviewer blockers open" : "Reviewer queue open";
+  const questions = uniqueTasks.slice(0, 3).map((task) => task.question);
+
+  return {
+    status,
+    className,
+    queueScore,
+    highCount,
+    mediumCount,
+    lanes,
+    tasks: uniqueTasks,
+    questions,
+    plainText: `Reviewer handoff queue: ${status} (${queueScore}/100). High: ${highCount}. Medium: ${mediumCount}. Lanes: ${lanes.join(", ")}.`,
+    html: `
+      <section class="reviewer-queue-card ${escapeAttr(className)}" aria-label="Reviewer handoff queue">
+        <div class="reviewer-queue-heading">
+          <div>
+            <span>Reviewer Handoff Queue</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${queueScore}/100</em>
+        </div>
+        <div class="reviewer-queue-stats">
+          <span><b>${highCount}</b> high</span>
+          <span><b>${mediumCount}</b> medium</span>
+          <span><b>${uniqueTasks.length}</b> tasks</span>
+          <span><b>${lanes.length}</b> lanes</span>
+        </div>
+        <div class="reviewer-queue-list">
+          ${uniqueTasks.map((task) => `
+            <article class="${escapeAttr(task.priority)}">
+              <span>${escapeHtml(task.priority)}</span>
+              <div>
+                <strong>${escapeHtml(task.title)}</strong>
+                <p>${escapeHtml(task.detail)}</p>
+                <em>${escapeHtml(task.lane)} reviewer | ${escapeHtml(task.sla)}</em>
+                ${task.citation ? `<div class="reviewer-queue-cite">${makeMatrixCitationLink(task.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="reviewer-queue-actions">
+          ${questions.map((item) => `<button type="button" data-reviewer-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeReviewerTask({ lane, priority, title, detail, question, citation }) {
+  const normalizedPriority = normalizeChoice(priority, ["high", "medium", "low"], "medium");
+  return {
+    lane,
+    priority: normalizedPriority,
+    title,
+    detail,
+    question,
+    citation,
+    sla: normalizedPriority === "high" ? "Before export" : normalizedPriority === "medium" ? "Before committee" : "Final pass"
+  };
+}
+
+function dedupeReviewerTasks(tasks) {
+  const seen = new Set();
+  return tasks.filter((task) => {
+    const key = `${task.lane}|${task.title}|${task.priority}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function makeDecisionMemoComposer(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const challengeInverse = Math.max(0, 100 - (counterChallenge.challengeScore || 0));
+  const memoScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.18 +
+    (sourceAudit.quality || 50) * 0.14 +
+    (citationMatrix.average || 60) * 0.13 +
+    (sourceUpgrade.readiness || 60) * 0.11 +
+    (gapRadar.readiness || 50) * 0.13 +
+    (claimLedger.ledgerScore || 65) * 0.12 +
+    (reviewerQueue.queueScore || 70) * 0.11 +
+    challengeInverse * 0.08
+  )));
+  const stance = chooseDecisionMemoStance(memoScore, gapRadar, counterChallenge, claimLedger, reviewerQueue, sourceUpgrade);
+  const primaryTask = reviewerQueue.tasks?.[0];
+  const nextUpgrade = sourceUpgrade.actions?.find((action) => action.status !== "ready") || sourceUpgrade.actions?.[0];
+  const nextAction = primaryTask
+    ? `${primaryTask.title} (${primaryTask.lane}, ${primaryTask.sla}).`
+    : nextUpgrade
+      ? `${nextUpgrade.title}: ${nextUpgrade.body}`
+      : "Run a final export review, then download PDF or MD.";
+  const topCitations = citations.slice(0, 3);
+  const evidenceRows = topCitations.map((citation) => ({
+    id: citation.citationId || "C?",
+    label: `${citation.company} ${citation.type}`,
+    body: snippet(citation.text, 118),
+    link: makeMatrixCitationLink(citation)
+  }));
+  const riskLine = [
+    `${counterChallenge.status || "Counter-evidence checked"} (${counterChallenge.challengeScore || 0}/100 pressure).`,
+    `${reviewerQueue.highCount || 0} high and ${reviewerQueue.mediumCount || 0} medium reviewer item${(reviewerQueue.mediumCount || 0) === 1 ? "" : "s"}.`,
+    `${claimLedger.challengeCount || 0} challenged claim${(claimLedger.challengeCount || 0) === 1 ? "" : "s"}.`
+  ].join(" ");
+  const sourceLine = `${sourceAudit.quality}/100 source quality, ${sourceAudit.coverageLabel.toLowerCase()} coverage, ${sourceAudit.balance}; ${sourceTrust.label}.`;
+  const memoSections = [
+    { label: "Decision", body: stance.note },
+    { label: "Thesis", body: stripHtml(thesis) },
+    { label: "Risks", body: riskLine },
+    { label: "Source posture", body: sourceLine },
+    { label: "Valuation read", body: stripHtml(valuationRead) },
+    { label: "Next action", body: nextAction }
+  ];
+  const questions = makeDecisionMemoQuestions(ticker, stance, question, primaryTask, nextUpgrade, intent);
+  const evidencePlain = evidenceRows.map((row) => `${row.id}: ${row.label} - ${row.body}`).join(" | ");
+
+  return {
+    status: stance.status,
+    className: stance.className,
+    decision: stance.decision,
+    memoScore,
+    sections: memoSections,
+    evidenceRows,
+    questions,
+    plainText: [
+      `Decision memo composer: ${stance.decision} (${memoScore}/100).`,
+      `Thesis: ${stripHtml(thesis)}`,
+      `Evidence: ${evidencePlain || "No evidence rows available."}`,
+      `Risks: ${riskLine}`,
+      `Next action: ${nextAction}`
+    ].join("\n"),
+    html: `
+      <section class="decision-memo-card ${escapeAttr(stance.className)}" aria-label="Decision memo composer">
+        <div class="decision-memo-heading">
+          <div>
+            <span>Decision Memo Composer</span>
+            <strong>${escapeHtml(stance.decision)}</strong>
+          </div>
+          <em>${memoScore}/100</em>
+        </div>
+        <p class="decision-memo-summary">${escapeHtml(stance.summary)}</p>
+        <div class="decision-memo-grid">
+          ${memoSections.map((section) => `
+            <article>
+              <span>${escapeHtml(section.label)}</span>
+              <p>${escapeHtml(section.body)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="decision-memo-evidence">
+          <span>Memo evidence</span>
+          ${evidenceRows.map((row) => `
+            <article>
+              <div>${row.link}</div>
+              <strong>${escapeHtml(row.label)}</strong>
+              <p>${escapeHtml(row.body)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="decision-memo-actions">
+          ${questions.map((item) => `<button type="button" data-memo-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function chooseDecisionMemoStance(memoScore, gapRadar, counterChallenge, claimLedger, reviewerQueue, sourceUpgrade) {
+  const blockers = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (sourceUpgrade.blockCount || 0);
+  const seriousGaps = (gapRadar.readiness || 0) < 58;
+  const seriousChallenge = (counterChallenge.challengeScore || 0) >= 72;
+  if (blockers || seriousGaps || seriousChallenge) {
+    const blockerNote = blockers
+      ? `${blockers} blocking item${blockers === 1 ? "" : "s"} detected; clear the reviewer queue and source gaps before final export.`
+      : "Evidence gap or counter-evidence pressure detected; strengthen the memo before final export.";
+    return {
+      className: "hold",
+      decision: "Hold for review",
+      status: "Review required",
+      summary: "The memo is useful for committee prep, but one or more source, claim, or counter-evidence checks should be cleared before treating it as export-ready.",
+      note: blockerNote
+    };
+  }
+  if (memoScore >= 84 && (reviewerQueue.mediumCount || 0) <= 1 && (gapRadar.readiness || 0) >= 76) {
+    return {
+      className: "ready",
+      decision: "Ready for committee draft",
+      status: "Draft ready",
+      summary: "The answer has enough evidence, review posture, and source discipline to become a concise committee memo.",
+      note: "Proceed with a committee draft, keeping citations visible and preserving the research-software disclosure."
+    };
+  }
+  return {
+    className: "review",
+    decision: "Draft with caveats",
+    status: "Caveated draft",
+    summary: "The memo is directionally usable, but reviewer notes and source upgrade items should remain attached.",
+    note: "Use the draft for discussion, then resolve watch items before sharing as a final PDF or MD memo."
+  };
+}
+
+function makeDecisionMemoQuestions(ticker, stance, question, primaryTask, nextUpgrade, intent) {
+  const firstIssue = primaryTask?.question || nextUpgrade?.question || `What must change before the $${ticker} memo is final?`;
+  const questions = [
+    `Draft a committee memo for the $${ticker} answer.`,
+    firstIssue,
+    `What would change the ${stance.decision.toLowerCase()} decision for $${ticker}?`
+  ];
+  if (intent.id === "risk") {
+    questions[0] = `Draft a risk committee memo for the $${ticker} answer.`;
+  }
+  if (intent.id === "valuation") {
+    questions[2] = `Which valuation assumption would change the $${ticker} memo stance?`;
+  }
+  questions.push(`Summarize the decision memo for: ${snippet(question, 76)}`);
+  return questions.slice(0, 3);
+}
+
+function makeBoardPackBuilder(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const topCitation = citations[0];
+  const evidenceCount = citations.length;
+  const blockerCount = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (sourceUpgrade.blockCount || 0);
+  const packScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.16 +
+    (decisionMemo.memoScore || 65) * 0.18 +
+    (citationMatrix.average || 65) * 0.14 +
+    (sourceAudit.quality || 50) * 0.13 +
+    (gapRadar.readiness || 50) * 0.13 +
+    (reviewerQueue.queueScore || 70) * 0.11 +
+    Math.max(0, 100 - (counterChallenge.challengeScore || 0)) * 0.08 +
+    (claimLedger.ledgerScore || 65) * 0.07
+  )));
+  const className = blockerCount ? "hold" : packScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Board pack ready" : className === "hold" ? "Board pack blocked" : "Board pack needs review";
+  const decisionLine = decisionMemo.decision || "Draft with caveats";
+  const riskLine = `${counterChallenge.status || "Counter-evidence checked"}; ${reviewerQueue.highCount || 0} high reviewer item${(reviewerQueue.highCount || 0) === 1 ? "" : "s"}.`;
+  const sourceLine = `${sourceAudit.coverageLabel} coverage with ${sourceAudit.balance}; ${sourceTrust.label}.`;
+  const packRows = [
+    {
+      label: "Cover",
+      title: `${ticker} ${intent.label.toLowerCase()} read`,
+      body: `${stripHtml(headline)} Confidence ${confidence}%.`
+    },
+    {
+      label: "Decision",
+      title: decisionLine,
+      body: decisionMemo.sections?.find((section) => section.label === "Decision")?.body || "Memo stance generated from citation quality and review status."
+    },
+    {
+      label: "Thesis",
+      title: "One-line read",
+      body: stripHtml(thesis)
+    },
+    {
+      label: "Evidence",
+      title: `${evidenceCount} cited passages`,
+      body: `${citationMatrix.average}/100 citation reliability. ${topCitation ? `${topCitation.citationId || "C1"} anchors the packet.` : "No anchor citation available."}`
+    },
+    {
+      label: "Risks",
+      title: `${counterChallenge.challengeScore || 0}/100 challenge pressure`,
+      body: riskLine
+    },
+    {
+      label: "Review",
+      title: reviewerQueue.status,
+      body: `${reviewerQueue.highCount || 0} high, ${reviewerQueue.mediumCount || 0} medium, ${reviewerQueue.tasks?.length || 0} total reviewer tasks.`
+    },
+    {
+      label: "Model",
+      title: "Valuation read-through",
+      body: stripHtml(valuationRead)
+    },
+    {
+      label: "Export",
+      title: "PDF + MD ready path",
+      body: blockerCount ? "Clear blockers before external sharing." : "Export after final citation and disclosure read-through."
+    }
+  ];
+  const contents = [
+    { label: "Decision slide", value: decisionLine },
+    { label: "Evidence appendix", value: `${evidenceCount} citations` },
+    { label: "Risk watch", value: `${counterChallenge.challengeScore || 0}/100` },
+    { label: "Reviewer page", value: `${reviewerQueue.tasks?.length || 0} tasks` }
+  ];
+  const evidenceRows = citations.slice(0, 4).map((citation) => ({
+    label: `${citation.citationId || "C?"} ${citation.company}`,
+    title: `${citation.type} - ${citation.section}`,
+    body: snippet(citation.text, 112),
+    link: makeMatrixCitationLink(citation)
+  }));
+  const questions = makeBoardPackQuestions(ticker, question, intent, className);
+  const summary = className === "ready"
+    ? `${ticker} can be turned into a compact board or IC packet with the current answer, citations, decision memo, and reviewer posture.`
+    : className === "hold"
+      ? `${ticker} has a useful packet draft, but blocker items should be resolved before sharing outside the desk.`
+      : `${ticker} has a packet draft with review notes still attached, best used for internal discussion first.`;
+
+  return {
+    status,
+    className,
+    packScore,
+    packRows,
+    contents,
+    evidenceRows,
+    questions,
+    plainText: [
+      `Board pack builder: ${status} (${packScore}/100).`,
+      `Contents: ${contents.map((item) => `${item.label}: ${item.value}`).join(" | ")}`,
+      `Source line: ${sourceLine}`,
+      `Rows: ${packRows.map((row) => `${row.label} - ${row.title}: ${row.body}`).join(" | ")}`,
+      `Questions: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="board-pack-card ${escapeAttr(className)}" aria-label="Board pack builder">
+        <div class="board-pack-heading">
+          <div>
+            <span>Board Pack Builder</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${packScore}/100</em>
+        </div>
+        <p class="board-pack-summary">${escapeHtml(summary)}</p>
+        <div class="board-pack-strip">
+          ${contents.map((item) => `
+            <span><b>${escapeHtml(item.label)}</b>${escapeHtml(item.value)}</span>
+          `).join("")}
+        </div>
+        <div class="board-pack-grid">
+          ${packRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(row.title)}</strong>
+              <p>${escapeHtml(row.body)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="board-pack-evidence">
+          <span>Packet evidence appendix</span>
+          ${evidenceRows.map((row) => `
+            <article>
+              <div>${row.link}</div>
+              <strong>${escapeHtml(row.label)}</strong>
+              <em>${escapeHtml(row.title)}</em>
+              <p>${escapeHtml(row.body)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="board-pack-actions">
+          ${questions.map((item) => `<button type="button" data-board-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeBoardPackQuestions(ticker, question, intent, className) {
+  const base = [
+    `Build a board pack outline for the $${ticker} answer.`,
+    `What is the first board-level challenge to the $${ticker} packet?`,
+    `Which citation should lead the $${ticker} evidence appendix?`
+  ];
+  if (intent.id === "risk") {
+    base[0] = `Build a board risk pack for the $${ticker} answer.`;
+    base[1] = `Which $${ticker} risk would a board member challenge first?`;
+  }
+  if (intent.id === "valuation") {
+    base[2] = `Which valuation source should anchor the $${ticker} board pack?`;
+  }
+  if (className === "hold") {
+    base[1] = `What must be fixed before sharing the $${ticker} board pack?`;
+  }
+  base.push(`Turn this answer into board talking points: ${snippet(question, 72)}`);
+  return base.slice(0, 3);
+}
+
+function makeCommitteeQaSimulator(question, citations, intent, confidence, valuationRead, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const challengeInverse = Math.max(0, 100 - (counterChallenge.challengeScore || 0));
+  const qaScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.15 +
+    (boardPack.packScore || 65) * 0.16 +
+    (decisionMemo.memoScore || 65) * 0.12 +
+    (sourceAudit.quality || 50) * 0.1 +
+    (citationMatrix.average || 65) * 0.12 +
+    (gapRadar.readiness || 50) * 0.12 +
+    (reviewerQueue.queueScore || 70) * 0.1 +
+    challengeInverse * 0.08 +
+    (claimLedger.ledgerScore || 65) * 0.05
+  )));
+  const blockers = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (sourceUpgrade.blockCount || 0);
+  const className = blockers || (counterChallenge.challengeScore || 0) >= 72
+    ? "blocked"
+    : qaScore >= 84 && (citationMatrix.weakCount || 0) <= 1
+      ? "ready"
+      : "review";
+  const status = className === "ready" ? "Q&A ready" : className === "blocked" ? "Q&A blockers open" : "Q&A prep needed";
+  const rows = makeCommitteeQaRows(ticker, question, citations, intent, valuationRead, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, boardPack, className);
+  const highCount = rows.filter((row) => row.priority === "high").length;
+  const summary = className === "ready"
+    ? `${ticker} has enough evidence and reviewer posture to face a first committee Q&A. Keep citation links visible.`
+    : className === "blocked"
+      ? `${ticker} has ${blockers || 1} open blocker${(blockers || 1) === 1 ? "" : "s"} that a skeptical reviewer would press before export.`
+      : `${ticker} has a useful Q&A prep set, but the weakest evidence and counter-case questions should be rehearsed first.`;
+  const questions = rows.slice(0, 3).map((row) => row.question);
+
+  return {
+    status,
+    className,
+    qaScore,
+    highCount,
+    rows,
+    questions,
+    plainText: [
+      `Committee Q&A simulator: ${status} (${qaScore}/100). High-priority questions: ${highCount}.`,
+      `Q&A rows: ${rows.map((row) => `${row.lane}: ${row.question} Answer angle: ${row.answer}`).join(" | ")}`,
+      `Follow-ups: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="committee-qa-card ${escapeAttr(className)}" aria-label="Committee Q&A simulator">
+        <div class="committee-qa-heading">
+          <div>
+            <span>Committee Q&A Simulator</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${qaScore}/100</em>
+        </div>
+        <p class="committee-qa-summary">${escapeHtml(summary)}</p>
+        <div class="committee-qa-stats">
+          <span><b>${rows.length}</b> questions</span>
+          <span><b>${highCount}</b> high</span>
+          <span><b>${citationMatrix.weakCount || 0}</b> weak cites</span>
+          <span><b>${counterChallenge.challengeScore || 0}</b> challenge</span>
+        </div>
+        <div class="committee-qa-list">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.priority)}">
+              <span>${escapeHtml(row.lane)}</span>
+              <div>
+                <strong>${escapeHtml(row.question)}</strong>
+                <p>${escapeHtml(row.answer)}</p>
+                <em>${escapeHtml(row.owner)} | ${escapeHtml(row.readiness)}</em>
+                ${row.citation ? `<div class="committee-qa-cite">${makeMatrixCitationLink(row.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="committee-qa-actions">
+          ${questions.map((item) => `<button type="button" data-qa-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeCommitteeQaRows(ticker, question, citations, intent, valuationRead, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, boardPack, className) {
+  const topCitation = citations[0];
+  const weakCitation = citationMatrix.rows?.find((row) => row.status !== "strong")?.citation || citations[citations.length - 1];
+  const reviewerTask = reviewerQueue.tasks?.[0];
+  const boardQuestion = boardPack.questions?.[1] || `What is the strongest challenge to the $${ticker} board pack?`;
+  const rows = [
+    {
+      lane: "Thesis",
+      priority: className === "ready" ? "medium" : "high",
+      question: intent.id === "risk" ? `What makes the $${ticker} risk answer underwritable rather than generic?` : `Why should the committee trust the $${ticker} conclusion?`,
+      answer: topCitation ? `Start with ${topCitation.citationId || "the lead citation"} and tie the answer to ${topCitation.type} / ${topCitation.section}.` : "Start with the answer thesis and state that more source coverage is needed.",
+      owner: "Research lead",
+      readiness: topCitation ? "Cited response" : "Needs source",
+      citation: topCitation
+    },
+    {
+      lane: "Evidence",
+      priority: weakCitation ? "high" : "medium",
+      question: weakCitation ? `What if ${weakCitation.citationId || "the weakest citation"} is not enough evidence for $${ticker}?` : `Which source anchors the $${ticker} answer?`,
+      answer: weakCitation ? `Acknowledge the citation-quality limit and ask for a replacement or corroborating filing/call passage before external export.` : "Use the highest-ranked citation and keep the evidence appendix visible.",
+      owner: "Analyst",
+      readiness: weakCitation ? "Needs verification" : "Ready",
+      citation: weakCitation
+    },
+    {
+      lane: "Counter-case",
+      priority: (counterChallenge.challengeScore || 0) >= 45 ? "high" : "medium",
+      question: `What would disprove the current $${ticker} answer?`,
+      answer: counterChallenge.rows?.[0]?.body || counterChallenge.status || "Look for contrary filing language, weaker management tone, or valuation assumptions that reverse the conclusion.",
+      owner: "Red team",
+      readiness: `${counterChallenge.challengeScore || 0}/100 pressure`,
+      citation: counterChallenge.rows?.[0]?.citation
+    },
+    {
+      lane: "Valuation",
+      priority: intent.id === "valuation" ? "high" : "medium",
+      question: `Which valuation assumption would change the $${ticker} read first?`,
+      answer: stripHtml(valuationRead).slice(0, 220),
+      owner: "Model reviewer",
+      readiness: intent.id === "valuation" ? "Primary topic" : "Secondary check",
+      citation: citations.find((citation) => /model|valuation/i.test(citation.type))
+    },
+    {
+      lane: "Process",
+      priority: reviewerTask?.priority || "low",
+      question: reviewerTask?.question || boardQuestion || `What must be checked before the $${ticker} answer is exported?`,
+      answer: reviewerTask ? reviewerTask.detail : `Use the board pack status, source audit, and gap radar before PDF or MD export. Current prompt: ${snippet(question, 92)}`,
+      owner: reviewerTask?.lane || "Research lead",
+      readiness: reviewerTask?.sla || "Final pass",
+      citation: reviewerTask?.citation
+    },
+    {
+      lane: "Gap",
+      priority: (gapRadar.readiness || 0) < 60 ? "high" : "medium",
+      question: `What source would most improve the $${ticker} Q&A defense?`,
+      answer: gapRadar.nextSource ? `${gapRadar.nextSource.title}: ${gapRadar.nextSource.note}` : "Add a fresh filing, transcript, or model support passage tied to the central claim.",
+      owner: "Source reviewer",
+      readiness: `${gapRadar.readiness || 0}/100 gap readiness`,
+      citation: null
+    }
+  ];
+  return rows.slice(0, 6);
+}
+
+function makeBriefingScriptCoach(question, citations, intent, confidence, headline, thesis, valuationRead, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const topCitation = citations[0];
+  const secondCitation = citations[1];
+  const challenge = committeeQa.rows?.find((row) => row.priority === "high") || committeeQa.rows?.[0];
+  const scriptScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.14 +
+    (decisionMemo.memoScore || 65) * 0.14 +
+    (boardPack.packScore || 65) * 0.14 +
+    (committeeQa.qaScore || 65) * 0.16 +
+    (sourceAudit.quality || 50) * 0.12 +
+    (citationMatrix.average || 65) * 0.1 +
+    (gapRadar.readiness || 50) * 0.1 +
+    Math.max(0, 100 - (counterChallenge.challengeScore || 0)) * 0.06 +
+    (claimLedger.ledgerScore || 65) * 0.04
+  )));
+  const openRisks = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (committeeQa.highCount || 0);
+  const className = openRisks > 2 ? "hold" : scriptScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Briefing ready" : className === "hold" ? "Rehearsal blockers" : "Rehearse before sharing";
+  const scriptRows = [
+    {
+      label: "Open",
+      time: "10 sec",
+      body: `The question is ${stripHtml(question)}. CiteAlpha's current read is ${stripHtml(headline)}`
+    },
+    {
+      label: "Thesis",
+      time: "25 sec",
+      body: stripHtml(thesis)
+    },
+    {
+      label: "Evidence",
+      time: "35 sec",
+      body: topCitation
+        ? `Lead with ${topCitation.citationId || "C1"} from ${topCitation.company} ${topCitation.type}: ${snippet(topCitation.text, 150)}`
+        : "State that the evidence stack needs a primary filing or transcript anchor before external use."
+    },
+    {
+      label: "Second proof",
+      time: "25 sec",
+      body: secondCitation
+        ? `Use ${secondCitation.citationId || "C2"} to corroborate the claim: ${snippet(secondCitation.text, 130)}`
+        : "Add one corroborating source before the briefing becomes final."
+    },
+    {
+      label: "Risk",
+      time: "30 sec",
+      body: challenge ? `${challenge.question} Answer angle: ${challenge.answer}` : counterChallenge.status || "State the main counter-case and what evidence would change the answer."
+    },
+    {
+      label: "Close",
+      time: "15 sec",
+      body: `${decisionMemo.decision || "Draft with caveats"}. Next step: ${reviewerQueue.tasks?.[0]?.title || "run final citation and disclosure review before export"}.`
+    }
+  ];
+  const rehearsalRows = [
+    { label: "Clarity", value: scriptScore >= 78 ? "Tight" : "Needs tightening", note: "Keep the thesis to one sentence before evidence." },
+    { label: "Citation discipline", value: `${citationMatrix.average || 0}/100`, note: sourceTrust.label },
+    { label: "Objection prep", value: `${committeeQa.highCount || 0} high`, note: "Use the Q&A panel for likely pushback." },
+    { label: "Disclosure", value: "Research-only", note: "Do not present as investment advice." }
+  ];
+  const questions = makeBriefingScriptQuestions(ticker, intent, className, question);
+  const summary = className === "ready"
+    ? `${ticker} has a concise spoken brief ready for a founder demo, IC readout, or investor research session.`
+    : className === "hold"
+      ? `${ticker} needs rehearsal because the script still carries open high-priority review or Q&A risk.`
+      : `${ticker} has a workable script, but it should be rehearsed once with the toughest Q&A before sharing.`;
+
+  return {
+    status,
+    className,
+    scriptScore,
+    scriptRows,
+    rehearsalRows,
+    questions,
+    plainText: [
+      `Briefing script coach: ${status} (${scriptScore}/100).`,
+      `Script: ${scriptRows.map((row) => `${row.label} (${row.time}): ${row.body}`).join(" | ")}`,
+      `Rehearsal: ${rehearsalRows.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `Prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="briefing-script-card ${escapeAttr(className)}" aria-label="Briefing script coach">
+        <div class="briefing-script-heading">
+          <div>
+            <span>Briefing Script Coach</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${scriptScore}/100</em>
+        </div>
+        <p class="briefing-script-summary">${escapeHtml(summary)}</p>
+        <div class="briefing-script-rehearsal">
+          ${rehearsalRows.map((row) => `
+            <span><b>${escapeHtml(row.label)}</b>${escapeHtml(row.value)}<em>${escapeHtml(row.note)}</em></span>
+          `).join("")}
+        </div>
+        <div class="briefing-script-list">
+          ${scriptRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.time)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                <p>${escapeHtml(row.body)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="briefing-script-actions">
+          ${questions.map((item) => `<button type="button" data-briefing-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeBriefingScriptQuestions(ticker, intent, className, question) {
+  const questions = [
+    `Turn the $${ticker} answer into a 90-second spoken briefing.`,
+    `What is the toughest objection to rehearse for $${ticker}?`,
+    `Rewrite the $${ticker} briefing for a retail investor.`
+  ];
+  if (intent.id === "risk") {
+    questions[0] = `Turn the $${ticker} risk answer into a 90-second risk briefing.`;
+  }
+  if (intent.id === "valuation") {
+    questions[2] = `Rewrite the $${ticker} valuation briefing with clearer assumptions.`;
+  }
+  if (className === "hold") {
+    questions[1] = `What must be fixed before presenting the $${ticker} briefing?`;
+  }
+  questions.push(`Make this briefing sharper: ${snippet(question, 72)}`);
+  return questions.slice(0, 3);
+}
+
+function makeFollowUpPackComposer(question, citations, intent, confidence, headline, thesis, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const topCitation = citations[0];
+  const secondCitation = citations[1];
+  const openReview = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (committeeQa.highCount || 0);
+  const deliveryScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.12 +
+    (briefingScript.scriptScore || 65) * 0.18 +
+    (boardPack.packScore || 65) * 0.13 +
+    (committeeQa.qaScore || 65) * 0.12 +
+    (decisionMemo.memoScore || 65) * 0.1 +
+    (sourceAudit.quality || 50) * 0.1 +
+    (citationMatrix.average || 65) * 0.1 +
+    (gapRadar.readiness || 50) * 0.08 +
+    Math.max(0, 100 - (counterChallenge.challengeScore || 0)) * 0.05 +
+    (claimLedger.ledgerScore || 65) * 0.02
+  )));
+  const className = openReview > 2 ? "hold" : deliveryScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Follow-up ready" : className === "hold" ? "Hold follow-up" : "Review follow-up";
+  const subject = `${ticker} research follow-up: ${stripHtml(headline).slice(0, 72)}`;
+  const deliveryRows = [
+    {
+      label: "Subject",
+      title: subject,
+      body: "Clear, ticker-specific, and tied to the current research question."
+    },
+    {
+      label: "Opening",
+      title: "Plain-English context",
+      body: `Following the question "${stripHtml(question)}", the current read is ${decisionMemo.decision || "a caveated research draft"}.`
+    },
+    {
+      label: "Key point",
+      title: stripHtml(headline),
+      body: stripHtml(thesis)
+    },
+    {
+      label: "Evidence",
+      title: `${citations.length} cited source${citations.length === 1 ? "" : "s"}`,
+      body: topCitation ? `${topCitation.citationId || "C1"}: ${snippet(topCitation.text, 132)}` : "Add a lead citation before sharing externally."
+    },
+    {
+      label: "Caveat",
+      title: "Research-only disclosure",
+      body: `${sourceTrust.label}. ${sourceAudit.coverageLabel} coverage. This is research software output, not investment advice.`
+    },
+    {
+      label: "Next ask",
+      title: reviewerQueue.tasks?.[0]?.title || "Choose the next research step",
+      body: reviewerQueue.tasks?.[0]?.question || `Would you like the next pass to verify the weakest $${ticker} citation or expand the evidence appendix?`
+    }
+  ];
+  const checklistRows = [
+    { label: "Citations", value: `${citationMatrix.average || 0}/100`, note: secondCitation ? "Two proof points available" : "Needs second proof" },
+    { label: "Q&A", value: `${committeeQa.qaScore || 0}/100`, note: `${committeeQa.highCount || 0} high-priority prompts` },
+    { label: "Script", value: `${briefingScript.scriptScore || 0}/100`, note: briefingScript.status },
+    { label: "Review", value: `${openReview} open`, note: openReview ? "Keep caveats attached" : "Ready for final read" }
+  ];
+  const questions = makeFollowUpPackQuestions(ticker, intent, className, question);
+  const summary = className === "ready"
+    ? `${ticker} has a concise follow-up ready for a pilot user, investor note, or internal research handoff.`
+    : className === "hold"
+      ? `${ticker} should not be shared externally until high-priority review and Q&A risks are resolved.`
+      : `${ticker} has a useful follow-up draft; keep caveats and next asks visible until review is done.`;
+
+  return {
+    status,
+    className,
+    deliveryScore,
+    subject,
+    deliveryRows,
+    checklistRows,
+    questions,
+    plainText: [
+      `Follow-up pack composer: ${status} (${deliveryScore}/100).`,
+      `Subject: ${subject}`,
+      `Delivery rows: ${deliveryRows.map((row) => `${row.label}: ${row.title} - ${row.body}`).join(" | ")}`,
+      `Checklist: ${checklistRows.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `Prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="follow-up-pack-card ${escapeAttr(className)}" aria-label="Follow-up pack composer">
+        <div class="follow-up-pack-heading">
+          <div>
+            <span>Follow-Up Pack Composer</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${deliveryScore}/100</em>
+        </div>
+        <p class="follow-up-pack-summary">${escapeHtml(summary)}</p>
+        <div class="follow-up-pack-checks">
+          ${checklistRows.map((row) => `
+            <span><b>${escapeHtml(row.label)}</b>${escapeHtml(row.value)}<em>${escapeHtml(row.note)}</em></span>
+          `).join("")}
+        </div>
+        <div class="follow-up-pack-list">
+          ${deliveryRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.body)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="follow-up-pack-actions">
+          ${questions.map((item) => `<button type="button" data-follow-up-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeFollowUpPackQuestions(ticker, intent, className, question) {
+  const questions = [
+    `Draft a follow-up email for the $${ticker} research answer.`,
+    `What caveat must stay in the $${ticker} follow-up?`,
+    `What should the next research ask be for $${ticker}?`
+  ];
+  if (intent.id === "risk") {
+    questions[0] = `Draft a risk follow-up email for the $${ticker} answer.`;
+  }
+  if (intent.id === "valuation") {
+    questions[2] = `What valuation assumption should the $${ticker} follow-up ask to verify next?`;
+  }
+  if (className === "hold") {
+    questions[1] = `What blocks the $${ticker} follow-up from being shared?`;
+  }
+  questions.push(`Turn this into a concise follow-up: ${snippet(question, 72)}`);
+  return questions.slice(0, 3);
+}
+
+function makeReplyObjectionHandler(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const leadCitation = citations[0];
+  const weakCitation = citationMatrix.rows?.find((row) => row.status !== "strong")?.citation || null;
+  const openItems = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (committeeQa.highCount || 0);
+  const replyScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.1 +
+    (followUpPack.deliveryScore || 65) * 0.18 +
+    (briefingScript.scriptScore || 65) * 0.12 +
+    (committeeQa.qaScore || 65) * 0.12 +
+    (boardPack.packScore || 65) * 0.1 +
+    (decisionMemo.memoScore || 65) * 0.08 +
+    (sourceAudit.quality || 50) * 0.1 +
+    (citationMatrix.average || 65) * 0.08 +
+    (gapRadar.readiness || 50) * 0.07 +
+    Math.max(0, 100 - (counterChallenge.challengeScore || 0)) * 0.05
+  )));
+  const className = openItems > 2 ? "hold" : replyScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Replies ready" : className === "hold" ? "Reply blockers open" : "Reply prep needed";
+  const rows = makeReplyObjectionRows(ticker, question, citations, intent, sourceTrust, sourceAudit, citationMatrix, counterChallenge, reviewerQueue, followUpPack, leadCitation, weakCitation, className);
+  const highCount = rows.filter((row) => row.priority === "high").length;
+  const questions = rows.slice(0, 3).map((row) => row.prompt);
+  const summary = className === "ready"
+    ? `${ticker} has reply handling ready for common pilot, investor, and committee pushback.`
+    : className === "hold"
+      ? `${ticker} has open review risk; keep replies careful and avoid overclaiming until the blockers are cleared.`
+      : `${ticker} has useful reply drafts, but the evidence and caveat responses should stay attached.`;
+
+  return {
+    status,
+    className,
+    replyScore,
+    highCount,
+    rows,
+    questions,
+    plainText: [
+      `Reply objection handler: ${status} (${replyScore}/100). High-priority replies: ${highCount}.`,
+      `Reply rows: ${rows.map((row) => `${row.label}: ${row.objection} Response: ${row.response} Next ask: ${row.nextAsk}`).join(" | ")}`,
+      `Prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="reply-objection-card ${escapeAttr(className)}" aria-label="Reply objection handler">
+        <div class="reply-objection-heading">
+          <div>
+            <span>Reply Objection Handler</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${replyScore}/100</em>
+        </div>
+        <p class="reply-objection-summary">${escapeHtml(summary)}</p>
+        <div class="reply-objection-stats">
+          <span><b>${rows.length}</b> replies</span>
+          <span><b>${highCount}</b> high</span>
+          <span><b>${openItems}</b> open</span>
+          <span><b>${sourceAudit.coverageLabel}</b> coverage</span>
+        </div>
+        <div class="reply-objection-list">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.priority)}">
+              <span>${escapeHtml(row.label)}</span>
+              <div>
+                <strong>${escapeHtml(row.objection)}</strong>
+                <p>${escapeHtml(row.response)}</p>
+                <em>${escapeHtml(row.nextAsk)}</em>
+                ${row.citation ? `<div class="reply-objection-cite">${makeMatrixCitationLink(row.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="reply-objection-actions">
+          ${questions.map((item) => `<button type="button" data-reply-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeReplyObjectionRows(ticker, question, citations, intent, sourceTrust, sourceAudit, citationMatrix, counterChallenge, reviewerQueue, followUpPack, leadCitation, weakCitation, className) {
+  const caveat = followUpPack.deliveryRows?.find((row) => row.label === "Caveat")?.body || `${sourceTrust.label}; research software output, not investment advice.`;
+  const nextAsk = followUpPack.deliveryRows?.find((row) => row.label === "Next ask")?.body || `Ask whether the next pass should verify the weakest $${ticker} citation.`;
+  const rows = [
+    {
+      label: "Trust",
+      priority: weakCitation || className === "hold" ? "high" : "medium",
+      objection: `How do I know the $${ticker} answer is source-backed?`,
+      response: leadCitation ? `Point to ${leadCitation.citationId || "the lead citation"} and explain that each claim is linked back to retrieved filing, call, or model evidence.` : "Acknowledge that a lead citation must be added before sharing externally.",
+      nextAsk: weakCitation ? `Offer to replace or corroborate ${weakCitation.citationId || "the weak citation"}.` : "Offer to open the evidence appendix.",
+      prompt: `Draft a trust-building reply for the $${ticker} follow-up.`,
+      citation: leadCitation
+    },
+    {
+      label: "Caveat",
+      priority: "medium",
+      objection: "Is this a buy or sell recommendation?",
+      response: caveat,
+      nextAsk: "Position the output as research workflow support and ask which source they want verified next.",
+      prompt: `Rewrite the $${ticker} caveat reply in plain English.`,
+      citation: null
+    },
+    {
+      label: "Counter",
+      priority: (counterChallenge.challengeScore || 0) >= 45 ? "high" : "medium",
+      objection: `What is the strongest reason the $${ticker} answer could be wrong?`,
+      response: counterChallenge.rows?.[0]?.body || counterChallenge.status || "Use the counter-evidence panel and name the disconfirming source to watch.",
+      nextAsk: "Ask whether they want the bear-case source expanded into a separate brief.",
+      prompt: `Draft a counter-case reply for the $${ticker} follow-up.`,
+      citation: counterChallenge.rows?.[0]?.citation
+    },
+    {
+      label: "Depth",
+      priority: citationMatrix.weakCount ? "medium" : "low",
+      objection: "Can you go deeper than this summary?",
+      response: `${sourceAudit.coverageLabel} coverage is active with ${sourceAudit.balance}. The next step is to expand the source stack or run a specific follow-up question.`,
+      nextAsk,
+      prompt: `Suggest the next deeper research question for $${ticker}.`,
+      citation: weakCitation || citations[1]
+    },
+    {
+      label: "Timing",
+      priority: "low",
+      objection: "What should I look at next?",
+      response: reviewerQueue.tasks?.[0]?.detail || `The next research step should focus on the source or claim most likely to change the answer to: ${snippet(question, 82)}`,
+      nextAsk: reviewerQueue.tasks?.[0]?.question || `Ask whether to run the next $${ticker} source check now.`,
+      prompt: `Draft the next-action reply for the $${ticker} follow-up.`,
+      citation: reviewerQueue.tasks?.[0]?.citation
+    },
+    {
+      label: "Export",
+      priority: intent.id === "risk" ? "medium" : "low",
+      objection: "Can you send this as a memo?",
+      response: "Yes. Use PDF for a polished memo or MD for editable notes, but keep citations, caveats, and review status attached.",
+      nextAsk: "Ask whether they want a PDF memo, editable MD, or a deeper source appendix.",
+      prompt: `Draft a memo-delivery reply for the $${ticker} follow-up.`,
+      citation: null
+    }
+  ];
+  return rows.slice(0, 6);
+}
+
+function makeResearchActionPlanBuilder(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, replyObjections, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const blockerCount = (reviewerQueue.highCount || 0) + (claimLedger.challengeCount || 0) + (sourceUpgrade.blockCount || 0);
+  const actionScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.08 +
+    (replyObjections.replyScore || 65) * 0.13 +
+    (followUpPack.deliveryScore || 65) * 0.12 +
+    (committeeQa.qaScore || 65) * 0.1 +
+    (briefingScript.scriptScore || 65) * 0.1 +
+    (boardPack.packScore || 65) * 0.08 +
+    (decisionMemo.memoScore || 65) * 0.08 +
+    (sourceAudit.quality || 50) * 0.1 +
+    (citationMatrix.average || 65) * 0.08 +
+    (sourceUpgrade.readiness || 60) * 0.08 +
+    (gapRadar.readiness || 50) * 0.05
+  )));
+  const className = blockerCount ? "blocked" : actionScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Action plan ready" : className === "blocked" ? "Action blockers open" : "Action plan needs review";
+  const rows = makeResearchActionRows(ticker, question, citations, intent, sourceUpgrade, gapRadar, counterChallenge, reviewerQueue, replyObjections, citationMatrix, className);
+  const urgentCount = rows.filter((row) => row.priority === "high").length;
+  const owners = Array.from(new Set(rows.map((row) => row.owner)));
+  const questions = rows.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `${ticker} has a concrete next-work plan ready to move from answer to research workflow.`
+    : className === "blocked"
+      ? `${ticker} needs ${blockerCount} blocker${blockerCount === 1 ? "" : "s"} cleared before the next research packet should be treated as complete.`
+      : `${ticker} has a useful next-work plan, but reviewer and source actions should stay visible.`;
+
+  return {
+    status,
+    className,
+    actionScore,
+    urgentCount,
+    owners,
+    rows,
+    questions,
+    plainText: [
+      `Research action plan builder: ${status} (${actionScore}/100). Urgent actions: ${urgentCount}. Owners: ${owners.join(", ")}.`,
+      `Actions: ${rows.map((row) => `${row.lane}: ${row.title} | ${row.owner} | ${row.due} | ${row.body}`).join(" | ")}`,
+      `Next questions: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="research-action-card ${escapeAttr(className)}" aria-label="Research action plan builder">
+        <div class="research-action-heading">
+          <div>
+            <span>Research Action Plan Builder</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${actionScore}/100</em>
+        </div>
+        <p class="research-action-summary">${escapeHtml(summary)}</p>
+        <div class="research-action-stats">
+          <span><b>${rows.length}</b> actions</span>
+          <span><b>${urgentCount}</b> urgent</span>
+          <span><b>${owners.length}</b> owners</span>
+          <span><b>${sourceAudit.coverageLabel}</b> coverage</span>
+        </div>
+        <div class="research-action-list">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.priority)}">
+              <span>${escapeHtml(row.lane)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.body)}</p>
+                <em>${escapeHtml(row.owner)} | ${escapeHtml(row.due)} | ${escapeHtml(row.trigger)}</em>
+                ${row.citation ? `<div class="research-action-cite">${makeMatrixCitationLink(row.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="research-action-actions">
+          ${questions.map((item) => `<button type="button" data-action-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeResearchActionRows(ticker, question, citations, intent, sourceUpgrade, gapRadar, counterChallenge, reviewerQueue, replyObjections, citationMatrix, className) {
+  const weakest = citationMatrix.rows?.find((row) => row.status !== "strong")?.citation || citations[citations.length - 1];
+  const lead = citations[0];
+  const reviewTask = reviewerQueue.tasks?.[0];
+  const replyTask = replyObjections.rows?.find((row) => row.priority === "high") || replyObjections.rows?.[0];
+  const nextSource = sourceUpgrade.actions?.find((action) => action.status !== "ready") || sourceUpgrade.actions?.[0];
+  const rows = [
+    {
+      lane: "Verify",
+      priority: reviewTask?.priority || (weakest ? "high" : "medium"),
+      title: reviewTask?.title || `Verify weakest $${ticker} citation`,
+      body: reviewTask?.detail || (weakest ? `Confirm whether ${weakest.citationId || "the weakest citation"} supports the answer or should be replaced.` : "Run one final citation read-through before export."),
+      owner: reviewTask?.lane || "Analyst",
+      due: "Before export",
+      trigger: "Weak claim or citation",
+      question: reviewTask?.question || `Why is ${weakest?.citationId || "the weakest citation"} weak, and what should replace it for $${ticker}?`,
+      citation: reviewTask?.citation || weakest
+    },
+    {
+      lane: "Source",
+      priority: nextSource?.status === "block" ? "high" : "medium",
+      title: nextSource?.title || gapRadar.nextSource?.title || `Upgrade $${ticker} source stack`,
+      body: nextSource?.body || gapRadar.nextSource?.note || "Add one fresh filing, transcript, or model source tied to the central claim.",
+      owner: "Source reviewer",
+      due: "Next research pass",
+      trigger: "Evidence gap",
+      question: nextSource?.question || `${gapRadar.nextSource?.title || "Next source"}: what should I import for $${ticker}?`,
+      citation: nextSource?.citation || null
+    },
+    {
+      lane: "Monitor",
+      priority: (counterChallenge.challengeScore || 0) >= 45 ? "high" : "medium",
+      title: `Track the $${ticker} counter-case`,
+      body: counterChallenge.status || "Watch the strongest disconfirming source and refresh the answer if it strengthens.",
+      owner: "Red team",
+      due: "Before next share",
+      trigger: `${counterChallenge.challengeScore || 0}/100 challenge pressure`,
+      question: `What would disprove the current $${ticker} answer?`,
+      citation: counterChallenge.rows?.[0]?.citation
+    },
+    {
+      lane: "Reply",
+      priority: replyTask?.priority || "medium",
+      title: replyTask ? `Prepare ${replyTask.label.toLowerCase()} reply` : `Prepare $${ticker} reply handling`,
+      body: replyTask?.response || "Keep caveats, trust language, and next asks ready for the likely follow-up reply.",
+      owner: "Founder / analyst",
+      due: "After user reply",
+      trigger: replyTask?.objection || "Follow-up response",
+      question: replyTask?.prompt || `Draft a reply for the $${ticker} follow-up.`,
+      citation: replyTask?.citation
+    },
+    {
+      lane: "Deliver",
+      priority: className === "blocked" ? "high" : "low",
+      title: `Ship the $${ticker} research packet`,
+      body: "Export PDF for a polished memo, MD for editable notes, and keep the source caveat attached.",
+      owner: "Research lead",
+      due: className === "blocked" ? "After blockers clear" : "Now",
+      trigger: "Export readiness",
+      question: `What must I verify before exporting the $${ticker} brief?`,
+      citation: lead
+    },
+    {
+      lane: "Learn",
+      priority: intent.id === "risk" ? "medium" : "low",
+      title: `Capture the $${ticker} learning loop`,
+      body: `Record which answer, citation, or objection changed the user's confidence in the original question: ${snippet(question, 90)}`,
+      owner: "Product",
+      due: "After session",
+      trigger: "Pilot learning",
+      question: `What did this $${ticker} answer teach us about the product workflow?`,
+      citation: null
+    }
+  ];
+  return rows.slice(0, 6);
+}
+
+function makeResearchTicketQueue(question, citations, intent, confidence, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, counterChallenge, reviewerQueue, actionPlan, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const tickets = (actionPlan.rows || []).slice(0, 6).map((row, index) => makeResearchTicket(row, index, ticker, question, citations));
+  const highCount = tickets.filter((ticket) => ticket.priority === "high").length;
+  const readyCount = tickets.filter((ticket) => ticket.status === "ready").length;
+  const blockedCount = tickets.filter((ticket) => ticket.status === "blocked").length;
+  const ownerCount = new Set(tickets.map((ticket) => ticket.owner)).size;
+  const ticketScore = Math.max(1, Math.min(100, Math.round(
+    (actionPlan.actionScore || 65) * 0.24 +
+    (sourceUpgrade.readiness || 60) * 0.14 +
+    (gapRadar.readiness || 50) * 0.14 +
+    (citationMatrix.average || 65) * 0.12 +
+    (sourceAudit.quality || 50) * 0.12 +
+    confidence * 0.1 +
+    Math.max(0, 100 - (counterChallenge.challengeScore || 0)) * 0.08 +
+    (reviewerQueue.queueScore || 70) * 0.06 -
+    blockedCount * 5
+  )));
+  const className = blockedCount ? "blocked" : highCount ? "review" : ticketScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Ticket queue ready" : className === "blocked" ? "Ticket blockers open" : "Ticket queue active";
+  const questions = tickets.slice(0, 3).map((ticket) => ticket.prompt);
+  const summary = className === "ready"
+    ? `${ticker} has an execution-ready ticket queue for the next research pass.`
+    : className === "blocked"
+      ? `${ticker} has blocked tickets that should be cleared before treating the packet as complete.`
+      : `${ticker} has an active ticket queue with priority work ready for the research desk.`;
+
+  return {
+    status,
+    className,
+    ticketScore,
+    highCount,
+    readyCount,
+    blockedCount,
+    ownerCount,
+    tickets,
+    questions,
+    plainText: [
+      `Research ticket queue: ${status} (${ticketScore}/100). High: ${highCount}. Blocked: ${blockedCount}. Owners: ${ownerCount}.`,
+      `Tickets: ${tickets.map((ticket) => `${ticket.id} ${ticket.title} | ${ticket.owner} | ${ticket.status} | ${ticket.acceptance}`).join(" | ")}`,
+      `Prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="research-ticket-card ${escapeAttr(className)}" aria-label="Research ticket queue">
+        <div class="research-ticket-heading">
+          <div>
+            <span>Research Ticket Queue</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${ticketScore}/100</em>
+        </div>
+        <p class="research-ticket-summary">${escapeHtml(summary)}</p>
+        <div class="research-ticket-stats">
+          <span><b>${tickets.length}</b> tickets</span>
+          <span><b>${highCount}</b> high</span>
+          <span><b>${blockedCount}</b> blocked</span>
+          <span><b>${ownerCount}</b> owners</span>
+        </div>
+        <div class="research-ticket-list">
+          ${tickets.map((ticket) => `
+            <article class="${escapeAttr(ticket.priority)} ${escapeAttr(ticket.status)}">
+              <span>${escapeHtml(ticket.id)}</span>
+              <div>
+                <strong>${escapeHtml(ticket.title)}</strong>
+                <p>${escapeHtml(ticket.body)}</p>
+                <em>${escapeHtml(ticket.owner)} | ${escapeHtml(ticket.status)} | ${escapeHtml(ticket.due)}</em>
+                <small>${escapeHtml(ticket.acceptance)}</small>
+                ${ticket.citation ? `<div class="research-ticket-cite">${makeMatrixCitationLink(ticket.citation)}</div>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="research-ticket-actions">
+          ${questions.map((item) => `<button type="button" data-ticket-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makeResearchTicket(row, index, ticker, question, citations) {
+  const priority = normalizeChoice(row.priority, ["high", "medium", "low"], "medium");
+  const status = priority === "high" ? "blocked" : priority === "medium" ? "active" : "ready";
+  const id = `T${index + 1}`;
+  const acceptance = makeTicketAcceptance(row, ticker, citations);
+  return {
+    id,
+    lane: row.lane,
+    priority,
+    status,
+    title: row.title,
+    body: row.body,
+    owner: row.owner || "Research desk",
+    due: row.due || "Next pass",
+    trigger: row.trigger || "Research workflow",
+    acceptance,
+    prompt: row.question || `Complete ${id} for $${ticker}: ${snippet(question, 72)}`,
+    citation: row.citation
+  };
+}
+
+function makeTicketAcceptance(row, ticker, citations) {
+  const lane = String(row.lane || "").toLowerCase();
+  if (lane.includes("verify")) return `Done when the cited claim is confirmed, replaced, or clearly marked as caveated for $${ticker}.`;
+  if (lane.includes("source")) return `Done when a stronger filing, transcript, or model source is imported and cited.`;
+  if (lane.includes("monitor")) return `Done when the counter-case trigger is named and linked to a refresh question.`;
+  if (lane.includes("reply")) return `Done when a caveated reply draft is ready with one next ask.`;
+  if (lane.includes("deliver")) return `Done when PDF/MD export keeps citations, caveats, and disclosure attached.`;
+  if (lane.includes("learn")) return `Done when the learning note is captured for future product and research workflows.`;
+  return citations.length ? `Done when the ticket has at least one source-backed note.` : `Done when a source-backed note is attached.`;
+}
+
+function makeLaunchReadinessRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, actionPlan, ticketQueue, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const sourceLabel = sourceTrust?.label || "Sample data";
+  const dataIsDemoReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const proofScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.18 +
+    (sourceAudit.quality || 50) * 0.22 +
+    (citationMatrix.average || 65) * 0.18 +
+    (sourceUpgrade.readiness || 60) * 0.12 +
+    (ticketQueue.ticketScore || 65) * 0.14 +
+    (actionPlan.actionScore || 65) * 0.1 +
+    Math.min(100, citations.length * 18) * 0.06
+  )));
+  const objectionPressure = Math.max(0, Math.min(100, Math.round(
+    100 - proofScore +
+    (reviewerQueue.highCount || 0) * 7 +
+    (ticketQueue.blockedCount || 0) * 9 +
+    ((gapRadar.readiness || 50) < 60 ? 8 : 0) -
+    (dataIsDemoReady ? 6 : 0)
+  )));
+  const readinessScore = Math.max(1, Math.min(100, Math.round(
+    proofScore * 0.62 +
+    Math.max(0, 100 - objectionPressure) * 0.22 +
+    Math.min(100, (ticketQueue.tickets?.length || 0) * 16) * 0.08 +
+    (dataIsDemoReady ? 8 : 4)
+  )));
+  const checklist = [
+    {
+      key: "Opening",
+      status: citations.length ? "pass" : "block",
+      title: "Start with a real investor question",
+      note: `Open the demo with: ${snippet(question, 92)}`,
+      question: `Run a first-time-user demo for $${ticker}: ${question}`
+    },
+    {
+      key: "Proof",
+      status: citations.length >= 3 ? "pass" : citations.length ? "watch" : "block",
+      title: "Show evidence before opinion",
+      note: `${citations.length} citation${citations.length === 1 ? "" : "s"} ready; cite the strongest source first.`,
+      question: `Which citations best prove the $${ticker} answer, and which one is weakest?`
+    },
+    {
+      key: "Trust",
+      status: dataIsDemoReady ? "pass" : "watch",
+      title: "Be honest about data mode",
+      note: `${sourceLabel} is active. Disclose whether the answer is sample, imported, or live.`,
+      question: `Explain the data source limits for this $${ticker} answer in plain English.`
+    },
+    {
+      key: "Objection",
+      status: objectionPressure <= 34 ? "pass" : objectionPressure <= 58 ? "watch" : "block",
+      title: "Handle buyer pushback",
+      note: `${objectionPressure}/100 objection pressure from source gaps, reviewers, and blocked tickets.`,
+      question: `What objections would an early buyer raise about this $${ticker} research answer?`
+    },
+    {
+      key: "Close",
+      status: ticketQueue.blockedCount ? "watch" : "pass",
+      title: "End with a next action",
+      note: ticketQueue.blockedCount ? "Clear blocked tickets before calling this launch-clean." : "Export the memo and assign the next ticket.",
+      question: `Turn this $${ticker} answer into a buyer-ready next step and export plan.`
+    }
+  ];
+  const blockers = checklist.filter((row) => row.status === "block").length;
+  const watchCount = checklist.filter((row) => row.status === "watch").length;
+  const className = blockers ? "blocked" : readinessScore >= 84 ? "ready" : "review";
+  const status = className === "ready" ? "Pilot demo ready" : className === "blocked" ? "Demo blockers open" : "Demo needs one more pass";
+  const objections = [
+    {
+      label: "Is this real data?",
+      reply: dataIsDemoReady
+        ? `${sourceLabel} is active, so lead with the data badge and source audit.`
+        : "Call this a sample-data proof of concept until imported or live sources are loaded.",
+      severity: dataIsDemoReady ? "low" : "medium"
+    },
+    {
+      label: "Can I trust the answer?",
+      reply: `${citations.length} citations, ${citationMatrix.average}/100 citation reliability, and ${sourceAudit.quality}/100 source audit are visible inside the workflow.`,
+      severity: citationMatrix.average >= 74 && sourceAudit.quality >= 78 ? "low" : "medium"
+    },
+    {
+      label: "Why pay for this?",
+      reply: "The value is a repeatable research workflow: ask, verify, challenge, ticket, export, and preserve the evidence trail.",
+      severity: "low"
+    }
+  ];
+  const questions = checklist.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `The ${ticker} demo path is strong enough for an early-user walkthrough.`
+    : className === "blocked"
+      ? `The ${ticker} demo should clear blockers before being shown as a polished launch workflow.`
+      : `The ${ticker} demo is usable, with a few trust and objection-handling details to tighten.`;
+
+  return {
+    status,
+    className,
+    readinessScore,
+    proofScore,
+    objectionPressure,
+    blockers,
+    watchCount,
+    checklist,
+    objections,
+    questions,
+    plainText: [
+      `Launch readiness room: ${status} (${readinessScore}/100). Proof ${proofScore}/100. Objection pressure ${objectionPressure}/100.`,
+      `Demo checklist: ${checklist.map((row) => `${row.key} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Buyer objections: ${objections.map((row) => `${row.label}: ${row.reply}`).join(" | ")}`,
+      `Demo prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="launch-readiness-card ${escapeAttr(className)}" aria-label="Launch readiness room">
+        <div class="launch-readiness-heading">
+          <div>
+            <span>Launch Readiness Room</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${readinessScore}/100</em>
+        </div>
+        <p class="launch-readiness-summary">${escapeHtml(summary)}</p>
+        <div class="launch-readiness-stats">
+          <span><b>${proofScore}</b> proof</span>
+          <span><b>${objectionPressure}</b> objection</span>
+          <span><b>${blockers}</b> blockers</span>
+          <span><b>${watchCount}</b> watch</span>
+        </div>
+        <div class="launch-readiness-grid">
+          ${checklist.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.key)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="launch-readiness-objections">
+          ${objections.map((row) => `
+            <article class="${escapeAttr(row.severity)}">
+              <span>${escapeHtml(row.label)}</span>
+              <p>${escapeHtml(row.reply)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="launch-readiness-actions">
+          ${questions.map((item) => `<button type="button" data-launch-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makePilotConversionRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, actionPlan, ticketQueue, launchReadiness, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const dataReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const seriousIntent = /risk|valuation|compare|margin|cash|rate|growth|management|filing|earnings/i.test(question);
+  const plan = choosePilotPlan(launchReadiness, sourceAudit, citationMatrix, dataReady, seriousIntent);
+  const segment = choosePilotSegment(question, intent, citations);
+  const conversionScore = Math.max(1, Math.min(100, Math.round(
+    (launchReadiness.readinessScore || 60) * 0.28 +
+    confidence * 0.14 +
+    (sourceAudit.quality || 50) * 0.16 +
+    (citationMatrix.average || 65) * 0.12 +
+    (ticketQueue.ticketScore || 65) * 0.1 +
+    (actionPlan.actionScore || 65) * 0.08 +
+    (sourceUpgrade.readiness || 60) * 0.05 +
+    (gapRadar.readiness || 50) * 0.04 +
+    (dataReady ? 7 : 2) -
+    (reviewerQueue.highCount || 0) * 4
+  )));
+  const className = conversionScore >= 84 ? "ready" : conversionScore >= 66 ? "review" : "blocked";
+  const status = className === "ready" ? "Pilot close ready" : className === "blocked" ? "Conversion needs proof" : "Pilot close needs follow-up";
+  const successMetric = plan.key === "analyst"
+    ? "5 cited questions, 2 exported memos, and 1 repeat watchlist workflow in the first 7 days."
+    : plan.key === "pro"
+      ? "3 cited questions and 1 exported memo from the same investor within 7 days."
+      : "1 cited question, 1 saved brief, and a clear second question from the same investor.";
+  const pathRows = [
+    {
+      key: "Segment",
+      status: "ready",
+      title: segment.label,
+      note: segment.note
+    },
+    {
+      key: "Offer",
+      status: className === "blocked" ? "watch" : "ready",
+      title: `${plan.label} pilot`,
+      note: `${plan.price}/month after pilot; ${plan.reason}`
+    },
+    {
+      key: "Activation",
+      status: dataReady ? "ready" : "watch",
+      title: dataReady ? "Use current data path" : "Start with sample, then import",
+      note: dataReady ? "Demo can lead with imported or bridge-backed evidence." : "Ask the user for one filing or transcript to make the second run personal."
+    },
+    {
+      key: "Proof",
+      status: citations.length >= 3 ? "ready" : "blocked",
+      title: `${citations.length} citations available`,
+      note: citations.length >= 3 ? "Enough visible proof for a serious trial close." : "Run or import more evidence before asking for payment."
+    },
+    {
+      key: "Success",
+      status: "ready",
+      title: "Trial metric",
+      note: successMetric
+    }
+  ];
+  const blockers = pathRows.filter((row) => row.status === "blocked").length;
+  const conversionAsk = `Would you use CiteAlpha for $${ticker} if it gave you ${successMetric}`;
+  const objections = [
+    {
+      label: "Price",
+      reply: `Anchor ${plan.price}/month against one avoided bad research decision, not against a news subscription.`,
+      severity: plan.key === "analyst" ? "medium" : "low"
+    },
+    {
+      label: "Trust",
+      reply: `Show the evidence stack, source audit, and Launch Readiness score before the plan ask.`,
+      severity: launchReadiness.readinessScore >= 78 ? "low" : "medium"
+    },
+    {
+      label: "Time",
+      reply: "Close on the shortest repeat workflow: ask one ticker question, verify citations, export one memo.",
+      severity: "low"
+    }
+  ];
+  const questions = [
+    `Turn this $${ticker} answer into a ${plan.label} pilot close script.`,
+    `What would make a ${segment.label.toLowerCase()} pay for this $${ticker} workflow?`,
+    `What is the 7-day success metric for this $${ticker} CiteAlpha pilot?`
+  ];
+  const summary = className === "ready"
+    ? `${ticker} has a credible trial close path for ${segment.label.toLowerCase()} users.`
+    : className === "blocked"
+      ? `${ticker} needs stronger proof before asking users to pay.`
+      : `${ticker} can be pitched as a pilot if the follow-up metric and proof are kept tight.`;
+
+  return {
+    status,
+    className,
+    conversionScore,
+    plan,
+    segment,
+    successMetric,
+    blockers,
+    pathRows,
+    objections,
+    questions,
+    plainText: [
+      `Pilot conversion room: ${status} (${conversionScore}/100). Segment: ${segment.label}. Plan: ${plan.label} ${plan.price}/month.`,
+      `Success metric: ${successMetric}`,
+      `Conversion path: ${pathRows.map((row) => `${row.key} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Buyer objections: ${objections.map((row) => `${row.label}: ${row.reply}`).join(" | ")}`,
+      `Close ask: ${conversionAsk}`
+    ].join("\n"),
+    html: `
+      <section class="pilot-conversion-card ${escapeAttr(className)}" aria-label="Pilot conversion room">
+        <div class="pilot-conversion-heading">
+          <div>
+            <span>Pilot Conversion Room</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${conversionScore}/100</em>
+        </div>
+        <p class="pilot-conversion-summary">${escapeHtml(summary)}</p>
+        <div class="pilot-conversion-stats">
+          <span><b>${escapeHtml(plan.price)}</b> plan</span>
+          <span><b>${escapeHtml(segment.short)}</b> buyer</span>
+          <span><b>${blockers}</b> blockers</span>
+          <span><b>${citations.length}</b> cites</span>
+        </div>
+        <div class="pilot-conversion-offer">
+          <article>
+            <span>Close ask</span>
+            <strong>${escapeHtml(conversionAsk)}</strong>
+            <p>${escapeHtml(successMetric)}</p>
+          </article>
+          <article>
+            <span>Positioning</span>
+            <strong>${escapeHtml(plan.label)} - ${escapeHtml(segment.label)}</strong>
+            <p>${escapeHtml(plan.reason)}</p>
+          </article>
+        </div>
+        <div class="pilot-conversion-path">
+          ${pathRows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.key)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-conversion-objections">
+          ${objections.map((row) => `
+            <article class="${escapeAttr(row.severity)}">
+              <span>${escapeHtml(row.label)}</span>
+              <p>${escapeHtml(row.reply)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-conversion-actions">
+          ${questions.map((item) => `<button type="button" data-conversion-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function choosePilotPlan(launchReadiness, sourceAudit, citationMatrix, dataReady, seriousIntent) {
+  const readiness = launchReadiness?.readinessScore || 60;
+  const proof = (sourceAudit?.quality || 50) + (citationMatrix?.average || 65) + readiness + (dataReady ? 24 : 0) + (seriousIntent ? 12 : 0);
+  if (proof >= 280) {
+    return {
+      key: "analyst",
+      label: "Analyst",
+      price: "$49",
+      reason: "best when the user is building repeatable coverage, exports, and decision memos."
+    };
+  }
+  if (proof >= 230) {
+    return {
+      key: "pro",
+      label: "Pro",
+      price: "$29",
+      reason: "best for active investors comparing companies, risks, and valuation scenarios."
+    };
+  }
+  return {
+    key: "starter",
+    label: "Starter",
+    price: "$10",
+    reason: "best for a low-friction first trial while the user proves repeat usage."
+  };
+}
+
+function choosePilotSegment(question, intent, citations) {
+  const lower = String(question || "").toLowerCase();
+  if (intent.id === "risk" || /risk|drawdown|concentration|underwrite/.test(lower)) {
+    return {
+      label: "Risk-first active investor",
+      short: "Risk",
+      note: "Lead with downside clarity, citations, and what would change the answer."
+    };
+  }
+  if (/valuation|multiple|fcf|margin|model|cagr|discount/.test(lower)) {
+    return {
+      label: "Valuation-driven investor",
+      short: "Value",
+      note: "Lead with scenario sensitivity, model assumptions, and exportable memo discipline."
+    };
+  }
+  if (/compare|better|versus|vs|peer/.test(lower) || new Set(citations.map((citation) => citation.ticker)).size > 1) {
+    return {
+      label: "Peer-comparison investor",
+      short: "Peer",
+      note: "Lead with source-weighted ranking and why one name screens better than another."
+    };
+  }
+  return {
+    label: "Research workflow investor",
+    short: "Flow",
+    note: "Lead with repeatable ask-verify-export workflow rather than one-off answer output."
+  };
+}
+
+function makePilotActivationRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, reviewerQueue, ticketQueue, launchReadiness, pilotConversion, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const plan = pilotConversion?.plan || { label: "Pro", price: "$29", key: "pro" };
+  const segment = pilotConversion?.segment || { label: "Research workflow investor", short: "Flow" };
+  const dataReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const onboardingScore = Math.max(1, Math.min(100, Math.round(
+    (pilotConversion.conversionScore || 60) * 0.24 +
+    (launchReadiness.readinessScore || 60) * 0.22 +
+    confidence * 0.12 +
+    (sourceAudit.quality || 50) * 0.12 +
+    (citationMatrix.average || 65) * 0.1 +
+    (ticketQueue.ticketScore || 65) * 0.08 +
+    Math.min(100, citations.length * 18) * 0.06 +
+    (dataReady ? 6 : 2)
+  )));
+  const retentionRisk = Math.max(0, Math.min(100, Math.round(
+    100 - onboardingScore +
+    (reviewerQueue.highCount || 0) * 6 +
+    (ticketQueue.blockedCount || 0) * 8 +
+    ((sourceUpgrade.readiness || 60) < 60 ? 8 : 0) +
+    ((gapRadar.readiness || 50) < 60 ? 7 : 0) -
+    (plan.key === "starter" ? 2 : 6)
+  )));
+  const className = onboardingScore >= 84 && retentionRisk <= 34 ? "ready" : retentionRisk >= 62 ? "blocked" : "review";
+  const status = className === "ready" ? "Activation path ready" : className === "blocked" ? "Activation risk high" : "Activation needs founder touch";
+  const milestones = [
+    {
+      day: "Day 0",
+      status: dataReady ? "ready" : "watch",
+      title: "Set up source context",
+      note: dataReady ? "Keep the current data path and show the source badge." : "Ask the user for one filing, transcript, or ticker pack before the second run.",
+      question: `What source should a new ${segment.label.toLowerCase()} load first for $${ticker}?`
+    },
+    {
+      day: "Day 1",
+      status: citations.length >= 3 ? "ready" : "blocked",
+      title: "Deliver first cited answer",
+      note: `${citations.length} citation${citations.length === 1 ? "" : "s"} available; make the first win visible and source-linked.`,
+      question: `What is the first aha moment for a new CiteAlpha user asking about $${ticker}?`
+    },
+    {
+      day: "Day 3",
+      status: ticketQueue.blockedCount ? "watch" : "ready",
+      title: "Create repeat workflow",
+      note: ticketQueue.blockedCount ? "Use blocked tickets as guided follow-up tasks." : "Turn the answer into a saved brief, ticket queue, and export.",
+      question: `What repeat research workflow should this $${ticker} pilot user run on day 3?`
+    },
+    {
+      day: "Day 5",
+      status: retentionRisk <= 45 ? "ready" : "watch",
+      title: "Prove habit formation",
+      note: `Retention risk is ${retentionRisk}/100; measure whether the user asks a second serious question.`,
+      question: `What day-5 retention signal should we measure for this $${ticker} pilot?`
+    },
+    {
+      day: "Day 7",
+      status: onboardingScore >= 74 ? "ready" : "watch",
+      title: "Run success review",
+      note: `${plan.label} ${plan.price}/month path should be discussed only after the success metric is met.`,
+      question: `Draft a day-7 pilot success review for this $${ticker} CiteAlpha workflow.`
+    }
+  ];
+  const blockers = milestones.filter((row) => row.status === "blocked").length;
+  const watchCount = milestones.filter((row) => row.status === "watch").length;
+  const healthSignals = [
+    {
+      label: "Activation trigger",
+      value: "Second question",
+      note: `User asks another ${segment.short.toLowerCase()} question without prompting.`
+    },
+    {
+      label: "Success asset",
+      value: "Memo export",
+      note: "User exports PDF/MD and shares or saves the evidence trail."
+    },
+    {
+      label: "Upgrade signal",
+      value: plan.label,
+      note: `User wants coverage across more names or repeated ${plan.label.toLowerCase()} workflows.`
+    }
+  ];
+  const questions = milestones.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `${ticker} has a tight 7-day activation path for a ${segment.label.toLowerCase()} pilot.`
+    : className === "blocked"
+      ? `${ticker} needs a stronger onboarding moment before the user is likely to retain.`
+      : `${ticker} can activate if the founder guides the first repeat workflow.`;
+
+  return {
+    status,
+    className,
+    onboardingScore,
+    retentionRisk,
+    blockers,
+    watchCount,
+    milestones,
+    healthSignals,
+    questions,
+    plainText: [
+      `Pilot activation room: ${status} (${onboardingScore}/100). Retention risk ${retentionRisk}/100.`,
+      `7-day plan: ${milestones.map((row) => `${row.day} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Health signals: ${healthSignals.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `Activation prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="pilot-activation-card ${escapeAttr(className)}" aria-label="Pilot activation room">
+        <div class="pilot-activation-heading">
+          <div>
+            <span>Pilot Activation Room</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${onboardingScore}/100</em>
+        </div>
+        <p class="pilot-activation-summary">${escapeHtml(summary)}</p>
+        <div class="pilot-activation-stats">
+          <span><b>${retentionRisk}</b> retention risk</span>
+          <span><b>${blockers}</b> blockers</span>
+          <span><b>${watchCount}</b> watch</span>
+          <span><b>${escapeHtml(plan.label)}</b> plan</span>
+        </div>
+        <div class="pilot-activation-timeline">
+          ${milestones.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.day)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-activation-signals">
+          ${healthSignals.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(row.value)}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-activation-actions">
+          ${questions.map((item) => `<button type="button" data-activation-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function makePilotFeedbackLoopRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, reviewerQueue, ticketQueue, launchReadiness, pilotConversion, pilotActivation, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const plan = pilotConversion?.plan || { label: "Pro", price: "$29" };
+  const segment = pilotConversion?.segment || { label: "Research workflow investor", short: "Flow" };
+  const dataReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const learningScore = Math.max(1, Math.min(100, Math.round(
+    (pilotActivation.onboardingScore || 60) * 0.24 +
+    (pilotConversion.conversionScore || 60) * 0.18 +
+    (launchReadiness.readinessScore || 60) * 0.14 +
+    confidence * 0.1 +
+    (sourceAudit.quality || 50) * 0.12 +
+    (citationMatrix.average || 65) * 0.1 +
+    (ticketQueue.ticketScore || 65) * 0.06 +
+    Math.min(100, citations.length * 16) * 0.04 +
+    (dataReady ? 2 : 0)
+  )));
+  const renewalRisk = Math.max(0, Math.min(100, Math.round(
+    (pilotActivation.retentionRisk || 50) * 0.42 +
+    Math.max(0, 100 - learningScore) * 0.36 +
+    (reviewerQueue.highCount || 0) * 5 +
+    (ticketQueue.blockedCount || 0) * 7 +
+    ((gapRadar.readiness || 50) < 60 ? 6 : 0)
+  )));
+  const className = learningScore >= 84 && renewalRisk <= 34 ? "ready" : renewalRisk >= 62 ? "blocked" : "review";
+  const status = className === "ready" ? "Feedback loop ready" : className === "blocked" ? "Feedback risk high" : "Feedback loop needs follow-up";
+  const productRequest = choosePilotProductRequest(question, intent, segment, sourceTrust, citations);
+  const feedbackRows = [
+    {
+      key: "Aha",
+      status: citations.length >= 3 ? "ready" : "watch",
+      title: "Capture the first proof moment",
+      note: citations.length >= 3 ? "Ask which cited evidence made the answer feel trustworthy." : "Ask what source would make the answer feel real enough to trust.",
+      question: `What was the first aha moment in this $${ticker} CiteAlpha answer?`
+    },
+    {
+      key: "Friction",
+      status: renewalRisk >= 62 ? "blocked" : "watch",
+      title: "Name the adoption blocker",
+      note: `${renewalRisk}/100 renewal risk; isolate whether the blocker is data, trust, workflow, or price.`,
+      question: `What friction would stop a pilot user from returning to this $${ticker} workflow?`
+    },
+    {
+      key: "Request",
+      status: "ready",
+      title: productRequest.title,
+      note: productRequest.note,
+      question: productRequest.question
+    },
+    {
+      key: "Renewal",
+      status: learningScore >= 74 ? "ready" : "watch",
+      title: `${plan.label} renewal proof`,
+      note: `Renewal proof is a repeat workflow plus export or saved evidence trail before the ${plan.price}/month ask.`,
+      question: `What renewal proof should we ask from this ${segment.label.toLowerCase()} before charging ${plan.price}/month?`
+    },
+    {
+      key: "Advocacy",
+      status: className === "ready" ? "ready" : "watch",
+      title: "Ask for one quotable outcome",
+      note: className === "ready" ? "Request a specific before/after quote from the pilot user." : "Wait for a stronger second-session signal before asking for a quote.",
+      question: `Draft a founder follow-up asking for one testimonial about this $${ticker} research workflow.`
+    }
+  ];
+  const blockers = feedbackRows.filter((row) => row.status === "blocked").length;
+  const watchCount = feedbackRows.filter((row) => row.status === "watch").length;
+  const backlogRows = [
+    {
+      label: "Data depth",
+      value: dataReady ? "Proof" : "Gap",
+      note: dataReady ? "The user can react to imported or bridge-backed evidence." : "Escalate real filing/transcript import before pricing confidence."
+    },
+    {
+      label: "Workflow memory",
+      value: ticketQueue.tickets?.length || 0,
+      note: "Track whether users return to tickets, saved briefs, and exports."
+    },
+    {
+      label: "Trust proof",
+      value: `${citationMatrix.average}/100`,
+      note: "Use citation reliability as the feedback anchor, not generic model confidence."
+    }
+  ];
+  const questions = feedbackRows.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `${ticker} has enough pilot learning signal to support retention and product iteration.`
+    : className === "blocked"
+      ? `${ticker} needs direct user feedback before the pilot can safely move toward renewal.`
+      : `${ticker} has useful feedback hooks, but the founder should close the loop after the next session.`;
+
+  return {
+    status,
+    className,
+    learningScore,
+    renewalRisk,
+    blockers,
+    watchCount,
+    feedbackRows,
+    backlogRows,
+    questions,
+    plainText: [
+      `Pilot feedback loop room: ${status} (${learningScore}/100). Renewal risk ${renewalRisk}/100.`,
+      `Feedback loop: ${feedbackRows.map((row) => `${row.key} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Product backlog signals: ${backlogRows.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `Feedback prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="pilot-feedback-loop-card ${escapeAttr(className)}" aria-label="Pilot feedback loop room">
+        <div class="pilot-feedback-loop-heading">
+          <div>
+            <span>Pilot Feedback Loop</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${learningScore}/100</em>
+        </div>
+        <p class="pilot-feedback-loop-summary">${escapeHtml(summary)}</p>
+        <div class="pilot-feedback-loop-stats">
+          <span><b>${renewalRisk}</b> renewal risk</span>
+          <span><b>${blockers}</b> blockers</span>
+          <span><b>${watchCount}</b> watch</span>
+          <span><b>${escapeHtml(segment.short)}</b> segment</span>
+        </div>
+        <div class="pilot-feedback-loop-grid">
+          ${feedbackRows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.key)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-feedback-loop-backlog">
+          ${backlogRows.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(String(row.value))}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-feedback-loop-actions">
+          ${questions.map((item) => `<button type="button" data-answer-feedback-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function choosePilotProductRequest(question, intent, segment, sourceTrust, citations) {
+  const lower = String(question || "").toLowerCase();
+  if (!sourceTrust?.imported && !sourceTrust?.live && !sourceTrust?.mock) {
+    return {
+      title: "Real source import",
+      note: "Ask whether imported filings or earnings-call transcripts would make the next run worth paying for.",
+      question: "Which real source should CiteAlpha import first for this pilot user?"
+    };
+  }
+  if (intent.id === "valuation" || /valuation|model|fcf|margin|multiple/.test(lower)) {
+    return {
+      title: "Model export polish",
+      note: "Ask if the valuation read-through should export to PDF, Markdown, or spreadsheet next.",
+      question: "Which valuation export format would make CiteAlpha more useful after this answer?"
+    };
+  }
+  if (intent.id === "risk" || /risk|underwrite|drawdown|concentration/.test(lower)) {
+    return {
+      title: "Risk alert workflow",
+      note: "Ask what trigger would make the user return: filing language, earnings-call tone, or price move.",
+      question: "What risk alert would make a pilot user return to this workflow?"
+    };
+  }
+  return {
+    title: `${segment.short} workflow memory`,
+    note: "Ask which saved context should persist into the next question: ticker, citations, brief, or ticket queue.",
+    question: "What should CiteAlpha remember for the user's next research question?"
+  };
+}
+
+function makePilotRenewalExpansionRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, reviewerQueue, ticketQueue, pilotConversion, pilotActivation, pilotFeedbackLoop, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const plan = pilotConversion?.plan || { label: "Pro", price: "$29", key: "pro" };
+  const segment = pilotConversion?.segment || { label: "Research workflow investor", short: "Flow" };
+  const dataReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const renewalScore = Math.max(1, Math.min(100, Math.round(
+    (pilotFeedbackLoop.learningScore || 60) * 0.24 +
+    (pilotActivation.onboardingScore || 60) * 0.18 +
+    (pilotConversion.conversionScore || 60) * 0.16 +
+    confidence * 0.1 +
+    (sourceAudit.quality || 50) * 0.12 +
+    (citationMatrix.average || 65) * 0.08 +
+    (ticketQueue.ticketScore || 65) * 0.06 +
+    Math.min(100, citations.length * 16) * 0.04 +
+    (dataReady ? 2 : 0)
+  )));
+  const expansionSignal = Math.max(0, Math.min(100, Math.round(
+    renewalScore * 0.46 +
+    Math.max(0, 100 - (pilotFeedbackLoop.renewalRisk || 50)) * 0.2 +
+    (plan.key === "starter" ? 18 : plan.key === "pro" ? 12 : 6) +
+    (dataReady ? 10 : 3) +
+    (intent.id === "valuation" || intent.id === "risk" ? 6 : 3)
+  )));
+  const saveRisk = Math.max(0, Math.min(100, Math.round(
+    (pilotFeedbackLoop.renewalRisk || 50) * 0.48 +
+    (pilotActivation.retentionRisk || 50) * 0.24 +
+    Math.max(0, 100 - renewalScore) * 0.18 +
+    (reviewerQueue.highCount || 0) * 4 +
+    (ticketQueue.blockedCount || 0) * 6 +
+    ((gapRadar.readiness || 50) < 60 ? 6 : 0)
+  )));
+  const className = renewalScore >= 84 && saveRisk <= 34 ? "ready" : saveRisk >= 62 ? "blocked" : "review";
+  const status = className === "ready" ? "Renewal path ready" : className === "blocked" ? "Renewal save needed" : "Renewal needs proof";
+  const offer = chooseRenewalExpansionOffer(plan, expansionSignal, saveRisk, dataReady);
+  const renewalRows = [
+    {
+      key: "Renew",
+      status: renewalScore >= 74 ? "ready" : "watch",
+      title: `${plan.label} renewal case`,
+      note: `Renew only after the user repeats the ${segment.short.toLowerCase()} workflow and preserves one export or saved brief.`,
+      question: `Draft a ${plan.label} renewal case for this $${ticker} pilot user.`
+    },
+    {
+      key: "Expand",
+      status: expansionSignal >= 76 ? "ready" : "watch",
+      title: offer.title,
+      note: offer.note,
+      question: offer.question
+    },
+    {
+      key: "Save",
+      status: saveRisk >= 62 ? "blocked" : saveRisk >= 42 ? "watch" : "ready",
+      title: "Churn save play",
+      note: `${saveRisk}/100 save risk; address the highest-friction proof gap before asking for payment.`,
+      question: `What save play would reduce churn risk for this $${ticker} pilot?`
+    },
+    {
+      key: "Proof",
+      status: dataReady && citations.length >= 3 ? "ready" : "watch",
+      title: "Payment proof asset",
+      note: dataReady ? "Use the cited answer, memo export, and feedback loop as the payment proof." : "Convert one sample run into imported-source proof before renewal.",
+      question: `What proof asset should we show before asking this $${ticker} user to renew?`
+    },
+    {
+      key: "Ask",
+      status: className === "ready" ? "ready" : "watch",
+      title: "Expansion ask",
+      note: className === "ready" ? "Ask for a renewal decision plus one adjacent ticker or portfolio workflow." : "Ask for one more session and one specific missing feature.",
+      question: `Write the renewal and expansion ask for this ${segment.label.toLowerCase()} pilot.`
+    }
+  ];
+  const blockers = renewalRows.filter((row) => row.status === "blocked").length;
+  const watchCount = renewalRows.filter((row) => row.status === "watch").length;
+  const revenueSignals = [
+    {
+      label: "Renewal ask",
+      value: `${plan.price}/mo`,
+      note: `${plan.label} plan remains the cleanest ask unless expansion signal crosses 76.`
+    },
+    {
+      label: "Expansion route",
+      value: offer.value,
+      note: offer.note
+    },
+    {
+      label: "Risk to save",
+      value: `${saveRisk}/100`,
+      note: "Founder should resolve trust, data, or workflow friction before pushing price."
+    }
+  ];
+  const questions = renewalRows.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `${ticker} has a renewal path and a credible expansion ask for ${segment.label.toLowerCase()} users.`
+    : className === "blocked"
+      ? `${ticker} needs a churn-save conversation before asking for renewal.`
+      : `${ticker} can move toward renewal after one more proof or repeat-usage signal.`;
+
+  return {
+    status,
+    className,
+    renewalScore,
+    expansionSignal,
+    saveRisk,
+    blockers,
+    watchCount,
+    offer,
+    renewalRows,
+    revenueSignals,
+    questions,
+    plainText: [
+      `Pilot renewal and expansion room: ${status} (${renewalScore}/100). Expansion signal ${expansionSignal}/100. Save risk ${saveRisk}/100.`,
+      `Renewal path: ${renewalRows.map((row) => `${row.key} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Revenue signals: ${revenueSignals.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `Renewal prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="pilot-renewal-card ${escapeAttr(className)}" aria-label="Pilot renewal and expansion room">
+        <div class="pilot-renewal-heading">
+          <div>
+            <span>Pilot Renewal & Expansion</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${renewalScore}/100</em>
+        </div>
+        <p class="pilot-renewal-summary">${escapeHtml(summary)}</p>
+        <div class="pilot-renewal-stats">
+          <span><b>${expansionSignal}</b> expansion</span>
+          <span><b>${saveRisk}</b> save risk</span>
+          <span><b>${blockers}</b> blockers</span>
+          <span><b>${escapeHtml(plan.price)}</b> ask</span>
+        </div>
+        <div class="pilot-renewal-grid">
+          ${renewalRows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.key)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-renewal-signals">
+          ${revenueSignals.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(String(row.value))}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="pilot-renewal-actions">
+          ${questions.map((item) => `<button type="button" data-renewal-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function chooseRenewalExpansionOffer(plan, expansionSignal, saveRisk, dataReady) {
+  if (saveRisk >= 62) {
+    return {
+      title: "Save with concierge proof",
+      value: "Save",
+      note: "Offer one founder-guided source import or cited memo before asking for payment.",
+      question: "What concierge proof should we offer to save this pilot account?"
+    };
+  }
+  if (expansionSignal >= 82 && plan.key !== "analyst") {
+    return {
+      title: "Upgrade to Analyst",
+      value: "$49/mo",
+      note: "Expansion signal supports a portfolio workflow, alerts, and repeat coverage rather than a single answer.",
+      question: "What Analyst-plan expansion workflow should we pitch after this pilot?"
+    };
+  }
+  if (expansionSignal >= 68 && plan.key === "starter") {
+    return {
+      title: "Expand to Pro",
+      value: "$29/mo",
+      note: "The user is showing enough repeat research intent to move beyond starter usage.",
+      question: "What Pro-plan workflow should we pitch to this starter pilot?"
+    };
+  }
+  return {
+    title: dataReady ? "Renew current plan" : "Renew after source proof",
+    value: plan.price,
+    note: dataReady ? "Renew around the current plan and one adjacent ticker workflow." : "Delay expansion until the pilot sees imported-source proof.",
+    question: "What renewal proof should we collect before changing the plan?"
+  };
+}
+
+function makeCustomerProofRoiRoom(question, citations, intent, confidence, sourceTrust, sourceAudit, citationMatrix, gapRadar, ticketQueue, pilotConversion, pilotActivation, pilotFeedbackLoop, pilotRenewal, tickerFocus) {
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const plan = pilotConversion?.plan || { label: "Pro", price: "$29", key: "pro" };
+  const segment = pilotConversion?.segment || { label: "Research workflow investor", short: "Flow" };
+  const dataReady = Boolean(sourceTrust?.imported || sourceTrust?.live || sourceTrust?.mock);
+  const planPrice = Number(String(plan.price || "$29").replace(/[^\d.]/g, "")) || 29;
+  const workflowMinutes = Math.max(18, Math.min(180, Math.round(
+    22 +
+    citations.length * 9 +
+    Math.max(0, (sourceAudit.quality || 50) - 65) * 0.45 +
+    Math.max(0, (citationMatrix.average || 65) - 65) * 0.3 +
+    (intent.id === "valuation" || intent.id === "risk" ? 14 : 8)
+  )));
+  const timeSavedHours = Math.max(0.3, Number((workflowMinutes / 60).toFixed(1)));
+  const hourlyResearchValue = 75;
+  const monthlyTerminalAvoided = 24000 / 12;
+  const workflowValue = Math.round(timeSavedHours * hourlyResearchValue);
+  const monthlyProofValue = Math.round(workflowValue * 4 + Math.min(420, monthlyTerminalAvoided * 0.08));
+  const paybackMultiple = Math.max(1, Math.round(monthlyProofValue / Math.max(1, planPrice)));
+  const proofScore = Math.max(1, Math.min(100, Math.round(
+    (pilotRenewal.renewalScore || 60) * 0.2 +
+    (pilotRenewal.expansionSignal || 55) * 0.13 +
+    (pilotFeedbackLoop.learningScore || 60) * 0.13 +
+    (pilotActivation.onboardingScore || 60) * 0.1 +
+    (pilotConversion.conversionScore || 60) * 0.1 +
+    confidence * 0.08 +
+    (sourceAudit.quality || 50) * 0.1 +
+    (citationMatrix.average || 65) * 0.08 +
+    Math.min(100, paybackMultiple * 10) * 0.04 +
+    (dataReady ? 4 : 0)
+  )));
+  const proofRisk = Math.max(0, Math.min(100, Math.round(
+    Math.max(0, 100 - proofScore) * 0.5 +
+    (pilotRenewal.saveRisk || 50) * 0.22 +
+    Math.max(0, 68 - (gapRadar.readiness || 50)) * 0.22 +
+    (ticketQueue.blockedCount || 0) * 6 +
+    (dataReady ? 0 : 8)
+  )));
+  const className = proofScore >= 84 && proofRisk <= 34 ? "ready" : proofRisk >= 62 ? "blocked" : "review";
+  const status = className === "ready" ? "ROI proof ready" : className === "blocked" ? "ROI proof needs work" : "ROI proof building";
+  const proofAsset = dataReady && citations.length >= 3 ? "Cited memo" : dataReady ? "Source pack" : "Demo proof";
+  const priceAnchor = planPrice <= 10 ? "Starter test" : planPrice <= 29 ? "Pro workflow" : "Analyst workflow";
+  const rows = [
+    {
+      key: "Time",
+      status: workflowMinutes >= 45 ? "ready" : "watch",
+      title: `${timeSavedHours}h saved per workflow`,
+      note: `A cited answer replaces roughly ${workflowMinutes} minutes of filing, transcript, and model triage.`,
+      question: `How much time did CiteAlpha save on this $${ticker} research question?`
+    },
+    {
+      key: "Cost",
+      status: "ready",
+      title: "$24k terminal gap",
+      note: `The paid ask is ${plan.price}/month versus a traditional terminal cost near $24,000/year.`,
+      question: `Explain the ROI of paying ${plan.price}/month for CiteAlpha instead of a terminal.`
+    },
+    {
+      key: "Trust",
+      status: sourceAudit.quality >= 78 && citationMatrix.average >= 72 ? "ready" : "watch",
+      title: `${sourceAudit.quality}/100 source quality`,
+      note: `${citationMatrix.average}/100 citation reliability with ${citations.length} supporting passage${citations.length === 1 ? "" : "s"}.`,
+      question: `Which evidence made this $${ticker} answer worth paying for?`
+    },
+    {
+      key: "Asset",
+      status: proofAsset === "Cited memo" ? "ready" : "watch",
+      title: proofAsset,
+      note: proofAsset === "Cited memo" ? "The answer can become a shareable proof artifact immediately." : "Improve the proof asset before asking for annual or higher-tier commitment.",
+      question: `What customer proof artifact should we export from this $${ticker} answer?`
+    },
+    {
+      key: "Next",
+      status: className === "ready" ? "ready" : "watch",
+      title: className === "ready" ? "Ask for paid pilot" : "Ask for one more proof run",
+      note: className === "ready" ? "Use ROI proof plus renewal signal to ask for payment." : "Close the highest proof gap before moving to price.",
+      question: `Write the next customer ask using the ROI proof for this $${ticker} workflow.`
+    }
+  ];
+  const blockers = rows.filter((row) => row.status === "blocked").length;
+  const watchCount = rows.filter((row) => row.status === "watch").length;
+  const proofSignals = [
+    {
+      label: "Payback",
+      value: `${paybackMultiple}x`,
+      note: `${formatDollars(monthlyProofValue)} estimated monthly research value against ${plan.price}/month.`
+    },
+    {
+      label: "Price anchor",
+      value: priceAnchor,
+      note: `${segment.label} should see value through repeat answers, exports, and source-linked confidence.`
+    },
+    {
+      label: "Proof risk",
+      value: `${proofRisk}/100`,
+      note: proofRisk >= 62 ? "Resolve proof gaps before asking for payment." : "Enough proof exists for a concise customer ask."
+    }
+  ];
+  const questions = rows.slice(0, 3).map((row) => row.question);
+  const summary = className === "ready"
+    ? `${ticker} has a clear value story: ${timeSavedHours}h saved, ${paybackMultiple}x monthly payback, and a ${proofAsset.toLowerCase()} to support the ask.`
+    : className === "blocked"
+      ? `${ticker} needs stronger evidence or repeat usage before the ROI story can carry a paid ask.`
+      : `${ticker} has promising ROI proof, but one more proof artifact would make the paid ask cleaner.`;
+
+  return {
+    status,
+    className,
+    proofScore,
+    proofRisk,
+    paybackMultiple,
+    timeSavedHours,
+    monthlyProofValue,
+    proofAsset,
+    blockers,
+    watchCount,
+    rows,
+    proofSignals,
+    questions,
+    plainText: [
+      `Customer proof and ROI room: ${status} (${proofScore}/100). Payback ${paybackMultiple}x. Proof risk ${proofRisk}/100.`,
+      `ROI proof: ${rows.map((row) => `${row.key} ${row.status}: ${row.title} - ${row.note}`).join(" | ")}`,
+      `Customer proof signals: ${proofSignals.map((row) => `${row.label}: ${row.value} - ${row.note}`).join(" | ")}`,
+      `ROI prompts: ${questions.join(" | ")}`
+    ].join("\n"),
+    html: `
+      <section class="customer-proof-card ${escapeAttr(className)}" aria-label="Customer proof and ROI room">
+        <div class="customer-proof-heading">
+          <div>
+            <span>Customer Proof & ROI</span>
+            <strong>${escapeHtml(status)}</strong>
+          </div>
+          <em>${proofScore}/100</em>
+        </div>
+        <p class="customer-proof-summary">${escapeHtml(summary)}</p>
+        <div class="customer-proof-stats">
+          <span><b>${escapeHtml(String(paybackMultiple))}x</b> payback</span>
+          <span><b>${escapeHtml(String(timeSavedHours))}h</b> saved</span>
+          <span><b>${escapeHtml(formatDollars(monthlyProofValue))}</b> value</span>
+          <span><b>${escapeHtml(plan.price)}</b> ask</span>
+        </div>
+        <div class="customer-proof-grid">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.key)}</span>
+              <div>
+                <strong>${escapeHtml(row.title)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="customer-proof-signals">
+          ${proofSignals.map((row) => `
+            <article>
+              <span>${escapeHtml(row.label)}</span>
+              <strong>${escapeHtml(String(row.value))}</strong>
+              <p>${escapeHtml(row.note)}</p>
+            </article>
+          `).join("")}
+        </div>
+        <div class="customer-proof-actions">
+          ${questions.map((item) => `<button type="button" data-roi-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function formatDollars(value) {
+  const number = Math.max(0, Math.round(Number(value) || 0));
+  if (number >= 1000) return `$${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}k`;
+  return `$${number}`;
+}
+
+function makeExportReadinessGate(question, citations, confidence, sourceTrust, sourceAudit, citationMatrix, sourceUpgrade, gapRadar, deltaMonitor, counterChallenge, claimLedger, reviewerQueue, decisionMemo, boardPack, committeeQa, briefingScript, followUpPack, replyObjections, actionPlan, ticketQueue, launchReadiness, pilotConversion, pilotActivation, pilotFeedbackLoop, pilotRenewal, customerProof, intent, tickerFocus) {
+  const security = summarizeSecurityPosture();
+  const ticker = tickerFocus?.company?.ticker || citations[0]?.ticker || state.selectedTicker || "Desk";
+  const stabilityScore = scoreAnswerStability(deltaMonitor);
+  const challengeInverse = Math.max(0, 100 - (counterChallenge.challengeScore || 0));
+  const claimScore = claimLedger?.ledgerScore || 65;
+  const citationReliabilityScore = citationMatrix?.average || 65;
+  const sourceUpgradeScore = sourceUpgrade?.readiness || 60;
+  const reviewerScore = reviewerQueue?.queueScore || 70;
+  const memoScore = decisionMemo?.memoScore || 65;
+  const boardPackScore = boardPack?.packScore || 65;
+  const qaScore = committeeQa?.qaScore || 65;
+  const briefingScore = briefingScript?.scriptScore || 65;
+  const followUpScore = followUpPack?.deliveryScore || 65;
+  const replyScore = replyObjections?.replyScore || 65;
+  const actionScore = actionPlan?.actionScore || 65;
+  const ticketScore = ticketQueue?.ticketScore || 65;
+  const launchScore = launchReadiness?.readinessScore || 65;
+  const conversionScore = pilotConversion?.conversionScore || 65;
+  const activationScore = pilotActivation?.onboardingScore || 65;
+  const feedbackScore = pilotFeedbackLoop?.learningScore || 65;
+  const renewalScore = pilotRenewal?.renewalScore || 65;
+  const customerProofScore = customerProof?.proofScore || 65;
+  const exportScore = Math.max(1, Math.min(100, Math.round(
+    confidence * 0.08 +
+    (sourceAudit.quality || 50) * 0.08 +
+    citationReliabilityScore * 0.06 +
+    sourceUpgradeScore * 0.05 +
+    reviewerScore * 0.05 +
+    memoScore * 0.05 +
+    boardPackScore * 0.05 +
+    qaScore * 0.05 +
+    briefingScore * 0.05 +
+    followUpScore * 0.05 +
+    replyScore * 0.05 +
+    actionScore * 0.05 +
+    ticketScore * 0.05 +
+    launchScore * 0.05 +
+    conversionScore * 0.04 +
+    activationScore * 0.04 +
+    feedbackScore * 0.04 +
+    renewalScore * 0.04 +
+    customerProofScore * 0.05 +
+    (gapRadar.readiness || 50) * 0.03 +
+    challengeInverse * 0.03 +
+    security.score * 0.02 +
+    stabilityScore * 0.01 +
+    claimScore * 0.01
+  )));
+  const rows = [
+    {
+      label: "Citations",
+      status: citations.length >= 3 ? "pass" : "block",
+      value: `${citations.length}/3`,
+      note: citations.length >= 3 ? "Minimum cited answer threshold met." : "Add more retrieved evidence before export."
+    },
+    {
+      label: "Source quality",
+      status: sourceAudit.quality >= 84 ? "pass" : sourceAudit.quality >= 70 ? "watch" : "block",
+      value: `${sourceAudit.quality}/100`,
+      note: `${sourceAudit.coverageLabel} coverage, ${sourceAudit.dataLabel.toLowerCase()} data, ${sourceAudit.balance}.`
+    },
+    {
+      label: "Citation reliability",
+      status: citationMatrix.floor >= 62 ? (citationMatrix.weakCount ? "watch" : "pass") : "block",
+      value: `${citationMatrix.average}/100`,
+      note: `Floor ${citationMatrix.floor}/100; ${citationMatrix.weakCount} citation${citationMatrix.weakCount === 1 ? "" : "s"} need review.`
+    },
+    {
+      label: "Source upgrade",
+      status: sourceUpgrade.blockCount ? "block" : sourceUpgrade.reviewCount ? "watch" : "pass",
+      value: `${sourceUpgrade.readiness}/100`,
+      note: `${sourceUpgrade.blockCount} block${sourceUpgrade.blockCount === 1 ? "" : "s"} and ${sourceUpgrade.reviewCount} review item${sourceUpgrade.reviewCount === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Reviewer handoff",
+      status: reviewerQueue.highCount ? "block" : reviewerQueue.mediumCount ? "watch" : "pass",
+      value: `${reviewerQueue.queueScore}/100`,
+      note: `${reviewerQueue.highCount} high-priority and ${reviewerQueue.mediumCount} medium-priority task${reviewerQueue.mediumCount === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Decision memo",
+      status: decisionMemo.className === "ready" ? "pass" : decisionMemo.className === "hold" ? "block" : "watch",
+      value: `${decisionMemo.memoScore}/100`,
+      note: decisionMemo.decision || decisionMemo.status
+    },
+    {
+      label: "Board pack",
+      status: boardPack.className === "ready" ? "pass" : boardPack.className === "hold" ? "block" : "watch",
+      value: `${boardPack.packScore}/100`,
+      note: boardPack.status || "Packet readiness scored."
+    },
+    {
+      label: "Committee Q&A",
+      status: committeeQa.className === "ready" ? "pass" : committeeQa.className === "blocked" ? "block" : "watch",
+      value: `${committeeQa.qaScore}/100`,
+      note: `${committeeQa.highCount} high-priority question${committeeQa.highCount === 1 ? "" : "s"} in prep.`
+    },
+    {
+      label: "Briefing script",
+      status: briefingScript.className === "ready" ? "pass" : briefingScript.className === "hold" ? "block" : "watch",
+      value: `${briefingScript.scriptScore}/100`,
+      note: briefingScript.status || "Presentation readiness scored."
+    },
+    {
+      label: "Follow-up pack",
+      status: followUpPack.className === "ready" ? "pass" : followUpPack.className === "hold" ? "block" : "watch",
+      value: `${followUpPack.deliveryScore}/100`,
+      note: followUpPack.status || "Delivery readiness scored."
+    },
+    {
+      label: "Reply handling",
+      status: replyObjections.className === "ready" ? "pass" : replyObjections.className === "hold" ? "block" : "watch",
+      value: `${replyObjections.replyScore}/100`,
+      note: `${replyObjections.highCount} high-priority reply item${replyObjections.highCount === 1 ? "" : "s"} prepared.`
+    },
+    {
+      label: "Action plan",
+      status: actionPlan.className === "ready" ? "pass" : actionPlan.className === "blocked" ? "block" : "watch",
+      value: `${actionPlan.actionScore}/100`,
+      note: `${actionPlan.urgentCount} urgent action${actionPlan.urgentCount === 1 ? "" : "s"} across ${actionPlan.owners.length} owner${actionPlan.owners.length === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Ticket queue",
+      status: ticketQueue.className === "ready" ? "pass" : ticketQueue.className === "blocked" ? "block" : "watch",
+      value: `${ticketQueue.ticketScore}/100`,
+      note: `${ticketQueue.highCount} high-priority and ${ticketQueue.blockedCount} blocked ticket${ticketQueue.blockedCount === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Launch readiness",
+      status: launchReadiness.className === "ready" ? "pass" : launchReadiness.className === "blocked" ? "block" : "watch",
+      value: `${launchReadiness.readinessScore}/100`,
+      note: `${launchReadiness.blockers} blocker${launchReadiness.blockers === 1 ? "" : "s"} and ${launchReadiness.watchCount} watch item${launchReadiness.watchCount === 1 ? "" : "s"} for the buyer demo.`
+    },
+    {
+      label: "Pilot conversion",
+      status: pilotConversion.className === "ready" ? "pass" : pilotConversion.className === "blocked" ? "block" : "watch",
+      value: `${pilotConversion.conversionScore}/100`,
+      note: `${pilotConversion.plan.label} ${pilotConversion.plan.price}/month path for ${pilotConversion.segment.label.toLowerCase()} users.`
+    },
+    {
+      label: "Pilot activation",
+      status: pilotActivation.className === "ready" ? "pass" : pilotActivation.className === "blocked" ? "block" : "watch",
+      value: `${pilotActivation.onboardingScore}/100`,
+      note: `${pilotActivation.retentionRisk}/100 retention risk with ${pilotActivation.blockers} activation blocker${pilotActivation.blockers === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Pilot feedback loop",
+      status: pilotFeedbackLoop.className === "ready" ? "pass" : pilotFeedbackLoop.className === "blocked" ? "block" : "watch",
+      value: `${pilotFeedbackLoop.learningScore}/100`,
+      note: `${pilotFeedbackLoop.renewalRisk}/100 renewal risk with ${pilotFeedbackLoop.blockers} feedback blocker${pilotFeedbackLoop.blockers === 1 ? "" : "s"}.`
+    },
+    {
+      label: "Pilot renewal",
+      status: pilotRenewal.className === "ready" ? "pass" : pilotRenewal.className === "blocked" ? "block" : "watch",
+      value: `${pilotRenewal.renewalScore}/100`,
+      note: `${pilotRenewal.expansionSignal}/100 expansion signal and ${pilotRenewal.saveRisk}/100 save risk.`
+    },
+    {
+      label: "Customer proof",
+      status: customerProof.className === "ready" ? "pass" : customerProof.className === "blocked" ? "block" : "watch",
+      value: `${customerProof.proofScore}/100`,
+      note: `${customerProof.paybackMultiple}x payback, ${customerProof.timeSavedHours}h saved, ${customerProof.proofAsset.toLowerCase()} proof.`
+    },
+    {
+      label: "Evidence gap",
+      status: gapRadar.readiness >= 78 ? "pass" : gapRadar.readiness >= 60 ? "watch" : "block",
+      value: `${gapRadar.readiness}/100`,
+      note: gapRadar.label || "Evidence posture scored."
+    },
+    {
+      label: "Counter-evidence",
+      status: counterChallenge.challengeScore >= 72 ? "block" : counterChallenge.challengeScore >= 45 ? "watch" : "pass",
+      value: `${counterChallenge.challengeScore}/100`,
+      note: counterChallenge.status || "Challenge pressure checked."
+    },
+    {
+      label: "Claim ledger",
+      status: claimLedger.challengeCount ? "block" : claimLedger.reviewCount ? "watch" : "pass",
+      value: `${claimLedger.ledgerScore}/100`,
+      note: `${claimLedger.supportCount} supported, ${claimLedger.reviewCount} review, ${claimLedger.challengeCount} challenge.`
+    },
+    {
+      label: "Security",
+      status: security.score >= 90 ? "pass" : security.score >= 75 ? "watch" : "block",
+      value: `${security.score}/100`,
+      note: security.findings.length ? `${security.findings.length} security finding${security.findings.length === 1 ? "" : "s"}.` : "Question and enabled sources are clean."
+    },
+    {
+      label: "Stability",
+      status: stabilityScore >= 82 ? "pass" : stabilityScore >= 60 ? "watch" : "block",
+      value: `${stabilityScore}/100`,
+      note: deltaMonitor.status || "Answer movement tracked."
+    }
+  ];
+  const blockCount = rows.filter((row) => row.status === "block").length;
+  const watchCount = rows.filter((row) => row.status === "watch").length;
+  const className = blockCount ? "hold" : exportScore >= 84 && watchCount <= 1 ? "ready" : "review";
+  const decision = className === "ready" ? "Export-ready" : className === "hold" ? "Hold export" : "Review before export";
+  const summary = className === "ready"
+    ? `${ticker} has enough cited support for PDF/MD export. Keep the disclosure note because this is still research software, not investment advice.`
+    : className === "hold"
+      ? `${ticker} needs ${blockCount} blocked gate${blockCount === 1 ? "" : "s"} fixed before export. Start with the lowest-scoring row.`
+      : `${ticker} can move toward export after ${watchCount} review item${watchCount === 1 ? "" : "s"} is checked.`;
+  const questions = makeExportReadinessQuestions(ticker, rows, question, intent);
+
+  return {
+    decision,
+    className,
+    exportScore,
+    rows,
+    questions,
+    plainText: `Export readiness gate: ${decision} (${exportScore}/100). Blocks: ${blockCount}. Review items: ${watchCount}.`,
+    html: `
+      <section class="export-gate-card ${escapeAttr(className)}" aria-label="Export readiness gate">
+        <div class="export-gate-heading">
+          <div>
+            <span>Export Readiness Gate</span>
+            <strong>${escapeHtml(decision)}</strong>
+          </div>
+          <em>${exportScore}/100</em>
+        </div>
+        <p class="export-gate-summary">${escapeHtml(summary)}</p>
+        <div class="export-gate-rows">
+          ${rows.map((row) => `
+            <article class="${escapeAttr(row.status)}">
+              <span>${escapeHtml(row.status)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)} - ${escapeHtml(row.value)}</strong>
+                <p>${escapeHtml(row.note)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="export-gate-actions">
+          ${questions.map((item) => `<button type="button" data-export-question="${escapeAttr(item)}">${escapeHtml(item)}</button>`).join("")}
+        </div>
+      </section>
+    `
+  };
+}
+
+function scoreAnswerStability(deltaMonitor) {
+  if (!deltaMonitor) return 70;
+  if (deltaMonitor.className === "weaker") return 48;
+  if (deltaMonitor.className === "changed") return 62;
+  if (deltaMonitor.className === "baseline") return 72;
+  if (deltaMonitor.className === "stronger") return 92;
+  return 86;
+}
+
+function makeExportReadinessQuestions(ticker, rows, question, intent) {
+  const firstIssue = rows.find((row) => row.status === "block") || rows.find((row) => row.status === "watch") || rows[0];
+  const firstLabel = firstIssue ? firstIssue.label.toLowerCase() : "evidence";
+  const base = [
+    `What must I verify before exporting the $${ticker} brief?`,
+    `Which ${firstLabel} issue should I fix first for $${ticker}?`,
+    `Draft an export-ready reviewer note for: ${snippet(question, 76)}`
+  ];
+  if (intent.id === "risk") {
+    base[1] = `Which $${ticker} risk citation should be verified before PDF export?`;
+  }
+  if (intent.id === "valuation") {
+    base[1] = `Which $${ticker} valuation assumption blocks export readiness?`;
+  }
+  return base.slice(0, 3);
 }
 
 function makeAnalystCopilot(question, citations, rankedCompanies, intent, sourceAudit, toneMeter) {
@@ -4508,6 +8457,8 @@ function renderAnswer(answerModel) {
   els.answerPanel.querySelectorAll(".citation-link").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
+      const citationId = link.dataset.citationId || String(link.getAttribute("href") || "").replace("#evidence-", "");
+      openEvidenceReader(citationId);
       const target = document.querySelector(link.getAttribute("href"));
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -4517,6 +8468,402 @@ function renderAnswer(answerModel) {
     });
   });
   bindCopilotControls(answerModel);
+  bindCitationReliabilityMatrix(answerModel);
+  bindSourceUpgradePlanner(answerModel);
+  bindEvidenceGapRadar(answerModel);
+  bindAnswerDeltaMonitor(answerModel);
+  bindCounterEvidenceChallenge(answerModel);
+  bindClaimLedger(answerModel);
+  bindReviewerHandoffQueue(answerModel);
+  bindDecisionMemoComposer(answerModel);
+  bindBoardPackBuilder(answerModel);
+  bindCommitteeQaSimulator(answerModel);
+  bindBriefingScriptCoach(answerModel);
+  bindFollowUpPackComposer(answerModel);
+  bindReplyObjectionHandler(answerModel);
+  bindResearchActionPlanBuilder(answerModel);
+  bindResearchTicketQueue(answerModel);
+  bindLaunchReadinessRoom(answerModel);
+  bindPilotConversionRoom(answerModel);
+  bindPilotActivationRoom(answerModel);
+  bindPilotFeedbackLoopRoom(answerModel);
+  bindPilotRenewalExpansionRoom(answerModel);
+  bindCustomerProofRoiRoom(answerModel);
+  bindExportReadinessGate(answerModel);
+}
+
+function bindCitationReliabilityMatrix(answerModel) {
+  const panel = els.answerPanel.querySelector(".citation-matrix-card");
+  if (!panel || !answerModel.citationMatrix) return;
+  panel.querySelectorAll("[data-citation-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.citationQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindSourceUpgradePlanner(answerModel) {
+  const panel = els.answerPanel.querySelector(".source-upgrade-card");
+  if (!panel || !answerModel.sourceUpgrade) return;
+  panel.querySelectorAll("[data-source-upgrade-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.sourceUpgradeQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindEvidenceGapRadar(answerModel) {
+  const panel = els.answerPanel.querySelector(".evidence-gap-card");
+  if (!panel || !answerModel.gapRadar) return;
+  panel.querySelectorAll("[data-gap-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.gapQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindAnswerDeltaMonitor(answerModel) {
+  const panel = els.answerPanel.querySelector(".answer-delta-card");
+  if (!panel || !answerModel.deltaMonitor) return;
+  panel.querySelectorAll("[data-delta-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.deltaQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindCounterEvidenceChallenge(answerModel) {
+  const panel = els.answerPanel.querySelector(".counter-evidence-card");
+  if (!panel || !answerModel.counterChallenge) return;
+  panel.querySelectorAll("[data-counter-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.counterQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindClaimLedger(answerModel) {
+  const panel = els.answerPanel.querySelector(".claim-ledger-card");
+  if (!panel || !answerModel.claimLedger) return;
+  panel.querySelectorAll("[data-claim-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.claimQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindReviewerHandoffQueue(answerModel) {
+  const panel = els.answerPanel.querySelector(".reviewer-queue-card");
+  if (!panel || !answerModel.reviewerQueue) return;
+  panel.querySelectorAll("[data-reviewer-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.reviewerQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindDecisionMemoComposer(answerModel) {
+  const panel = els.answerPanel.querySelector(".decision-memo-card");
+  if (!panel || !answerModel.decisionMemo) return;
+  panel.querySelectorAll("[data-memo-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.memoQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindBoardPackBuilder(answerModel) {
+  const panel = els.answerPanel.querySelector(".board-pack-card");
+  if (!panel || !answerModel.boardPack) return;
+  panel.querySelectorAll("[data-board-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.boardQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindCommitteeQaSimulator(answerModel) {
+  const panel = els.answerPanel.querySelector(".committee-qa-card");
+  if (!panel || !answerModel.committeeQa) return;
+  panel.querySelectorAll("[data-qa-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.qaQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindBriefingScriptCoach(answerModel) {
+  const panel = els.answerPanel.querySelector(".briefing-script-card");
+  if (!panel || !answerModel.briefingScript) return;
+  panel.querySelectorAll("[data-briefing-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.briefingQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindFollowUpPackComposer(answerModel) {
+  const panel = els.answerPanel.querySelector(".follow-up-pack-card");
+  if (!panel || !answerModel.followUpPack) return;
+  panel.querySelectorAll("[data-follow-up-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.followUpQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindReplyObjectionHandler(answerModel) {
+  const panel = els.answerPanel.querySelector(".reply-objection-card");
+  if (!panel || !answerModel.replyObjections) return;
+  panel.querySelectorAll("[data-reply-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.replyQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindResearchActionPlanBuilder(answerModel) {
+  const panel = els.answerPanel.querySelector(".research-action-card");
+  if (!panel || !answerModel.actionPlan) return;
+  panel.querySelectorAll("[data-action-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.actionQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindResearchTicketQueue(answerModel) {
+  const panel = els.answerPanel.querySelector(".research-ticket-card");
+  if (!panel || !answerModel.ticketQueue) return;
+  panel.querySelectorAll("[data-ticket-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.ticketQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindLaunchReadinessRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".launch-readiness-card");
+  if (!panel || !answerModel.launchReadiness) return;
+  panel.querySelectorAll("[data-launch-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.launchQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindPilotConversionRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".pilot-conversion-card");
+  if (!panel || !answerModel.pilotConversion) return;
+  panel.querySelectorAll("[data-conversion-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.conversionQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindPilotActivationRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".pilot-activation-card");
+  if (!panel || !answerModel.pilotActivation) return;
+  panel.querySelectorAll("[data-activation-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.activationQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindPilotFeedbackLoopRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".pilot-feedback-loop-card");
+  if (!panel || !answerModel.pilotFeedbackLoop) return;
+  panel.querySelectorAll("[data-answer-feedback-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.answerFeedbackQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindPilotRenewalExpansionRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".pilot-renewal-card");
+  if (!panel || !answerModel.pilotRenewal) return;
+  panel.querySelectorAll("[data-renewal-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.renewalQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindCustomerProofRoiRoom(answerModel) {
+  const panel = els.answerPanel.querySelector(".customer-proof-card");
+  if (!panel || !answerModel.customerProof) return;
+  panel.querySelectorAll("[data-roi-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.roiQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
+}
+
+function bindExportReadinessGate(answerModel) {
+  const panel = els.answerPanel.querySelector(".export-gate-card");
+  if (!panel || !answerModel.exportGate) return;
+  panel.querySelectorAll("[data-export-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.exportQuestion || button.textContent.trim();
+      els.queryInput.value = question;
+      state.lastQuestionSecurity = assessTextSecurity(question, "Question");
+      renderQuestionSecurityStrip();
+      renderSecurityPosture();
+      syncTickerFocus(question);
+      document.querySelector("#desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.queryInput.focus();
+    });
+  });
 }
 
 function bindCopilotControls(answerModel) {
@@ -4542,18 +8889,141 @@ function renderEvidence(citations) {
   els.evidenceCount.textContent = String(citations.length);
   if (!citations.length) {
     els.evidenceList.innerHTML = `<div class="empty-list">Retrieved passages will appear here with source metadata and relevance scores.</div>`;
+    closeEvidenceReader({ returnFocus: false });
     return;
   }
   els.evidenceList.innerHTML = citations.map((citation) => `
-    <article class="evidence-card" id="evidence-${escapeAttr(citation.citationId)}">
+    <article class="evidence-card" id="evidence-${escapeAttr(citation.citationId)}" data-evidence-card="${escapeAttr(citation.citationId)}">
       <div class="evidence-meta">
         <span>${escapeHtml(citation.citationId)} - ${escapeHtml(citation.ticker)}</span>
         <span>${escapeHtml(getCitationSourceLabel(citation))} | ${citation.score.toFixed(1)}</span>
       </div>
       <strong>${escapeHtml(citation.type)} - ${escapeHtml(citation.period)} - ${escapeHtml(citation.section)}</strong>
       <p>${escapeHtml(snippet(citation.text, 280))}</p>
+      <button class="evidence-open" type="button" data-evidence-open="${escapeAttr(citation.citationId)}">Read source</button>
     </article>
   `).join("");
+  els.evidenceList.querySelectorAll("[data-evidence-open]").forEach((button) => {
+    button.addEventListener("click", () => openEvidenceReader(button.dataset.evidenceOpen));
+  });
+}
+
+function openEvidenceReader(citationId) {
+  if (!els.evidenceReader || !state.currentCitations.length) return;
+  const citation = getCitationById(citationId) || state.currentCitations[0];
+  state.evidenceReaderOpen = true;
+  state.evidenceReaderCitationId = citation.citationId;
+  document.body.classList.add("evidence-reader-open");
+  els.evidenceReader.classList.add("is-open");
+  els.evidenceReader.setAttribute("aria-hidden", "false");
+  renderEvidenceReader();
+  window.setTimeout(() => {
+    els.evidenceReaderClose?.focus();
+  }, 30);
+}
+
+function closeEvidenceReader(options = {}) {
+  if (!els.evidenceReader) return;
+  state.evidenceReaderOpen = false;
+  document.body.classList.remove("evidence-reader-open");
+  els.evidenceReader.classList.remove("is-open");
+  els.evidenceReader.setAttribute("aria-hidden", "true");
+  document.querySelectorAll(".evidence-card").forEach((card) => card.classList.remove("is-reader-active"));
+  if (options.returnFocus !== false) {
+    const id = state.evidenceReaderCitationId;
+    document.querySelector(`[data-citation-id="${cssEscape(id)}"], [data-evidence-open="${cssEscape(id)}"]`)?.focus();
+  }
+}
+
+function moveEvidenceReader(delta) {
+  if (!state.currentCitations.length) return;
+  const currentIndex = Math.max(0, state.currentCitations.findIndex((citation) => citation.citationId === state.evidenceReaderCitationId));
+  const nextIndex = (currentIndex + delta + state.currentCitations.length) % state.currentCitations.length;
+  state.evidenceReaderCitationId = state.currentCitations[nextIndex].citationId;
+  renderEvidenceReader();
+}
+
+function renderEvidenceReader() {
+  const citation = getEvidenceReaderCitation();
+  if (!citation || !els.evidenceReaderBody) return;
+  const index = state.currentCitations.findIndex((item) => item.citationId === citation.citationId);
+  const total = state.currentCitations.length;
+  const sourceLabel = getCitationSourceLabel(citation);
+  const sourceKind = getSourceKind(citation);
+  const quality = Math.max(1, Math.min(100, Math.round((citation.score || 0) * 3.2)));
+  const tone = toneScore(citation.text);
+  const toneLabelText = tone > 1 ? "Constructive" : tone < -1 ? "Cautious" : "Balanced";
+  const riskTerms = RISK_TERMS.filter((term) => String(citation.text || "").toLowerCase().includes(term)).slice(0, 7);
+  const quoteText = String(citation.text || "").trim();
+  const excerpt = quoteText.length > 900 ? `${quoteText.slice(0, 900).trim()}...` : quoteText;
+
+  if (els.evidenceReaderKicker) els.evidenceReaderKicker.textContent = `${citation.citationId} | ${index + 1} of ${total}`;
+  if (els.evidenceReaderTitle) els.evidenceReaderTitle.textContent = `${citation.company} - ${citation.type}`;
+  if (els.evidenceReaderPrev) els.evidenceReaderPrev.disabled = total < 2;
+  if (els.evidenceReaderNext) els.evidenceReaderNext.disabled = total < 2;
+
+  els.evidenceReaderBody.innerHTML = `
+    <div class="evidence-reader-scorebar">
+      <div>
+        <span>Relevance</span>
+        <strong>${citation.score.toFixed(1)}</strong>
+      </div>
+      <div>
+        <span>Source</span>
+        <strong>${escapeHtml(sourceLabel)}</strong>
+      </div>
+      <div>
+        <span>Tone</span>
+        <strong>${escapeHtml(toneLabelText)}</strong>
+      </div>
+    </div>
+    <dl class="evidence-reader-meta">
+      <div><dt>Ticker</dt><dd>${escapeHtml(citation.ticker)}</dd></div>
+      <div><dt>Period</dt><dd>${escapeHtml(citation.period || "Current")}</dd></div>
+      <div><dt>Section</dt><dd>${escapeHtml(citation.section || "Source passage")}</dd></div>
+      <div><dt>Data kind</dt><dd>${escapeHtml(sourceKind)}</dd></div>
+    </dl>
+    <div class="evidence-reader-quality">
+      <span>Reader confidence</span>
+      <i><b style="width: ${quality}%"></b></i>
+      <strong>${quality}/100</strong>
+    </div>
+    <blockquote>${escapeHtml(excerpt)}</blockquote>
+    <div class="evidence-reader-why">
+      <span>Why this matters</span>
+      <p>${escapeHtml(makeEvidenceReaderWhy(citation, riskTerms, toneLabelText))}</p>
+    </div>
+    <div class="evidence-reader-tags">
+      ${(riskTerms.length ? riskTerms : [citation.section, citation.type, sourceLabel]).slice(0, 7).map((term) => `<span>${escapeHtml(term)}</span>`).join("")}
+    </div>
+  `;
+
+  document.querySelectorAll(".evidence-card").forEach((card) => card.classList.remove("is-reader-active"));
+  const card = document.querySelector(`[data-evidence-card="${cssEscape(citation.citationId)}"]`);
+  if (card) card.classList.add("is-reader-active");
+}
+
+function getEvidenceReaderCitation() {
+  return getCitationById(state.evidenceReaderCitationId) || state.currentCitations[0] || null;
+}
+
+function getCitationById(citationId) {
+  return state.currentCitations.find((citation) => citation.citationId === citationId) || null;
+}
+
+function makeEvidenceReaderWhy(citation, riskTerms, toneLabelText) {
+  const terms = riskTerms.length ? ` It flags ${riskTerms.slice(0, 3).join(", ")} language.` : "";
+  return `${citation.citationId} is part of the current answer because it matched the user's question against ${citation.section} in ${citation.type}. The passage carries ${toneLabelText.toLowerCase()} tone and a ${citation.score.toFixed(1)} retrieval score.${terms}`;
+}
+
+function formatEvidenceReaderCitation(citation) {
+  return [
+    `${citation.citationId} - ${citation.company} (${citation.ticker})`,
+    `${citation.type} | ${citation.period} | ${citation.section}`,
+    `Source: ${getCitationSourceLabel(citation)} | Score: ${citation.score.toFixed(1)}`,
+    "",
+    citation.text
+  ].join("\n");
 }
 
 function buildChunks(docs) {
@@ -4915,7 +9385,7 @@ function makeCompanyTable(rankedCompanies) {
 function citationLink(index) {
   const citation = state.currentCitations[index];
   if (!citation) return "";
-  return `<a class="citation-link" href="#evidence-${escapeAttr(citation.citationId)}">${escapeHtml(citation.citationId)}</a>`;
+  return `<a class="citation-link" href="#evidence-${escapeAttr(citation.citationId)}" data-citation-id="${escapeAttr(citation.citationId)}" title="Open ${escapeAttr(citation.citationId)} in the evidence reader">${escapeHtml(citation.citationId)}</a>`;
 }
 
 function isCompareQuestion(question, citations) {
@@ -17768,6 +22238,677 @@ function exportPilotActivationBrief() {
   flashButtonLabel(els.exportPilotActivationBrief, "Exported");
 }
 
+function renderDeploymentDoctor() {
+  if (!els.deploymentDoctorMetricGrid) return;
+  if (!state.deploymentDoctorConfig) state.deploymentDoctorConfig = loadDeploymentDoctorConfig();
+  syncDeploymentDoctorInputs();
+  const snapshot = state.currentDeploymentDoctor || buildDeploymentDoctorSnapshot();
+  state.currentDeploymentDoctor = snapshot;
+  els.deploymentDoctorMetricGrid.innerHTML = [
+    { label: "Deploy score", value: `${snapshot.deployScore}/100`, sub: snapshot.statusLabel },
+    { label: "Broken files", value: String(snapshot.brokenCount), sub: snapshot.brokenCount ? "Needs repair" : "No file-shift signs" },
+    { label: "Cache bust", value: snapshot.cacheStatus, sub: snapshot.cacheNote },
+    { label: "Next step", value: snapshot.nextStep, sub: snapshot.config.environment }
+  ].map((metric) => `
+    <div class="deployment-metric ${escapeAttr(snapshot.deployScore >= 88 ? "normal" : snapshot.deployScore >= 68 ? "watch" : "high")}">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(String(metric.value))}</strong>
+      <em>${escapeHtml(metric.sub)}</em>
+    </div>
+  `).join("");
+  els.deploymentFileCount.textContent = String(snapshot.fileRows.length);
+  els.deploymentFileList.innerHTML = renderDeploymentFileRows(snapshot.fileRows);
+  els.deploymentRepairCount.textContent = String(snapshot.repairRows.length);
+  els.deploymentRepairList.innerHTML = renderDeploymentRepairRows(snapshot.repairRows);
+  els.deploymentChecklistCount.textContent = String(snapshot.checklistRows.length);
+  els.deploymentChecklistList.innerHTML = renderDeploymentChecklistRows(snapshot.checklistRows);
+}
+
+async function runDeploymentDoctorScan() {
+  if (!els.deploymentDoctorForm) return;
+  state.deploymentDoctorConfig = readDeploymentDoctorConfig();
+  saveDeploymentDoctorConfig();
+  state.currentDeploymentDoctor = buildDeploymentDoctorSnapshot(null, "scanning");
+  renderDeploymentDoctor();
+  flashButtonLabel(els.deploymentDoctorForm.querySelector("button[type='submit']"), "Scanning");
+  const config = normalizeDeploymentDoctorConfig(state.deploymentDoctorConfig);
+  const fileRows = await Promise.all(DEPLOYMENT_DOCTOR_FILES.map((file) => inspectDeploymentFile(file, config)));
+  state.currentDeploymentDoctor = buildDeploymentDoctorSnapshot(fileRows, "scanned");
+  renderDeploymentDoctor();
+  flashButtonLabel(els.deploymentDoctorForm.querySelector("button[type='submit']"), "Scanned");
+}
+
+async function inspectDeploymentFile(file, config) {
+  const url = makeDeploymentFileUrl(config.publicUrl, file.path);
+  try {
+    const response = await fetch(appendDeploymentNoCache(url), { cache: "no-store" });
+    if (!response.ok) {
+      return makeDeploymentFileRow(file, {
+        status: "Missing",
+        className: file.required ? "high" : "watch",
+        bytes: 0,
+        note: `HTTP ${response.status}. ${file.repair}`
+      });
+    }
+    const text = await response.text();
+    return analyzeDeploymentFileContent(file, text, response);
+  } catch (error) {
+    return makeDeploymentFileRow(file, {
+      status: "Blocked",
+      className: file.required ? "watch" : "normal",
+      bytes: 0,
+      note: `Browser could not fetch this file from ${config.environment.toLowerCase()}. Use GitHub Pages after upload for the strongest scan.`
+    });
+  }
+}
+
+function analyzeDeploymentFileContent(file, text, response) {
+  const lower = String(text || "").toLowerCase();
+  const bytes = text.length;
+  const markerHits = file.markers.filter((marker) => lower.includes(String(marker).toLowerCase()));
+  const antiHits = file.antiMarkers.filter((marker) => lower.includes(String(marker).toLowerCase()));
+  let status = "Healthy";
+  let className = "normal";
+  let note = `${formatDeploymentBytes(bytes)} loaded with ${markerHits.length}/${file.markers.length} expected markers.`;
+
+  if (antiHits.length) {
+    status = "Broken";
+    className = "high";
+    note = `Looks like the wrong file content is in ${file.path}: ${antiHits.slice(0, 2).join(", ")}. ${file.repair}`;
+  } else if (bytes < file.minBytes) {
+    status = "Thin";
+    className = file.required ? "high" : "watch";
+    note = `${formatDeploymentBytes(bytes)} is below the expected ${formatDeploymentBytes(file.minBytes)} floor. ${file.repair}`;
+  } else if (markerHits.length < Math.max(1, Math.ceil(file.markers.length * 0.67))) {
+    status = "Review";
+    className = file.required ? "watch" : "normal";
+    note = `Only ${markerHits.length}/${file.markers.length} markers matched. Confirm this is the current release file.`;
+  } else if (file.type === "json" && !isValidDeploymentJson(text)) {
+    status = "Review";
+    className = "watch";
+    note = "Manifest markers are present, but JSON parsing failed. Re-upload site.webmanifest from the version folder.";
+  } else if (response?.headers?.get("content-type")) {
+    note = `${formatDeploymentBytes(bytes)} loaded. Content type: ${response.headers.get("content-type")}.`;
+  }
+
+  return makeDeploymentFileRow(file, { status, className, bytes, note, markerHits: markerHits.length });
+}
+
+function makeDeploymentFileRow(file, overrides = {}) {
+  return {
+    path: file.path,
+    label: file.label,
+    required: file.required,
+    repair: file.repair,
+    status: overrides.status || "Pending",
+    className: overrides.className || "watch",
+    bytes: overrides.bytes || 0,
+    markerHits: overrides.markerHits || 0,
+    markerTotal: file.markers.length,
+    note: overrides.note || "Run the live scan to confirm this file is attached to the right repository path."
+  };
+}
+
+function buildDeploymentDoctorSnapshot(fileRows = null, scanStatus = "ready") {
+  const config = normalizeDeploymentDoctorConfig(state.deploymentDoctorConfig || getDefaultDeploymentDoctorConfig());
+  const rows = Array.isArray(fileRows) ? fileRows : DEPLOYMENT_DOCTOR_FILES.map((file) => makeDeploymentFileRow(file));
+  const assetRows = inspectDeploymentAssetTags(config.cacheTag);
+  const brokenRows = rows.filter((row) => row.className === "high" || row.status === "Broken" || row.status === "Missing");
+  const warningRows = rows.filter((row) => row.className === "watch");
+  const passedRows = rows.filter((row) => row.status === "Healthy");
+  const requiredRows = rows.filter((row) => row.required);
+  const requiredPasses = requiredRows.filter((row) => row.status === "Healthy").length;
+  const fileScore = scanStatus === "scanned"
+    ? Math.round((requiredPasses / Math.max(1, requiredRows.length)) * 100)
+    : 78;
+  const cacheScore = Math.round((assetRows.filter((row) => row.className === "normal").length / Math.max(1, assetRows.length)) * 100);
+  const deployScore = scanStatus === "scanning"
+    ? 55
+    : Math.max(1, Math.min(100, Math.round(fileScore * 0.68 + cacheScore * 0.32 - brokenRows.length * 6 - warningRows.length * 2)));
+  const repairRows = buildDeploymentRepairQueue(rows, assetRows, scanStatus);
+  const checklistRows = buildDeploymentChecklistRowsFromSnapshot(config, rows, assetRows);
+  const cacheCurrent = assetRows.filter((row) => row.requiresCurrent).every((row) => row.className === "normal");
+  return {
+    config,
+    scanStatus,
+    fileRows: rows,
+    assetRows,
+    repairRows,
+    checklistRows,
+    brokenCount: scanStatus === "scanned" ? brokenRows.length : 0,
+    deployScore,
+    statusLabel: scanStatus === "scanning" ? "Scanning live build" : deployScore >= 88 ? "Upload-ready" : deployScore >= 68 ? "Review before upload" : "Repair required",
+    cacheStatus: cacheCurrent ? "Ready" : "Review",
+    cacheNote: cacheCurrent ? `${config.cacheTag} active on app + launch CSS` : "Asset versions need a fresh tag",
+    nextStep: scanStatus === "ready" ? "Run scan" : brokenRows.length ? "Repair files" : cacheCurrent ? "Ship V95" : "Bump cache"
+  };
+}
+
+function inspectDeploymentAssetTags(expectedTag) {
+  const targets = [
+    { label: "app.js", selector: "script[src*='app.js']", attr: "src", requiresCurrent: true },
+    { label: "launch.css", selector: "link[href*='launch.css']", attr: "href", requiresCurrent: true },
+    { label: "styles.css", selector: "link[href*='styles.css']", attr: "href", requiresCurrent: false }
+  ];
+  return targets.map((target) => {
+    const node = document.querySelector(target.selector);
+    if (!node) {
+      return {
+        label: target.label,
+        status: "Missing",
+        className: "high",
+        requiresCurrent: target.requiresCurrent,
+        note: "The asset tag is missing from index.html."
+      };
+    }
+    const raw = node.getAttribute(target.attr) || "";
+    const version = readAssetVersion(raw);
+    const ok = target.requiresCurrent ? version === expectedTag : Boolean(version);
+    return {
+      label: target.label,
+      status: ok ? "Versioned" : "Review",
+      className: ok ? "normal" : "watch",
+      requiresCurrent: target.requiresCurrent,
+      note: version ? `${raw} uses v=${version}` : `${raw} has no cache-busting version.`
+    };
+  });
+}
+
+function buildDeploymentRepairQueue(fileRows, assetRows, scanStatus) {
+  if (scanStatus === "scanning") {
+    return [{
+      label: "Scanning",
+      className: "watch",
+      title: "Live fetch in progress",
+      body: "CiteAlpha is reading the deployed files with cache disabled."
+    }];
+  }
+  if (scanStatus !== "scanned") {
+    return [{
+      label: "First",
+      className: "watch",
+      title: "Run deployment scan",
+      body: "Scan the live GitHub Pages URL after upload to verify file names, content markers, and cache tags."
+    }];
+  }
+  const fileIssues = fileRows
+    .filter((row) => row.className !== "normal")
+    .map((row) => ({
+      label: row.className === "high" ? "Fix" : "Check",
+      className: row.className,
+      title: `${row.path} - ${row.status}`,
+      body: row.note
+    }));
+  const cacheIssues = assetRows
+    .filter((row) => row.className !== "normal")
+    .map((row) => ({
+      label: "Cache",
+      className: row.className,
+      title: `${row.label} version`,
+      body: row.note
+    }));
+  const rows = [...fileIssues, ...cacheIssues];
+  if (rows.length) return rows.slice(0, 10);
+  return [
+    {
+      label: "Ready",
+      className: "normal",
+      title: "No file-shift detected",
+      body: "The core app files look like the correct content at the correct paths."
+    },
+    {
+      label: "Verify",
+      className: "normal",
+      title: "Hard refresh live page",
+      body: "Open the site with a fresh ?v= tag and test the first research question plus PDF/MD export."
+    },
+    {
+      label: "Archive",
+      className: "normal",
+      title: "Keep the clean version zip",
+      body: "Store the release zip so the exact deployment can be restored later."
+    }
+  ];
+}
+
+function buildDeploymentChecklistRowsFromSnapshot(config, fileRows, assetRows) {
+  const dynamicRows = [
+    `Release: ${config.releaseLabel}`,
+    `Public URL: ${config.publicUrl}`,
+    `Cache tag: ${config.cacheTag}`,
+    `Required files healthy: ${fileRows.filter((row) => row.required && row.status === "Healthy").length}/${fileRows.filter((row) => row.required).length}`,
+    `Asset tags: ${assetRows.map((row) => `${row.label} ${row.status}`).join(", ")}`
+  ];
+  return [...dynamicRows, ...DEPLOYMENT_UPLOAD_CHECKLIST].map((body, index) => ({
+    label: index < dynamicRows.length ? "Audit" : String(index - dynamicRows.length + 1),
+    className: index < dynamicRows.length ? "normal" : "watch",
+    title: index < dynamicRows.length ? "Deployment fact" : "Upload step",
+    body
+  }));
+}
+
+function renderDeploymentFileRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No files checked</strong><span>Run a deployment scan to build file health.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="deployment-file-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.status)}</span>
+      <div>
+        <strong>${escapeHtml(row.path)}</strong>
+        <em>${escapeHtml(row.label)} | ${escapeHtml(row.bytes ? formatDeploymentBytes(row.bytes) : "not scanned")} | ${escapeHtml(row.note)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDeploymentRepairRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No repair items</strong><span>Run the scan to populate deployment repair work.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="deployment-repair-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDeploymentChecklistRows(rows) {
+  if (!rows.length) {
+    return `<div class="ops-empty"><strong>No checklist yet</strong><span>Run the doctor or copy the default upload checklist.</span></div>`;
+  }
+  return rows.map((row) => `
+    <div class="deployment-check-row ${escapeAttr(row.className || "normal")}">
+      <span>${escapeHtml(row.label)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <em>${escapeHtml(row.body)}</em>
+      </div>
+    </div>
+  `).join("");
+}
+
+function readDeploymentDoctorConfig() {
+  return normalizeDeploymentDoctorConfig({
+    releaseLabel: els.deploymentReleaseLabel.value,
+    environment: els.deploymentEnvironment.value,
+    cacheTag: els.deploymentCacheTag.value,
+    publicUrl: els.deploymentPublicUrl.value,
+    note: els.deploymentNote.value
+  });
+}
+
+function syncDeploymentDoctorInputs() {
+  if (!els.deploymentReleaseLabel) return;
+  const config = normalizeDeploymentDoctorConfig(state.deploymentDoctorConfig || getDefaultDeploymentDoctorConfig());
+  els.deploymentReleaseLabel.value = config.releaseLabel;
+  els.deploymentEnvironment.value = config.environment;
+  els.deploymentCacheTag.value = config.cacheTag;
+  els.deploymentPublicUrl.value = config.publicUrl;
+  els.deploymentNote.value = config.note;
+}
+
+function normalizeDeploymentDoctorConfig(config) {
+  const defaults = getDefaultDeploymentDoctorConfig();
+  const source = config || {};
+  return {
+    releaseLabel: String(source.releaseLabel || defaults.releaseLabel).slice(0, 80),
+    environment: normalizeChoice(source.environment, ["GitHub Pages", "Local preview", "Manual upload"], defaults.environment),
+    cacheTag: String(source.cacheTag || defaults.cacheTag).replace(/[^0-9A-Za-z._-]/g, "").slice(0, 32) || defaults.cacheTag,
+    publicUrl: normalizeDeploymentPublicUrl(source.publicUrl || defaults.publicUrl),
+    note: String(source.note || defaults.note).slice(0, 640)
+  };
+}
+
+function getDefaultDeploymentDoctorConfig() {
+  return {
+    releaseLabel: "CiteAlpha V95",
+    environment: "GitHub Pages",
+    cacheTag: "20260510-13",
+    publicUrl: "https://dhirajnyse.github.io/citealpha-research-desk/",
+    note: "Before every GitHub upload, scan the page and confirm index.html is HTML, app.js is JavaScript, CSS files are CSS, assets are nested under assets/, and version tags changed."
+  };
+}
+
+function loadDeploymentDoctorConfig() {
+  return normalizeDeploymentDoctorConfig(loadJson(STORAGE_KEYS.deploymentDoctor, getDefaultDeploymentDoctorConfig()));
+}
+
+function saveDeploymentDoctorConfig() {
+  saveJson(STORAGE_KEYS.deploymentDoctor, normalizeDeploymentDoctorConfig(state.deploymentDoctorConfig || getDefaultDeploymentDoctorConfig()));
+}
+
+function normalizeDeploymentPublicUrl(value) {
+  const fallback = getDefaultDeploymentDoctorConfig().publicUrl;
+  try {
+    const url = new URL(String(value || fallback), window.location.href);
+    return url.toString().slice(0, 220);
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function makeDeploymentFileUrl(publicUrl, path) {
+  const base = new URL(publicUrl || window.location.href, window.location.href);
+  base.hash = "";
+  base.search = "";
+  if (!base.pathname.endsWith("/")) {
+    base.pathname = base.pathname.replace(/[^/]*$/, "");
+  }
+  return new URL(path, base).toString();
+}
+
+function appendDeploymentNoCache(url) {
+  const target = new URL(url, window.location.href);
+  target.searchParams.set("doctor", String(Date.now()));
+  return target.toString();
+}
+
+function readAssetVersion(value) {
+  try {
+    return new URL(value, window.location.href).searchParams.get("v") || "";
+  } catch (error) {
+    const match = String(value || "").match(/[?&]v=([^&]+)/);
+    return match ? match[1] : "";
+  }
+}
+
+function isValidDeploymentJson(text) {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function formatDeploymentBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes >= 1000000) return `${(bytes / 1000000).toFixed(1)} MB`;
+  if (bytes >= 1000) return `${Math.round(bytes / 1000)} KB`;
+  return `${bytes} B`;
+}
+
+function buildDeploymentChecklistText(snapshot) {
+  const model = snapshot || buildDeploymentDoctorSnapshot();
+  return [
+    `CiteAlpha Deployment Doctor - ${model.config.releaseLabel}`,
+    "",
+    `Generated: ${new Date().toLocaleString()}`,
+    `Environment: ${model.config.environment}`,
+    `Public URL: ${model.config.publicUrl}`,
+    `Cache tag: ${model.config.cacheTag}`,
+    `Deploy score: ${model.deployScore}/100`,
+    `Broken files: ${model.brokenCount}`,
+    "",
+    "File health:",
+    ...model.fileRows.map((row) => `- ${row.status}: ${row.path} (${row.bytes ? formatDeploymentBytes(row.bytes) : "not scanned"}) - ${row.note}`),
+    "",
+    "Repair queue:",
+    ...model.repairRows.map((row) => `- ${row.label}: ${row.title} - ${row.body}`),
+    "",
+    "Upload checklist:",
+    ...model.checklistRows.map((row) => `- ${row.body}`),
+    "",
+    `Release note: ${model.config.note}`
+  ].join("\n");
+}
+
+function exportDeploymentDoctorBrief() {
+  const snapshot = state.currentDeploymentDoctor || buildDeploymentDoctorSnapshot();
+  const date = new Date().toISOString().slice(0, 10);
+  downloadTextFile(`citealpha-deployment-doctor-${date}.md`, buildDeploymentChecklistText(snapshot), "text/markdown;charset=utf-8");
+  flashButtonLabel(els.exportDeploymentDoctorBrief, "Exported");
+}
+
+function openProductTour(step = 0) {
+  if (!els.productTourLayer) return;
+  closeWorkspaceCommandPalette();
+  state.productTourOpen = true;
+  state.productTourStep = clampProductTourStep(step);
+  document.body.classList.add("product-tour-open");
+  els.productTourLayer.classList.add("is-open");
+  els.productTourLayer.setAttribute("aria-hidden", "false");
+  renderProductTour();
+  window.setTimeout(() => {
+    els.productTourNext?.focus();
+  }, 40);
+}
+
+function closeProductTour() {
+  if (!els.productTourLayer) return;
+  state.productTourOpen = false;
+  state.productTourSeen = true;
+  saveJson(STORAGE_KEYS.productTour, { seen: true, closedAt: new Date().toISOString() });
+  document.body.classList.remove("product-tour-open");
+  els.productTourLayer.classList.remove("is-open");
+  els.productTourLayer.setAttribute("aria-hidden", "true");
+  clearProductTourHighlight();
+  els.startProductTour?.focus();
+}
+
+function moveProductTour(delta) {
+  const nextStep = state.productTourStep + delta;
+  if (nextStep >= PRODUCT_TOUR_STEPS.length) {
+    closeProductTour();
+    return;
+  }
+  state.productTourStep = clampProductTourStep(nextStep);
+  renderProductTour();
+}
+
+function renderProductTour() {
+  const step = PRODUCT_TOUR_STEPS[state.productTourStep] || PRODUCT_TOUR_STEPS[0];
+  const total = PRODUCT_TOUR_STEPS.length;
+  const stepNumber = state.productTourStep + 1;
+  const progress = Math.round((stepNumber / total) * 100);
+
+  if (els.productTourStepLabel) els.productTourStepLabel.textContent = `${step.kicker} | Step ${stepNumber} of ${total}`;
+  if (els.productTourTitle) els.productTourTitle.textContent = step.title;
+  if (els.productTourBody) els.productTourBody.textContent = step.body;
+  if (els.productTourProgressBar) els.productTourProgressBar.style.width = `${progress}%`;
+  if (els.productTourChecklist) {
+    els.productTourChecklist.innerHTML = step.checks.map((item) => `
+      <span>${escapeHtml(item)}</span>
+    `).join("");
+  }
+  if (els.productTourBack) els.productTourBack.disabled = state.productTourStep === 0;
+  if (els.productTourNext) els.productTourNext.textContent = state.productTourStep === total - 1 ? "Finish" : "Next";
+  jumpToProductTourTarget({ scroll: true });
+}
+
+function jumpToProductTourTarget(options = {}) {
+  const { scroll = false } = options;
+  const step = PRODUCT_TOUR_STEPS[state.productTourStep] || PRODUCT_TOUR_STEPS[0];
+  clearProductTourHighlight();
+  const target = document.querySelector(step.target);
+  if (!target) return;
+  target.classList.add("product-tour-highlight");
+  if (scroll) {
+    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  }
+}
+
+function clearProductTourHighlight() {
+  document.querySelectorAll(".product-tour-highlight").forEach((node) => {
+    node.classList.remove("product-tour-highlight");
+  });
+}
+
+function clampProductTourStep(step) {
+  const numericStep = Number.isFinite(Number(step)) ? Number(step) : 0;
+  return Math.max(0, Math.min(PRODUCT_TOUR_STEPS.length - 1, numericStep));
+}
+
+function handleWorkspaceCommandKeydown(event) {
+  const key = String(event.key || "").toLowerCase();
+  if (state.evidenceReaderOpen && key === "escape") {
+    event.preventDefault();
+    closeEvidenceReader();
+    return;
+  }
+  if (state.evidenceReaderOpen && key === "arrowright") {
+    event.preventDefault();
+    moveEvidenceReader(1);
+    return;
+  }
+  if (state.evidenceReaderOpen && key === "arrowleft") {
+    event.preventDefault();
+    moveEvidenceReader(-1);
+    return;
+  }
+  if (state.productTourOpen && key === "escape") {
+    event.preventDefault();
+    closeProductTour();
+    return;
+  }
+  if (state.productTourOpen && (key === "arrowright" || key === "enter")) {
+    event.preventDefault();
+    moveProductTour(1);
+    return;
+  }
+  if (state.productTourOpen && key === "arrowleft") {
+    event.preventDefault();
+    moveProductTour(-1);
+    return;
+  }
+  const shortcut = (event.ctrlKey || event.metaKey) && key === "k";
+  if (shortcut) {
+    event.preventDefault();
+    state.workspaceCommandOpen ? closeWorkspaceCommandPalette() : openWorkspaceCommandPalette();
+    return;
+  }
+  if (key === "escape" && state.workspaceCommandOpen) {
+    event.preventDefault();
+    closeWorkspaceCommandPalette();
+  }
+}
+
+function openWorkspaceCommandPalette(query = "") {
+  if (!els.workspaceCommandModal) return;
+  state.workspaceCommandOpen = true;
+  document.body.classList.add("workspace-command-open");
+  els.workspaceCommandModal.classList.add("is-open");
+  els.workspaceCommandModal.setAttribute("aria-hidden", "false");
+  if (els.workspaceCommandSearch) {
+    els.workspaceCommandSearch.value = query;
+  }
+  renderWorkspaceCommandList();
+  window.setTimeout(() => {
+    els.workspaceCommandSearch?.focus();
+    els.workspaceCommandSearch?.select();
+  }, 30);
+}
+
+function closeWorkspaceCommandPalette() {
+  if (!els.workspaceCommandModal) return;
+  state.workspaceCommandOpen = false;
+  document.body.classList.remove("workspace-command-open");
+  els.workspaceCommandModal.classList.remove("is-open");
+  els.workspaceCommandModal.setAttribute("aria-hidden", "true");
+  els.workspaceCommandTrigger?.focus();
+}
+
+function renderWorkspaceCommandList() {
+  if (!els.workspaceCommandList) return;
+  const query = String(els.workspaceCommandSearch?.value || "").trim().toLowerCase();
+  const terms = query.split(/\s+/).filter(Boolean);
+  const items = getWorkspaceCommandItems();
+  const filtered = terms.length
+    ? items.filter((item) => terms.every((term) => item.search.includes(term)))
+    : items;
+  if (!filtered.length) {
+    els.workspaceCommandList.innerHTML = `
+      <div class="workspace-command-empty">
+        <span>Empty</span>
+        <div>
+          <strong>No room found</strong>
+          <em>Try deployment, portfolio, pricing, risk, PDF, or filings.</em>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  els.workspaceCommandList.innerHTML = filtered.slice(0, 42).map((item) => `
+    <button class="workspace-command-row" type="button" data-command-target="${escapeAttr(item.target)}">
+      <span>${escapeHtml(item.kicker)}</span>
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <em>${escapeHtml(item.description)}</em>
+      </div>
+    </button>
+  `).join("");
+}
+
+function getWorkspaceCommandItems() {
+  const items = [
+    {
+      target: "top",
+      kicker: "Home",
+      title: "Top of CiteAlpha",
+      description: "Return to the hero, primary actions, and first impression.",
+      keywords: "home top hero ask filings start"
+    },
+    {
+      target: "desk",
+      kicker: "Research",
+      title: "Research desk",
+      description: "Ask filings, run analysis, scan filing, and review evidence.",
+      keywords: WORKSPACE_COMMAND_KEYWORDS.desk
+    }
+  ];
+
+  document.querySelectorAll(".launch-section[id]").forEach((section) => {
+    const id = section.id;
+    const heading = section.querySelector("h2");
+    const eyebrow = section.querySelector(".section-heading span");
+    const copy = section.querySelector(".section-heading p");
+    const title = cleanWorkspaceText(heading?.textContent || id.replace(/-/g, " "));
+    const kicker = cleanWorkspaceText(eyebrow?.textContent || "Workspace");
+    const description = cleanWorkspaceText(copy?.textContent || `Jump to ${title}.`);
+    items.push({
+      target: id,
+      kicker,
+      title,
+      description,
+      keywords: `${id.replace(/-/g, " ")} ${WORKSPACE_COMMAND_KEYWORDS[id] || ""}`
+    });
+  });
+
+  return items.map((item) => ({
+    ...item,
+    search: `${item.target} ${item.kicker} ${item.title} ${item.description} ${item.keywords}`.toLowerCase()
+  }));
+}
+
+function cleanWorkspaceText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function jumpToWorkspaceCommandTarget(target) {
+  closeWorkspaceCommandPalette();
+  if (target === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  const element = document.getElementById(target);
+  if (!element) return;
+  element.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateBackToTopVisibility() {
+  if (!els.backToTop) return;
+  const threshold = Math.max(520, Math.round(window.innerHeight * 0.78));
+  const isVisible = window.scrollY > threshold;
+  els.backToTop.classList.toggle("is-visible", isVisible);
+  els.backToTop.setAttribute("aria-hidden", isVisible ? "false" : "true");
+  els.backToTop.tabIndex = isVisible ? 0 : -1;
+}
+
 function exportFounderBrief() {
   const snapshot = buildOpsSnapshot();
   const date = new Date().toISOString().slice(0, 10);
@@ -19295,6 +24436,12 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
+function cssEscape(value) {
+  const text = String(value || "");
+  if (window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(text);
+  return text.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
 }
 
 function loadJson(key, fallback) {
